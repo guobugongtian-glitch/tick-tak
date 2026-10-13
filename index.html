@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Watch Stock</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1d2330">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watch Stock">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--sub:#6b7280;--line:#e3e6ea;--accent:#2563eb;--warn:#f5b301;--ok:#16a34a;--bad:#dc2626}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,"Hiragino Sans",sans-serif}
+header{display:flex;gap:4px;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header b{margin-right:12px}
+nav button{background:none;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;font:inherit;color:var(--sub)}
+nav button.on{background:#e8efff;color:var(--accent);font-weight:600}
+main{padding:16px;max-width:1200px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0}
+.chip{border:0;border-radius:6px;padding:6px 12px;background:#6b7280;color:#fff;cursor:pointer;font:inherit}
+.chip.on{background:var(--warn);color:#222}
+input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:60px}
+.btn{border:0;border-radius:6px;padding:7px 14px;background:var(--accent);color:#fff;cursor:pointer;font:inherit}
+.btn.g{background:var(--ok)}.btn.s{background:#e5e7eb;color:var(--ink)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;background:var(--card)}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+th{background:#f1f3f5;font-weight:600;white-space:nowrap}
+td.n,th.n{text-align:right;white-space:nowrap}
+a.k{color:var(--accent);cursor:pointer}
+.sub{color:var(--sub);font-size:12px}
+.neg{color:var(--bad)}
+dialog{border:0;border-radius:12px;padding:0;width:min(720px,96vw);max-height:92vh}
+dialog::backdrop{background:#0006}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+.db{padding:12px 16px}
+.df{display:flex;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--line);position:sticky;bottom:0;background:#fff}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:10px 12px}
+legend{font-weight:600;padding:0 4px}
+.g2{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.g2 label{display:flex;flex-direction:column;font-size:12px;color:var(--sub)}
+.g2 label input,.g2 label select{color:var(--ink);font-size:14px}
+.profit{font-weight:700;font-size:16px}
+#login{max-width:360px;margin:80px auto}
+.hide{display:none!important}
+.fab{display:none}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+fieldset{min-width:0}
+input[type=file]{max-width:100%}
+/* スマホ：下にタブ、登録画面は全画面、商品一覧はカード */
+@media (max-width:700px){
+  body{font-size:15px;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  input,select,textarea{font-size:16px;padding:10px}
+  .btn,.chip{min-height:42px;padding:9px 14px}
+  header{padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top))}
+  header b{font-size:16px}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;overflow-x:auto;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+  nav button{flex:0 0 auto;padding:10px 12px;white-space:nowrap;font-size:13px}
+  main{padding:10px}
+  .card{padding:12px}
+  dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
+  .dh{padding-top:calc(12px + env(safe-area-inset-top))}
+  .df{flex-wrap:wrap;gap:8px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  .df .btn{flex:1 1 46%;min-height:40px;padding:6px 8px;font-size:13px}
+  .df .btn.s:last-child{display:none}
+  .df #dmsg{flex:1 1 100%;order:9}
+  .g2 label input,.g2 label select{min-width:0;width:100%}
+  .db{padding:10px}
+  textarea{min-height:80px}
+  .g2{grid-template-columns:1fr 1fr}
+  #v-items thead{display:none}
+  #v-items table,#v-items tbody{display:block}
+  #v-items tr{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:2px 10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+  #v-items td{border:0;padding:0;min-width:0;overflow-wrap:anywhere}
+  #v-items td.n{white-space:normal;text-align:right}
+  html,body{max-width:100vw;overflow-x:hidden}
+  #v-items td:nth-child(1){grid-row:1 / span 3}
+  #v-items td:nth-child(2){font-weight:700}
+  #v-items td:nth-child(3){grid-column:3;grid-row:1;color:var(--sub);font-size:12px}
+  #v-items td:nth-child(4){grid-column:3;grid-row:2;font-size:12px}
+  #v-items td:nth-child(5){grid-column:2;grid-row:2 / span 2;font-size:13px}
+  #v-items td:nth-child(6){grid-column:3;grid-row:3;font-weight:700}
+  #v-items td:nth-child(7),#v-items td:nth-child(8){display:none}
+  .fab{display:flex;position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:7;width:60px;height:60px;border-radius:30px;border:0;background:var(--ok);color:#fff;font-size:30px;align-items:center;justify-content:center;box-shadow:0 4px 14px #0004}
+}
+</style>
+</head>
+<body>
+
+<div id="login" class="card hide">
+  <h3>Watch Stock ログイン</h3>
+  <div class="row"><input id="em" type="email" placeholder="メールアドレス" style="flex:1"></div>
+  <div class="row"><input id="pw" type="password" placeholder="パスワード" style="flex:1"></div>
+  <div class="row"><button class="btn" onclick="login()">ログイン</button><span id="lmsg" class="sub"></span></div>
+</div>
+
+<div id="app" class="hide">
+<header>
+  <b>Watch Stock</b>
+  <nav>
+    <button data-v="items" class="on">商品管理</button>
+    <button data-v="research">リサーチ</button>
+    <button data-v="pf">実績確認</button>
+    <button data-v="cash">収支計算表</button>
+    <button data-v="card">カード明細</button>
+    <button data-v="bank">銀行明細</button>
+    <button data-v="orders">販売情報</button>
+    <button data-v="io">取込/設定</button>
+  </nav>
+</header>
+<button class="fab" onclick="openItem()" aria-label="商品を登録">＋</button>
+<main>
+
+<!-- 商品管理 -->
+<section id="v-items">
+  <div class="card">
+    <div class="row">ステータス：<span id="f1"></span></div>
+    <div class="row" id="f2w">詳細状態：<span id="f2"></span></div>
+    <div class="row" id="f3w">詳細状態2：<span id="f3"></span></div>
+    <div class="row">キーワード：<input id="kw" placeholder="品番・タイトル・型番" style="flex:1;max-width:340px">
+      <button class="btn" onclick="loadItems()">検索</button>
+      <span style="flex:1"></span>
+      <button class="btn g" onclick="openItem()">＋ 登録</button></div>
+  </div>
+  <div class="row sub"><span id="cnt"></span></div>
+  <div class="tbl"><table>
+    <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価(送料)</th><th class="n">仕入値</th><th class="n">想定利益</th></tr></thead>
+    <tbody id="itbody"></tbody>
+  </table></div>
+</section>
+
+<!-- リサーチ -->
+<section id="v-research" class="hide">
+  <div class="card">
+    <h3 style="margin-top:0">利益計算</h3>
+    <div class="g2">
+      <label>売価 ($)<input id="r_price" type="number" step="0.01" oninput="calcR()"></label>
+      <label>送料 ($)<input id="r_ship" type="number" step="0.01" value="30" oninput="calcR()"></label>
+      <label>仕入値 (円)<input id="r_cost" type="number" oninput="calcR()"></label>
+      <label>実送料 (円)<input id="r_actship" type="number" oninput="calcR()"></label>
+    </div>
+    <p class="profit" id="r_out">—</p>
+    <p class="sub">手数料率・為替は「取込/設定」で変更。数字はeBayStockの計算式とずれる可能性あり（実データ照合後に合わせ込む）。</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">型番ごとの実績</h3>
+    <div class="row"><input id="rkw" placeholder="型番・ブランド" oninput="loadResearch()"></div>
+    <div class="tbl"><table><thead><tr><th>型番</th><th class="n">在庫</th><th class="n">販売</th><th class="n">平均売価</th><th class="n">平均利益</th><th class="n">回転(中央値日)</th></tr></thead><tbody id="rbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- 実績確認 -->
+<section id="v-pf" class="hide">
+  <div class="card row">表示：<select id="pfm"></select> から <select id="pfn"><option>1</option><option selected>3</option><option>6</option><option>12</option></select> ヶ月
+    <button class="btn" onclick="loadPf()">表示</button></div>
+  <div class="tbl"><table id="pft"></table></div>
+</section>
+
+<!-- 収支計算表 -->
+<section id="v-cash" class="hide">
+  <div class="card row">
+    <button class="chip on" id="cmode-cf" onclick="CMODE='cf';loadCash()">現金収支（引き落とし基準）</button>
+    <button class="chip" id="cmode-pl" onclick="CMODE='pl';loadCash()">事業のもうけ</button>
+    <span style="width:12px"></span>表示：<select id="cm"></select> から <select id="cn"><option>3</option><option selected>6</option><option>12</option></select> ヶ月
+    <button class="btn" onclick="loadCash()">表示</button>
+    <span class="sub">白いマスは入力できます（自動保存）。灰色の斜体は「毎月の定額」を当てている月。</span></div>
+  <div class="tbl"><table id="ct"></table></div>
+  <p class="sub" id="cnote-pl">在庫の増減＝売れた商品の原価 − その月に仕入れた額。マイナスなら仕入れすぎて現金が在庫に寝た分、プラスなら在庫が現金に戻った分。</p>
+  <p class="sub" id="cnote-cf">カードの行は「カード明細」に取り込んだ明細から、引き落とし月で自動集計。明細が無いカードはマスに直接入力。カッコ内は中身の内訳。</p>
+</section>
+
+<!-- 銀行明細 -->
+<section id="v-bank" class="hide">
+  <div class="card">
+    <div class="sub">銀行アプリの入出金明細をコピーしてそのまま貼り付け（「入金/出金・日時・内容・金額・残高」の並び）。同じ取引は二重に入らない。</div>
+    <textarea id="bankp" style="min-height:140px;margin-top:6px" placeholder="入金&#10;2026/10/01 00:47:24&#10;決算お利息 9月分&#10;705円&#10;残高：&#10;1,866,710円&#10;…"></textarea>
+    <div class="row"><button class="btn" onclick="importBank(bankp.value)">取り込む</button><span id="bankmsg" class="sub"></span></div>
+  </div>
+  <div class="card row">月：<select id="bkm"></select> <button class="btn" onclick="loadBank()">表示</button><span id="bksum" class="sub"></span></div>
+  <div class="tbl"><table><thead><tr><th>日時</th><th>内容</th><th class=n>入金</th><th class=n>出金</th><th class=n>残高</th><th>区分</th></tr></thead><tbody id="bkbody"></tbody></table></div>
+  <p class="sub">区分を直すと同じ内容の取引もまとめて直り、次回からその区分になる。</p>
+</section>
+
+<!-- カード明細 -->
+<section id="v-card" class="hide">
+  <div class="card">
+    <div class="row">明細CSVを取り込む：<input type="file" id="cardf" accept=".csv" multiple><button class="btn" onclick="importCardFiles([...cardf.files])">取り込む</button>
+      <span id="cardmsg" class="sub"></span></div>
+    <p class="sub" style="margin:4px 0 0">楽天（enavi）・PayPay（detail）・三井住友＝Amazonマスター（YYYYMM.csv）・JCB（meisai）。何枚でもまとめて選べる。同じ明細は二重に入らない。</p>
+  </div>
+  <div class="card row">引き落とし月：<select id="cdm"></select>
+    カード：<select id="cdc"><option value="">すべて</option></select>
+    区分：<select id="cdk"><option value="">すべて</option></select>
+    <button class="btn" onclick="loadCard()">表示</button></div>
+  <div class="tbl"><table id="cdsum"></table></div>
+  <p class="sub">区分を直すと、同じ店名の明細もまとめて直り、次回の取り込みからその区分になる。</p>
+  <div class="tbl"><table><thead><tr><th>利用日</th><th>カード</th><th>利用店名</th><th class=n>金額</th><th>区分</th></tr></thead><tbody id="cdbody"></tbody></table></div>
+</section>
+
+<!-- 販売情報 -->
+<section id="v-orders" class="hide">
+  <div class="card row">期間：<input type="month" id="om"><button class="btn" onclick="loadOrders()">表示</button>
+    <label><input type="checkbox" id="onp"> 未処理のみ</label></div>
+  <div class="tbl"><table><thead><tr><th>注文日</th><th>注文番号</th><th>品番</th><th>販路</th><th class="n">商品価格</th><th class="n">販売送料</th><th class="n">実送料</th><th class="n">関税</th><th>国</th><th>状態</th></tr></thead><tbody id="obody"></tbody></table></div>
+</section>
+
+<!-- 取込/設定 -->
+<section id="v-io" class="hide">
+  <div class="card">
+    <h3 style="margin-top:0">CSVを取り込む</h3>
+    <p class="sub">eBayStockの「実績明細」「出品中一覧」、手持ちの「収支計算表」のCSVを選ぶ（まとめて選んでよい）。同じ品番・同じ月は上書き。</p>
+    <input type="file" id="csv" accept=".csv" multiple><button class="btn" onclick="importCsv()">取り込む</button>
+    <p id="iomsg" class="sub"></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">売れた商品を型番につなぐ</h3>
+    <p class="sub">型番がまだ付いていない商品を、タイトルに型番（Reference Number）が含まれるかで探してつなぎます。すでに型番が付いている商品は変えません。つなぐと、登録画面でその型の販売実績が出ます。</p>
+    <button class="btn" onclick="linkResearch()">つなぐ</button><span id="lkmsg" class="sub"></span>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">説明文のひな形</h3>
+    <p class="sub">出品の説明文の型。{title} {condition} {condition_note} {appearance} {accessories} {specs} の場所に商品の中身が入ります。</p>
+    <textarea id="desctpl" style="width:100%;height:180px;font-family:monospace"></textarea>
+    <div class="row"><button class="btn" onclick="saveDescTpl()">保存（この端末）</button><button class="btn s" onclick="desctpl.value=DESC_DEFAULT">最初の形に戻す</button><span id="dtmsg" class="sub"></span></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">出品の下書きを読み込む</h3>
+    <p class="sub">Claudeが写真から作った下書き（出品待ち/下書き.json）を選ぶ。新しい品番で「保管・出品待ち」として入り、商品管理で直せます。</p>
+    <input type="file" id="djson" accept=".json"><button class="btn" onclick="importDrafts()">読み込む</button>
+    <p id="djmsg" class="sub"></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">eBayとの接続</h3>
+    <p id="ebmsg" class="sub">確認していません</p>
+    <div class="row"><button class="btn" onclick="ebayConnect()">eBayと接続する</button><button class="btn s" onclick="ebayStatus()">接続を確認</button><button class="btn s" onclick="ebaySync()">出品中の写真を取り込む</button></div>
+    <div id="ebpol" class="sub"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">計算の設定</h3>
+    <div class="g2">
+      <label>為替 (円/$)<input id="s_fx" type="number" step="0.01"></label>
+      <label>eBay手数料率 (%)<input id="s_fee" type="number" step="0.01"></label>
+      <label>Payoneer手数料 (%)<input id="s_pay" type="number" step="0.01"></label>
+      <label>実送料の目安 (円)<input id="s_ship" type="number"></label>
+    </div>
+    <div class="row"><button class="btn" onclick="saveSettings()">保存（この端末）</button></div>
+  </div>
+  <div class="card row"><button class="btn s" onclick="sb.auth.signOut().then(()=>location.reload())">ログアウト</button></div>
+</section>
+
+</main>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="ifm" onsubmit="return false">
+  <div class="dh"><b id="dtitle">商品登録</b><button class="btn s" onclick="dlg.close()">✕</button></div>
+  <div class="db">
+    <fieldset><legend>写真（1枚目が表紙）</legend>
+      <div id="iphotos" class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-start"></div>
+      <div class="row"><input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)"><span id="pmsg" class="sub"></span></div>
+    </fieldset>
+    <fieldset><legend>基本</legend><div class="g2">
+      <label>品番(SKU)*<input name="kno" type="number" required></label>
+      <label>型番(リサーチデータ名)<input name="research_name" list="rlist" onchange="showPast()"></label>
+      <label>ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
+      <label>保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
+      <label>保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
+      <label>コンディション<select name="condition"></select></label>
+    </div>
+    <div class="row"><button class="btn" type="button" onclick="fillFromPast()">過去の出品から入れる</button><span id="rhint" class="sub"></span></div>
+    <div id="rpast" class="sub" style="line-height:1.6"></div></fieldset>
+    <fieldset><legend>利益計算</legend><div class="g2">
+      <label>売価 ($)<input name="price_usd" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
+      <label>配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="30" oninput="calcI()"></label>
+      <label>仕入値 (円)<input name="cost_jpy" type="number" oninput="calcI()"></label>
+    </div><p class="profit" id="iprofit">—</p></fieldset>
+    <fieldset><legend>仕入情報</legend><div class="g2">
+      <label>仕入日<input name="purchased_on" type="date"></label>
+      <label>仕入先<select name="supplier"><option></option><option>ヤフオク</option><option>メルカリ</option><option>ラクマ</option><option>キタムラ</option><option>ハードオフ</option><option>仕入れツアー</option><option>その他</option></select></label>
+      <label>仕入先URL<input name="supplier_url"></label>
+    </div></fieldset>
+    <fieldset><legend>出品情報</legend>
+      <label class="sub">出品タイトル（<span id="tlen">0</span>/80）</label>
+      <input name="title" maxlength="80" style="width:100%" oninput="tlen.textContent=this.value.length">
+      <div class="g2" style="margin-top:8px">
+        <label>シリアルNo<input name="serial_no"></label>
+        <label>配送サービス<input name="shipping_service" value="FedEx International Priority"></label>
+        <label>送料ポリシー（売価で自動）<input name="shipping_policy" list="plist"></label>
+        <label>ストアカテゴリ1<input name="store_cat1"></label>
+        <label>出品日<input name="listed_on" type="date"></label>
+        <label>販売日<input name="sold_on" type="date"></label>
+        <label>出品URL<input name="listing_url"></label>
+      </div>
+      <label class="sub">コンディション補足</label><textarea name="condition_note"></textarea>
+      <label class="sub">外観補足</label><textarea name="appearance_note"></textarea>
+      <label class="sub">付属品</label><textarea name="accessories"></textarea>
+    </fieldset>
+    <fieldset><legend>アイテムスペック</legend><div class="g2" id="specs"></div></fieldset>
+    <label class="sub">商品備考</label><textarea name="memo"></textarea>
+  </div>
+  <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
+  <div class="df"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn" type="button" id="pubbtn" style="background:#b91c1c" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+</form></dialog>
+<datalist id="rlist"></datalist><datalist id="plist"></datalist>
+
+<script>
+// ← Supabaseの値に差し替える
+const SUPABASE_URL = 'https://wmxzpyeqxtavtbjowylm.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndteHpweWVxeHRhdnRiam93eWxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzI4NjEsImV4cCI6MjEwNzQ0ODg2MX0.q7seks6i0x6alH4n_I32vgyK2gxdn7I405fwSAA5SkQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CONDS = ['Unused','Almost Unused','Top MINT','MINT','Almost MINT','Near MINT','Exc+5','Exc+4','Exc+3','Exc','As-Is','For Parts','Brand New'];
+const SPECS = ['Brand','Department','Type','Reference Number','Model','Style','Band Material','Display','Case Material','Water Resistance','Year Manufactured','With Papers','With Original Box/Packaging','Indices','Case Size','Case Thickness','Movement','Dial Color','Closure'];
+const ST = {stock:'保管',listed:'出品',sold:'販売'};
+const yen = n => n==null||isNaN(n) ? '—' : Math.round(n).toLocaleString('ja-JP');
+const $ = id => document.getElementById(id);
+
+// 設定（この端末に保存）
+function getS(){ let s={}; try{ s=JSON.parse(localStorage.getItem('ws_settings')||'{}') }catch(e){}
+  return {fx:s.fx??150, fee:s.fee??15, pay:s.pay??2, ship:s.ship??3000}; }
+function saveSettings(){ const s={fx:+s_fx.value,fee:+s_fee.value,pay:+s_pay.value,ship:+s_ship.value};
+  try{ localStorage.setItem('ws_settings',JSON.stringify(s)) }catch(e){} alert('保存しました'); }
+function profit(priceUsd, shipUsd, cost, actShip){
+  const s=getS(); const gross=(+priceUsd + +(shipUsd||0))*s.fx;
+  if(!priceUsd||!cost) return null;
+  const p = gross - gross*s.fee/100 - gross*s.pay/100 - cost - (actShip ?? s.ship);
+  return {p, r: p/gross*100};
+}
+const fmtP = x => x ? `利益 ${yen(x.p)}円 (${x.r.toFixed(0)}%)` : '—';
+
+// ログイン
+async function login(){ const {error}=await sb.auth.signInWithPassword({email:em.value,password:pw.value});
+  if(error){ lmsg.textContent='ログインできません：'+error.message; return } boot(); }
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ $('login').classList.remove('hide'); return }
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl();
+}
+
+// 1回で1000件までしか返らないので、全部そろうまで続きを読む
+async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
+  if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
+
+// 画面切替
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
+  ({items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders})[b.dataset.v]?.();
+});
+
+// 商品管理：3段の絞り込み
+const F = {status:'stock', location:'ワンロック', location_status:null};
+function chips(el, opts, key, after){
+  el.innerHTML=''; opts.forEach(o=>{ const b=document.createElement('button'); b.className='chip'+(F[key]===o.v?' on':'');
+    b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key==='location_status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
+}
+async function initFilters(){
+  const counts = {};
+  const data = await allRows(()=>sb.from('items').select('status,location,location_status').order('kno'));
+  data.forEach(r=>{ counts[r.status]=(counts[r.status]||0)+1;
+    if(r.status==='stock'){ counts['L:'+r.location]=(counts['L:'+r.location]||0)+1;
+      if(r.location===F.location) counts['S:'+r.location_status]=(counts['S:'+r.location_status]||0)+1; } });
+  chips(f1, Object.entries(ST).map(([v,t])=>({v,t:`${t}(${counts[v]||0})`})), 'status', ()=>{F.location_status=null});
+  const isStock = F.status==='stock';
+  f2w.classList.toggle('hide',!isStock); f3w.classList.toggle('hide',!isStock||F.location!=='ワンロック');
+  chips(f2, ['ネット仕入待ち','自宅','ワンロック'].map(v=>({v,t:`${v}(${counts['L:'+v]||0})`})), 'location', ()=>{F.location_status=null});
+  chips(f3, ['ラベル発行待ち','ラベル発行済','出品待ち','出品中'].map(v=>({v,t:`${v}(${counts['S:'+v]||0})`})), 'location_status');
+}
+let RES = {};
+async function loadItems(){
+  let q = sb.from('items').select('*,research(name)').eq('status',F.status).order('purchased_on',{ascending:false}).limit(500);
+  if(F.status==='stock'){ q=q.eq('location',F.location); if(F.location_status) q=q.eq('location_status',F.location_status); }
+  const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
+  const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
+  cnt.textContent = `${data.length}件を表示しています。`;
+  itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
+    const ph=r.photos?.[0]; const img=ph?`<a href="${r.listing_url||ph}" target="_blank" rel="noopener"><img src="${ph}" loading="lazy" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block"></a>`:'';
+    return `<tr><td>${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||''}</td>
+    <td class=n>${r.price_usd?'$'+r.price_usd:''}${r.shipping_usd?` ($${r.shipping_usd})`:''}</td>
+    <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td></tr>` }).join('');
+}
+
+// 登録/更新
+function initDialog(){
+  ifm.condition.innerHTML = CONDS.map(c=>`<option>${c}</option>`).join('');
+  renderSpecs({});
+}
+// スペック欄：決まった項目＋その商品（または手本）が持っている項目
+function renderSpecs(o){ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const keys=[...new Set([...SPECS,...Object.keys(o||{})])];
+  specs.innerHTML=keys.map(s=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}"></label>`).join(''); }
+let POLICIES=[];
+// 送料ポリシーは名前に価格帯が入っている（SpeedPak 301-400 など）。売価が入ったら合うものを選ぶ
+function pickPolicy(){ const p=+ifm.price_usd.value; if(!p) return;
+  const hit=POLICIES.find(n=>{ const m=n.match(/(\d+)\s*-\s*(\d+)/); return m&&p>=+m[1]&&p<=+m[2]+0.99 }); if(hit) ifm.shipping_policy.value=hit; }
+// 型番を選んだら、その型の過去の出品と販売実績を出す
+let PAST=[];
+async function showPast(){ rhint.textContent=''; rpast.innerHTML=''; PAST=[]; const id=RES[ifm.research_name.value.trim()]; if(!id) return;
+  const {data}=await sb.from('items').select('kno,status,title,price_usd,shipping_policy,condition,condition_note,specs,ebay,listed_on,sold_on,store_cat1,orders(sales_usd)').eq('research_id',id).order('kno',{ascending:false}).limit(60);
+  PAST=(data||[]).filter(r=>r.kno!==+ifm.kno.value);
+  const sold=PAST.filter(r=>r.status==='sold'&&r.orders?.[0]?.sales_usd), ps=sold.map(r=>+r.orders[0].sales_usd).sort((a,b)=>a-b);
+  const days=r=>r.listed_on&&r.sold_on?Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5)+'日':'';
+  const now=PAST.filter(r=>r.status==='listed'&&r.price_usd);
+  rpast.innerHTML=(ps.length?`販売実績 ${ps.length}本（送料込み）：中央 $${ps[Math.floor(ps.length/2)]}／最安 $${ps[0]}／最高 $${ps[ps.length-1]}<br>最近：${sold.slice(0,4).map(r=>`$${r.orders[0].sales_usd} ${r.condition||''} ${r.sold_on||''} ${days(r)}`).join('、')}`:'この型番の販売実績はまだありません')
+    +(now.length?`<br>いま出品中：${now.slice(0,4).map(r=>`$${r.price_usd} ${r.condition||''}（品番${r.kno}）`).join('、')}`:''); }
+function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
+  if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
+  const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
+  ifm.title.value=(`[${cond}] `+base).slice(0,80); tlen.textContent=ifm.title.value.length;
+  renderSpecs(src.specs||{});
+  if(!ifm.price_usd.value&&src.price_usd) ifm.price_usd.value=src.price_usd;
+  if(src.shipping_policy) ifm.shipping_policy.value=src.shipping_policy; pickPolicy();
+  if(src.store_cat1||src.ebay?.store_cat) ifm.store_cat1.value=src.store_cat1||src.ebay.store_cat;
+  if(!ifm.condition_note.value) ifm.condition_note.value=src.condition_note||src.ebay?.condition_desc||'';
+  calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
+async function openItem(kno){
+  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  if(!POLICIES.length){ const ps=await allRows(()=>sb.from('items').select('shipping_policy').not('shipping_policy','is',null).order('kno'));
+    POLICIES=[...new Set(ps.map(x=>x.shipping_policy))].sort(); plist.innerHTML=POLICIES.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join(''); }
+  const {data:rs} = await sb.from('research').select('id,name').order('name');
+  RES = Object.fromEntries((rs||[]).map(r=>[r.name,r.id])); rlist.innerHTML=(rs||[]).map(r=>`<option value="${r.name}">`).join('');
+  if(kno){ const {data:r} = await sb.from('items').select('*,research(name)').eq('kno',kno).single();
+    dtitle.textContent='商品更新 '+kno; ifm.kno.readOnly=true;
+    for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
+    ifm.research_name.value=r.research?.name||'';
+    renderSpecs(r.specs||{});
+    PH=[...(r.photos||[])]; drawPhotos();
+  } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
+    const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
+    ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT'; }
+  tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
+}
+function calcI(){ $('iprofit').textContent=fmtP(profit(ifm.price_usd.value,ifm.shipping_usd.value,ifm.cost_jpy.value)); }
+// 写真：並べ替え・外す・追加（追加はパソコンの写真を小さくしてから写真置き場へ送る）
+let PH=[];
+function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div style="text-align:center"><a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" alt="" style="width:84px;height:84px;object-fit:cover;border-radius:6px;display:block;${i===0?'outline:3px solid #2563eb':''}"></a>
+    <button type="button" class="chip" onclick="movePhoto(${i},-1)" title="前へ">◀</button><button type="button" class="chip" onclick="movePhoto(${i},1)" title="後ろへ">▶</button><button type="button" class="chip" onclick="dropPhoto(${i})" title="この商品から外す">✕</button></div>`).join('')||'<span class="sub">写真はまだありません</span>'; }
+function movePhoto(i,d){ const j=i+d; if(j<0||j>=PH.length) return; [PH[i],PH[j]]=[PH[j],PH[i]]; drawPhotos(); }
+function dropPhoto(i){ PH.splice(i,1); drawPhotos(); }
+function shrink(file){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const max=1600, k=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src); c.toBlob(b=>b?res(b):rej(new Error('画像を変換できません')),'image/jpeg',0.86) }; img.onerror=()=>rej(new Error('画像を開けません')); img.src=URL.createObjectURL(file) }); }
+async function addPhotos(inp){ const kno=ifm.kno.value; if(!kno){ pmsg.textContent='先に品番を入れてください'; return }
+  const files=[...inp.files]; let n=0;
+  for(const f of files){ pmsg.textContent=`送っています… ${n+1}/${files.length}`;
+    try{ const blob=await shrink(f), path=`${kno}/${Date.now()}_${n}.jpg`;
+      const {error}=await sb.storage.from('watch-photos').upload(path,blob,{contentType:'image/jpeg'}); if(error) throw error;
+      PH.push(sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl); n++; drawPhotos();
+    }catch(e){ pmsg.textContent=`${f.name} を送れません：${e.message}`; return } }
+  inp.value=''; pmsg.textContent=`${n}枚を追加しました。「保存」を押すと商品に残ります。`; }
+// 説明文：ひな形（取込/設定で直せる）に商品の中身を差し込む
+const DESC_DEFAULT=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;max-width:800px">
+<h2>{title}</h2>
+<h3>Condition : {condition}</h3>
+<p>{condition_note}</p>
+<h3>Appearance</h3>
+<p>{appearance}</p>
+<h3>Accessories</h3>
+<p>{accessories}</p>
+<h3>Details</h3>
+{specs}
+<p>Ships from Japan.</p>
+</div>`;
+const getDescTpl=()=>{ try{ return localStorage.getItem('ws_desc_tpl')||DESC_DEFAULT }catch(e){ return DESC_DEFAULT } };
+function saveDescTpl(){ try{ localStorage.setItem('ws_desc_tpl',desctpl.value) }catch(e){} dtmsg.textContent='保存しました（この端末）'; }
+function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  const sp=Object.entries(f.specs||{}).filter(([,v])=>v).map(([k,v])=>`<tr><td style="padding:2px 12px 2px 0"><b>${e(k)}</b></td><td>${e(v)}</td></tr>`).join('');
+  return getDescTpl().replaceAll('{title}',e(f.title)).replaceAll('{condition}',e(f.condition)).replaceAll('{condition_note}',e(f.condition_note)||'-')
+    .replaceAll('{appearance}',e(f.appearance_note)||'-').replaceAll('{accessories}',e(f.accessories)||'Watch only').replaceAll('{specs}',`<table>${sp}</table>`); }
+// eBayに内容を見てもらう（出品はされない）。先に保存してから送る
+async function verifyItem(){ vout.innerHTML='保存しています…'; const f=await saveItem(true); if(!f){ vout.innerHTML=''; return }
+  vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:buildDesc(f)});
+  const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>a.map(x=>`<li>${esc(x)}</li>`).join('');
+  if(r.error){ vout.innerHTML=`<b class=neg>確認できません：</b>${esc(r.error)}`; return }
+  VERIFIED=r.ok?sig(f):null; pubbtn.disabled=!r.ok;
+  vout.innerHTML=(r.ok?`<b style="color:#15803d">eBayの確認を通りました（${r.env==='production'?'本番':'テスト環境'}。出品はしていません）</b>`:'<b class=neg>このままでは出品できません。eBayからの指摘：</b>')
+    +(r.errors.length?`<ul class=neg>${li(r.errors)}</ul>`:'')+(r.warnings.length?`注意：<ul>${li(r.warnings)}</ul>`:'')+(r.note?`<p>${esc(r.note)}</p>`:''); }
+let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null});
+function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
+  const w=window.open('','_blank'); if(w){ w.document.write('<!doctype html><meta charset="utf-8"><title>説明文の見え方</title>'+buildDesc(f)); w.document.close() } }
+// 本当にeBayへ出す。確認を通ったあと中身を変えていないときだけ押せる。押したら取り消しはeBay側での取り下げになる
+async function publishItem(){ const f=await saveItem(true); if(!f) return;
+  if(VERIFIED!==sig(f)){ pubbtn.disabled=true; vout.innerHTML='<b class=neg>確認のあとに中身が変わっています。もう一度「eBayで確認」を押してください。</b>'; return }
+  if(!window.confirm(`品番 ${f.kno} を $${f.price_usd} でeBayに出品します。\n\n${f.title}\n\n写真 ${PH.length}枚・送料ポリシー ${f.shipping_policy}\n\nよろしいですか？`)) return;
+  pubbtn.disabled=true; vout.innerHTML='eBayに出品しています…'; const r=await ebayCall('publish_listing',{kno:+f.kno,description:buildDesc(f)});
+  const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  if(r.error){ vout.innerHTML=`<b class=neg>出品できません：</b>${esc(r.error)}`; return }
+  if(!r.ok||!r.item_id){ vout.innerHTML=`<b class=neg>出品できませんでした。eBayからの指摘：</b><ul class=neg>${li(r.errors)}</ul>${r.note?esc(r.note):''}`; return }
+  VERIFIED=null; vout.innerHTML=`<b style="color:#15803d">出品しました（${r.env==='production'?'本番':'テスト環境'}）。</b> eBay商品番号 ${esc(r.item_id)} <a href="${r.url}" target="_blank" rel="noopener">出品ページを開く</a>`+(r.warnings?.length?`<br>注意：<ul>${li(r.warnings)}</ul>`:'');
+  ifm.status.value='listed'; ifm.location_status.value='出品中'; initFilters(); loadItems(); }
+async function saveItem(keepOpen){
+  const f=Object.fromEntries(new FormData(ifm)); const rn=f.research_name.trim(); delete f.research_name;
+  for(const k in f) if(f[k]==='') f[k]=null;
+  if(!f.kno){ dmsg.textContent='品番は必須'; return }
+  if(rn){ if(!RES[rn]){ const {data,error}=await sb.from('research').insert({name:rn}).select('id').single(); if(error){dmsg.textContent=error.message;return} RES[rn]=data.id } f.research_id=RES[rn]; }
+  f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
+  f.photos=PH; f.updated_at=new Date().toISOString();
+  const {error}=await sb.from('items').upsert(f); if(error){ dmsg.textContent='保存できません：'+error.message; return null }
+  if(keepOpen){ dmsg.textContent='保存しました'; initFilters(); loadItems(); return f }
+  dlg.close(); initFilters(); loadItems(); return f;
+}
+
+// リサーチ
+function calcR(){ $('r_out').textContent=fmtP(profit(r_price.value,r_ship.value,r_cost.value,r_actship.value?+r_actship.value:undefined)); }
+async function loadResearch(){
+  const {data} = await sb.from('items').select('status,cost_jpy,price_usd,shipping_usd,listed_on,sold_on,research(name),orders(item_price_jpy,ship_charged_jpy)').limit(5000);
+  const k=(rkw.value||'').toLowerCase(), g={};
+  (data||[]).forEach(r=>{ const n=r.research?.name||'(未設定)'; if(k&&!n.toLowerCase().includes(k)) return;
+    const x=g[n]??={stock:0,sold:0,sales:0,cost:0,days:[]};
+    if(r.status==='sold'){ x.sold++; const o=r.orders?.[0]; x.sales+=(o?.item_price_jpy||0)+(o?.ship_charged_jpy||0); x.cost+=r.cost_jpy||0;
+      if(r.listed_on&&r.sold_on) x.days.push((new Date(r.sold_on)-new Date(r.listed_on))/864e5); } else x.stock++; });
+  const med=a=>{ if(!a.length) return '—'; a.sort((p,q)=>p-q); return Math.round(a[Math.floor(a.length/2)]) };
+  rbody.innerHTML=Object.entries(g).sort((a,b)=>b[1].sold-a[1].sold).slice(0,200).map(([n,x])=>
+    `<tr><td>${n}</td><td class=n>${x.stock}</td><td class=n>${x.sold}</td><td class=n>${x.sold?yen(x.sales/x.sold):'—'}</td><td class=n>${x.sold?yen((x.sales-x.cost)/x.sold):'—'}</td><td class=n>${med(x.days)}</td></tr>`).join('');
+}
+
+// 実績確認
+function initPf(){ const d=new Date(); pfm.innerHTML=''; for(let i=0;i<24;i++){ const m=new Date(d.getFullYear(),d.getMonth()-i,1);
+  const v=`${m.getFullYear()}${String(m.getMonth()+1).padStart(2,'0')}`; pfm.innerHTML+=`<option value="${v}">${m.getFullYear()}年${m.getMonth()+1}月</option>` }
+  om.value=new Date().toISOString().slice(0,7); cm.innerHTML=pfm.innerHTML; }
+
+// 収支計算表
+// 手入力の行（monthly_costs.kind）。符号：費用はマイナスで保存、還付・入金はプラス
+const CASH_IN = {
+  'eBay諸費用':['出品関連手数料','その他eBay手数料','紛争・返金調整','消費税還付'],
+  '固定費':['ワンロック利用料','eBayStock利用料','通信・ソフト','外注費','家賃','その他経費'],
+  '現金':['借入返済','引き出し(生活費・役員報酬)','借入(入金)'],
+};
+const PLUS_KINDS = ['消費税還付','借入(入金)'];
+function monthsBack(end,n){ const a=[]; for(let i=n-1;i>=0;i--){ const d=new Date(+end.slice(0,4),+end.slice(4)-1-i,1); a.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`) } return a }
+let CMODE='cf';
+function loadCash(){
+  ['cf','pl'].forEach(m=>{ $('cmode-'+m).classList.toggle('on',CMODE===m); $('cnote-'+m).classList.toggle('hide',CMODE!==m) });
+  return CMODE==='cf' ? loadCashFlow() : loadProfit();
+}
+async function loadProfit(){
+  const months=monthsBack(cm.value,+cn.value), from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
+  const {data:os}=await sb.from('orders').select('ordered_on,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
+  const {data:it}=await sb.from('items').select('purchased_on,cost_jpy').gte('purchased_on',from);
+  const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
+  const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={}, g=k=>R[k]??=z();
+  // 毎月の定額：その月に入力がなければ定額を使う（灰色で表示）
+  const DEF={}, EST=new Set(), set=new Set((mc||[]).filter(c=>c.ym!=='定額').map(c=>c.kind+'|'+c.ym));
+  (mc||[]).filter(c=>c.ym==='定額').forEach(c=>{ DEF[c.kind]=c;
+    months.forEach(m=>{ if(!set.has(c.kind+'|'+m)){ mc.push({ym:m,kind:c.kind,amount_jpy:c.amount_jpy}); EST.add(c.kind+'|'+m) } }) });
+  const add=(k,m,v)=>{ if(m in g(k)) R[k][m]+=v||0 };
+  (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6);
+    add('売上',m,(o.item_price_jpy||0)+(o.ship_charged_jpy||0)); add('売れた商品の原価',m,-(o.items?.cost_jpy||0));
+    add('実送料',m,-o.ship_actual_jpy); add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); });
+  (it||[]).forEach(i=>add('仕入額',i.purchased_on.replace(/-/g,'').slice(0,6),i.cost_jpy));
+  (mc||[]).forEach(c=>{ if(c.ym!=='定額') add(c.kind,c.ym,c.amount_jpy) });
+  const sum=(ks,m)=>ks.reduce((a,k)=>a+g(k)[m],0);
+  months.forEach(m=>{
+    g('粗利')[m]=sum(['売上','売れた商品の原価','実送料','販売手数料','Payoneer手数料','関税','広告費'],m);
+    g('事業利益')[m]=g('粗利')[m]+sum(CASH_IN['eBay諸費用'],m)+sum(CASH_IN['固定費'],m);
+    g('在庫の増減')[m]=-(g('仕入額')[m]+g('売れた商品の原価')[m]);  // 仕入>原価なら現金が減る
+    g('手元に残る現金')[m]=g('事業利益')[m]+g('在庫の増減')[m]+sum(CASH_IN['現金'],m);
+  });
+  const L=[ ['h','事業のもうけ'], ['a','売上'],['a','売れた商品の原価'],['a','実送料'],['a','販売手数料'],['a','Payoneer手数料'],['a','関税'],['a','広告費'],['t','粗利'],
+    ...CASH_IN['eBay諸費用'].map(k=>['i',k]), ...CASH_IN['固定費'].map(k=>['i',k]), ['t','事業利益'],
+    ['h','現金の動き'], ['a','仕入額'], ['t','在庫の増減'], ...CASH_IN['現金'].map(k=>['i',k]), ['t','手元に残る現金'] ];
+  const tot=k=>months.reduce((a,m)=>a+g(k)[m],0);
+  ct.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${+m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
+    L.map(([t,k])=>{
+      if(t==='h') return `<tr><th colspan=${months.length+2} style="background:#e8efff">${k}${k==='事業のもうけ'?'':''}</th></tr>`;
+      const cells=months.map(m=>{ const v=g(k)[m];
+        if(t==='i'){ const e=EST.has(k+'|'+m);
+          return `<td class=n><input type=number style="width:125px;text-align:right;${e?'color:#9ca3af;font-style:italic':''}" value="${!e&&v?Math.abs(v):''}" placeholder="${e?yen(Math.abs(v)):'0'}" title="${e?'毎月の定額（この月の実額を入れると上書き）':''}" onchange="saveCost('${m}','${k}',this.value)"></td>` }
+        return `<td class="n ${v<0?'neg':''}">${t==='t'?'<b>':''}${yen(v)}${t==='t'?'</b>':''}</td>` }).join('');
+      const d=DEF[k];
+      return `<tr${t==='t'?' style="background:#f8fafc"':''}><th>${k}${t==='i'&&!PLUS_KINDS.includes(k)?' <span class=sub>(−)</span>':''}${t==='i'?`<br><span class=sub>毎月の定額 <input type=number style="width:100px;text-align:right" value="${d?Math.abs(d.amount_jpy):''}" placeholder="なし" onchange="saveCost('定額','${k}',this.value)"></span>${d?.note?`<br><span class=sub>${d.note}</span>`:''}`:''}</th>${cells}<td class="n ${tot(k)<0?'neg':''}"><b>${yen(tot(k))}</b></td></tr>` }).join('')+'</tbody>';
+}
+// ===== 現金収支（手持ちの収支計算表と同じ形） =====
+// 手入力の行は monthly_costs に 'CF:' を付けて保存（金額はプラスで持つ）
+const CF_IN  = ['Payoneer入金','eBay入金','Etsy入金','消費税還付','利息','その他収入'];
+const CF_OUT = ['Amazon','ワンロック','税理士','税金','家族への振込','引き出し(生活費・役員報酬)','借入返済','その他支払'];
+const CARDS  = ['楽天','PayPay','三井住友','JCB','Epos'];
+async function loadCashFlow(){
+  const months=monthsBack(cm.value,+cn.value);
+  const {data:tx}=await sb.from('card_tx').select('card,pay_month,amount,category').in('pay_month',months);
+  const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
+  const val={}, est=new Set(), def={};
+  (mc||[]).forEach(c=>{ if(c.ym!=='定額') val[c.kind+'|'+c.ym]=c.amount_jpy });
+  (mc||[]).filter(c=>c.ym==='定額').forEach(c=>{ def[c.kind]=c; months.forEach(m=>{ const k=c.kind+'|'+m; if(!(k in val)){ val[k]=c.amount_jpy; est.add(k) } }) });
+  // 「引き出し」は事業のもうけ側の定額（マイナス保存）を共用
+  const cfk=k=>k==='引き出し(生活費・役員報酬)'?k:'CF:'+k;
+  const get=(k,m)=>Math.abs(val[cfk(k)+'|'+m]||0);
+  const card={}, brk={};
+  (tx||[]).forEach(t=>{ const k=t.card+'|'+t.pay_month; card[k]=(card[k]||0)+t.amount; (brk[k]??={})[t.category]=(brk[k][t.category]||0)+t.amount });
+  // 銀行の実績：手入力が無い行を埋める（優先順位：手入力 ＞ 銀行 ＞ 毎月の定額）
+  const {data:bt}=await sb.from('bank_tx').select('ym,amount,balance,at,category').in('ym',months);
+  const bank={}, bcard={}, bal={}, fromBank=new Set();
+  (bt||[]).forEach(t=>{ const row=BANK_TO_CF(t.category,t.amount);
+    if(row.card) bcard[row.card+'|'+t.ym]=(bcard[row.card+'|'+t.ym]||0)+Math.abs(t.amount);
+    else bank[row.cf+'|'+t.ym]=(bank[row.cf+'|'+t.ym]||0)+Math.abs(t.amount);
+    if(!bal[t.ym]||t.at>bal[t.ym].at) bal[t.ym]={at:t.at,v:t.balance} });
+  for(const k in bank){ const [row,m]=k.split('|'), key=cfk(row)+'|'+m;
+    if(!(key in val)||est.has(key)){ val[key]=bank[k]; est.add(key); fromBank.add(key) } }
+  // カード明細が無い月は銀行の引き落とし額を使う
+  for(const k in bcard) if(!card[k]){ card[k]=bcard[k]; (brk[k]??={})['銀行の引き落とし']=bcard[k] }
+  // 明細も銀行も無い月は、取り込んだ収支計算表の額を使う
+  CARDS.forEach(c=>months.forEach(m=>{ const k=c+'|'+m, v=val['CFS:'+c+'|'+m]; if(v&&!card[k]){ card[k]=v; (brk[k]??={})['収支計算表から']=v } }));
+  const inTot=m=>CF_IN.reduce((a,k)=>a+get(k,m),0);
+  const cardTot=m=>CARDS.reduce((a,c)=>a+(card[c+'|'+m]||0),0);
+  const outTot=m=>cardTot(m)+CF_OUT.reduce((a,k)=>a+get(k,m),0);
+  const inp=(k,m)=>{ const key=cfk(k)+'|'+m, e=est.has(key), v=Math.abs(val[key]||0);
+    const b=fromBank.has(key);
+    return `<td class=n><input type=number style="width:125px;text-align:right;${e?(b?'color:#2563eb':'color:#9ca3af;font-style:italic'):''}" value="${!e&&v?v:''}" placeholder="${e?yen(v):'0'}" title="${b?'銀行明細から（実額を入れると上書き）':e?'毎月の定額':''}" onchange="saveCF('${m}','${k}',this.value)">${b?'<div class=sub style="color:#2563eb">銀行</div>':''}</td>` };
+  const defIn=k=>{ const d=def[cfk(k)]; return `<br><span class=sub>毎月の定額 <input type=number style="width:100px;text-align:right" value="${d?Math.abs(d.amount_jpy):''}" placeholder="なし" onchange="saveCF('定額','${k}',this.value)"></span>` };
+  const sumRow=(label,f,bold)=>`<tr style="background:#f8fafc"><th>${label}</th>${months.map(m=>{ const v=f(m); return `<td class="n ${v<0?'neg':''}">${bold?'<b>':''}${yen(v)}${bold?'</b>':''}</td>` }).join('')}<td class=n><b>${yen(months.reduce((a,m)=>a+f(m),0))}</b></td></tr>`;
+  const head=t=>`<tr><th colspan=${months.length+2} style="background:#e8efff">${t}</th></tr>`;
+  const tot=k=>months.reduce((a,m)=>a+get(k,m),0);
+  ct.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${+m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`
+    + head('収入') + CF_IN.map(k=>`<tr><th>${k}${defIn(k)}</th>${months.map(m=>inp(k,m)).join('')}<td class=n><b>${yen(tot(k))}</b></td></tr>`).join('')
+    + sumRow('収入合計',inTot,true)
+    + head('カードの引き落とし（明細から自動）') + CARDS.map(c=>`<tr><th>${c}</th>${months.map(m=>{ const v=card[c+'|'+m], b=brk[c+'|'+m]||{};
+        const sub=Object.entries(b).sort((x,y)=>y[1]-x[1]).map(([k,a])=>`${k} ${yen(a)}`).join('<br>');
+        const bv=bcard[c+'|'+m], diff=bv&&b['銀行の引き落とし']==null&&bv!==v;
+        return `<td class=n>${v?yen(v):'<span class=sub>明細なし</span>'}${sub?`<div class=sub style="line-height:1.4">${sub}</div>`:''}${bv&&b['銀行の引き落とし']==null?`<div class="sub ${diff?'neg':''}">銀行 ${yen(bv)}${diff?'（差 '+yen(bv-v)+'）':' ✓'}</div>`:''}</td>` }).join('')}<td class=n><b>${yen(months.reduce((a,m)=>a+(card[c+'|'+m]||0),0))}</b></td></tr>`).join('')
+    + head('その他の支払') + CF_OUT.map(k=>`<tr><th>${k}${defIn(k)}${def[cfk(k)]?.note?`<br><span class=sub>${def[cfk(k)].note}</span>`:''}</th>${months.map(m=>inp(k,m)).join('')}<td class=n><b>${yen(tot(k))}</b></td></tr>`).join('')
+    + sumRow('支払合計',outTot,true) + sumRow('総収支（収入−支払）',m=>inTot(m)-outTot(m),true)
+    + `<tr><th>月末の銀行残高 <span class=sub>(銀行明細の最後の残高)</span></th>${months.map(m=>`<td class=n>${bal[m]?yen(bal[m].v):'<span class=sub>—</span>'}</td>`).join('')}<td></td></tr>` + '</tbody>';
+}
+async function saveCF(ym,k,v){
+  if(k==='引き出し(生活費・役員報酬)') return saveCost(ym,k,v);
+  const {error} = v===''
+    ? await sb.from('monthly_costs').delete().eq('ym',ym).eq('kind','CF:'+k)
+    : await sb.from('monthly_costs').upsert({ym,kind:'CF:'+k,amount_jpy:Math.abs(+v||0)});
+  if(error){ alert('保存できません：'+error.message); return } loadCash();
+}
+
+// ===== カード明細 =====
+// 仕分けルール（~/watchcash/ingest_cards.py と同じ。判定は上から順）
+const CARD_RULES = [
+  ['サブスク',['Apple','Amazonプライム','GOOGLE','ヤフージャパン','ヤフジャパン']],
+  ['送料',['ゆうパック','ユウパツク','ニツポンユウビン','日本郵便','eLogi','イーロジ','橙聯','トウレン','ヤマト','クロネコ']],
+  ['販売手数料/返金',['ETSY','EBAY']],
+  ['ツール',['ワンロツク','ワンロック','シヨツピフアイ','SHOPIFY','SHOPEE','PINKOI','SELLBRITE','EXPORTYOURSTORE','オークファン']],
+  ['研修',['サンスピリッツ']],
+  ['広告費',['FACEBK','TIKTOK']],
+  ['私用',['鳥貴族','ダイニー','出光','アポロ','Hulu','スターバックス','スターバ','セリア','かましん','JR東日本','モバイルSuica','Suica']],
+  ['仕入',['ヤフ','かんたん決済','カンタンケッサイ','トップワールド','ラクラクトケイ','シーホース','カイトリ','ブランドショップ','COLOR','コロール','NET共栄会','共栄会','TOKYO','VIP','らくらく時計',
+          'SEA HORSE','SEAHORSE','TOPWORLD','宝島','質みなみ','買取にゃんこ','ブックオフ','artic','アーティック','ジュエリー','ジュエリ','ムーンジュエリー','オークション','メルカリ','モノカウ','コメ兵','なんぼや','大黒屋']],
+];
+const CATS = [...CARD_RULES.map(r=>r[0]),'要確認'];
+// 全角→半角・半角カナ→全角（NFKC）、小文字、長音・ハイフン・空白を消す
+const cnorm = s => (s||'').normalize('NFKC').toLowerCase().replace(/[ー‐\-–—ｰ\s]/g,'');
+const CARD_RULES_N = CARD_RULES.map(([c,ks])=>[c,ks.map(cnorm)]);
+let CARD_OVR = {};
+function cardCat(shop){ const n=cnorm(shop); if(CARD_OVR[n]) return CARD_OVR[n];
+  for(const [c,ks] of CARD_RULES_N) if(ks.some(k=>n.includes(k))) return c; return '要確認'; }
+
+function decodeCsv(buf){ try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf).replace(/^﻿/,'') }catch(e){ return new TextDecoder('shift_jis').decode(buf) } }
+const ymd = s => { const m=(s||'').trim().match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/); return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:null };
+const num = s => +String(s||'').replace(/[,，\s]/g,'').normalize('NFKC') || 0;
+function parseCard(name, text){
+  const rows=parseCsv(text.replace(/\r\n?/g,'\n')), out=[];
+  const fm=(name.match(/(20\d{2})(\d{2})/)||[]).slice(1).join('');
+  const head=rows.findIndex(r=>r.includes('利用日/キャンセル日')||r.includes('利用日')||r.includes('ご利用日'));
+  if(text.includes('利用日/キャンセル日')){             // PayPay
+    const h=rows[head], ix=k=>h.indexOf(k);
+    rows.slice(head+1).forEach(r=>{ const d=ymd(r[ix('利用日/キャンセル日')]); if(!d) return;
+      const pd=ymd(r[ix('当月お支払日')]); out.push({card:'PayPay',used_on:d,shop:r[ix('利用店名・商品名')],amount:num(r[ix('利用金額')]),pay_month:pd?pd.slice(0,7).replace('-',''):fm}) });
+  } else if(text.includes('今回のお支払日')){            // JCB
+    const pr=rows.find(r=>r.includes('今回のお支払日')), pd=ymd(pr[pr.indexOf('今回のお支払日')+1]);
+    const h=rows[head], ix=k=>h.indexOf(k);
+    rows.slice(head+1).forEach(r=>{ const d=ymd(r[ix('ご利用日')]); if(!d) return;
+      out.push({card:'JCB',used_on:d,shop:r[ix('ご利用先など')],amount:num(r[ix('お支払い金額(￥)')]||r[ix('ご利用金額(￥)')]),pay_month:pd?pd.slice(0,7).replace('-',''):fm}) });
+  } else if(head>=0 && rows[head][0]==='利用日'){        // 楽天 enavi（ファイル名の年月＝支払月）
+    const h=rows[head], ix=k=>h.indexOf(k);
+    rows.slice(head+1).forEach(r=>{ const d=ymd(r[0]); if(!d) return;
+      out.push({card:'楽天',used_on:d,shop:r[ix('利用店名・商品名')],amount:num(r[ix('利用金額')]),pay_month:fm}) });
+  } else {                                              // 三井住友（Amazonマスター）／Epos（PDFから作ったepos*.csv）：日付,店名,金額,...
+    rows.forEach(r=>{ const d=ymd(r[0]); if(!d) return; out.push({card:/epos/i.test(name)?'Epos':'三井住友',used_on:d,shop:r[1],amount:num(r[2]),pay_month:fm}) });
+  }
+  if(out.length && out.some(t=>!t.pay_month)) throw new Error(name+'：支払月が読めません');
+  // 同じ日・同じ店・同じ金額が複数あっても消さないよう連番を付けてID化（別ファイルの重複は同じIDになる）
+  const seen={}; out.forEach(t=>{ const b=[t.card,t.pay_month,t.used_on,t.shop,t.amount].join('|'); seen[b]=(seen[b]||0)+1; t.id=b+'|'+seen[b]; t.category=cardCat(t.shop) });
+  return out;
+}
+async function loadCardRules(){ const {data}=await sb.from('card_rules').select('*'); CARD_OVR=Object.fromEntries((data||[]).map(r=>[r.shop_norm,r.category])) }
+async function importCardFiles(files){
+  if(!files.length){ cardmsg.textContent='ファイルを選んでください'; return }
+  await loadCardRules(); let all=[], msgs=[];
+  for(const f of files){ try{ const t=parseCard(f.name, decodeCsv(await f.arrayBuffer())); all.push(...t); msgs.push(`${f.name} ${t.length}件`) }catch(e){ msgs.push(e.message) } }
+  const uniq=Object.values(Object.fromEntries(all.map(t=>[t.id,t])));
+  // 手で直した区分を残すため、既にあるIDは送らない
+  const {data:ex}=await sb.from('card_tx').select('id').in('id',uniq.map(t=>t.id));
+  const have=new Set((ex||[]).map(r=>r.id)), add=uniq.filter(t=>!have.has(t.id));
+  for(let i=0;i<add.length;i+=500){ const {error}=await sb.from('card_tx').insert(add.slice(i,i+500)); if(error){ cardmsg.textContent='失敗：'+error.message; return } }
+  cardmsg.textContent=`新しく${add.length}件（重複${all.length-add.length}件は飛ばした）／ `+msgs.join('、');
+  await initCard(); loadCard();
+}
+async function initCard(){
+  const {data}=await sb.from('card_tx').select('pay_month,card');
+  const ms=[...new Set((data||[]).map(r=>r.pay_month))].sort().reverse();
+  const cur=cdm.value; cdm.innerHTML=ms.map(m=>`<option value="${m}">${m.slice(0,4)}年${+m.slice(4)}月払い</option>`).join('')||'<option value="">（明細なし）</option>';
+  if(cur&&ms.includes(cur)) cdm.value=cur;
+  if(cdc.options.length<2) cdc.innerHTML+=CARDS.map(c=>`<option>${c}</option>`).join('');
+  if(cdk.options.length<2) cdk.innerHTML+=CATS.map(c=>`<option>${c}</option>`).join('');
+}
+async function loadCard(){
+  if(!cdm.options.length) await initCard();
+  const m=cdm.value; if(!m){ cdsum.innerHTML=''; cdbody.innerHTML='<tr><td colspan=5 class=sub>まだ明細がありません。上でCSVを取り込んでください。</td></tr>'; return }
+  const {data:tx}=await sb.from('card_tx').select('*').eq('pay_month',m).order('used_on');
+  const S={}, cs=CARDS.filter(c=>(tx||[]).some(t=>t.card===c));
+  (tx||[]).forEach(t=>{ (S[t.category]??={})[t.card]=(S[t.category][t.card]||0)+t.amount });
+  const colTot=c=>(tx||[]).filter(t=>t.card===c).reduce((a,t)=>a+t.amount,0);
+  cdsum.innerHTML=`<thead><tr><th>区分</th>${cs.map(c=>`<th class=n>${c}</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
+    CATS.filter(k=>S[k]).map(k=>{ const t=cs.reduce((a,c)=>a+(S[k][c]||0),0);
+      return `<tr><th>${k==='要確認'?`<span class=neg>${k}</span>`:k}</th>${cs.map(c=>`<td class=n>${S[k][c]?yen(S[k][c]):''}</td>`).join('')}<td class=n><b>${yen(t)}</b></td></tr>` }).join('')+
+    `<tr style="background:#f8fafc"><th>合計</th>${cs.map(c=>`<td class=n><b>${yen(colTot(c))}</b></td>`).join('')}<td class=n><b>${yen(cs.reduce((a,c)=>a+colTot(c),0))}</b></td></tr></tbody>`;
+  const rows=(tx||[]).filter(t=>(!cdc.value||t.card===cdc.value)&&(!cdk.value||t.category===cdk.value));
+  cdbody.innerHTML=rows.map(t=>`<tr><td>${t.used_on}</td><td>${t.card}</td><td>${t.shop}</td><td class="n ${t.amount<0?'neg':''}">${yen(t.amount)}</td>
+    <td><select onchange="setCardCat('${encodeURIComponent(t.shop)}',this.value)" ${t.category==='要確認'?'style="border-color:#dc2626"':''}>${CATS.map(c=>`<option ${c===t.category?'selected':''}>${c}</option>`).join('')}</select></td></tr>`).join('')
+    ||'<tr><td colspan=5 class=sub>該当なし</td></tr>';
+}
+async function setCardCat(shopEnc,cat){
+  const shop=decodeURIComponent(shopEnc), n=cnorm(shop);
+  await sb.from('card_rules').upsert({shop_norm:n,category:cat}); CARD_OVR[n]=cat;
+  const {data:tx}=await sb.from('card_tx').select('id,shop');
+  const ids=(tx||[]).filter(t=>cnorm(t.shop)===n).map(t=>t.id);
+  for(let i=0;i<ids.length;i+=200){ const {error}=await sb.from('card_tx').update({category:cat}).in('id',ids.slice(i,i+200)); if(error){ alert(error.message); return } }
+  loadCard();
+}
+
+// ===== 銀行明細（貼り付け） =====
+const BANK_CATS = ['Payoneer入金','利息','その他入金','カード:楽天','カード:PayPay','カード:三井住友','カード:JCB','カード:Epos','カード:Amazon','ワンロック','送料','税金','家族への振込','引き出し','借入返済','その他支払','要確認'];
+const BANK_RULES = [
+  ['Payoneer入金',['payoneer','ペイオニア']], ['利息',['利息']],
+  ['カード:PayPay',['paypayカ']], ['カード:楽天',['楽天カード']], ['カード:Epos',['エポスカ']], ['カード:三井住友',['ミツイスミトモカ','三井住友カ']],
+  ['カード:JCB',['jcb']], ['カード:Amazon',['アマゾン','amazon']],
+  ['ワンロック',['ワンロツク','ワンロック']], ['送料',['フェデラル','fedex','dhl','elogi','イーロジ','ヤマト']],
+  ['税金',['国税','都税','県税','市税','住民税','事業税','所得税','消費税']],
+].map(([c,ks])=>[c,ks.map(cnorm)]);
+function bankCat(desc){ const n=cnorm(desc); if(CARD_OVR['bank:'+n]) return CARD_OVR['bank:'+n];
+  for(const [c,ks] of BANK_RULES) if(ks.some(k=>n.includes(k))) return c; return '要確認'; }
+// 銀行の区分 → 収支表の行
+function BANK_TO_CF(cat,amt){
+  if(cat.startsWith('カード:')){ const c=cat.slice(4); return CARDS.includes(c)?{card:c}:{cf:c} }
+  return {cf:({'Payoneer入金':'Payoneer入金','利息':'利息','その他入金':'その他収入','ワンロック':'ワンロック','送料':'その他支払','税金':'税金',
+    '家族への振込':'家族への振込','引き出し':'引き出し(生活費・役員報酬)','借入返済':'借入返済','その他支払':'その他支払'})[cat] ?? (amt>0?'その他収入':'その他支払')};
+}
+function parseBank(text){
+  const L=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), out=[];
+  for(let i=0;i<L.length;i++){
+    if(L[i]!=='入金'&&L[i]!=='出金') continue;
+    const dir=L[i], dt=(L[i+1]||'').match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/); if(!dt) continue;
+    let j=i+2, desc=[]; while(j<L.length && !/^[\d,]+円$/.test(L[j]) && L[j]!=='入金' && L[j]!=='出金'){ desc.push(L[j]); j++ }
+    if(!/^[\d,]+円$/.test(L[j]||'')) continue;
+    const amt=num(L[j].replace('円','')); let bal=null;
+    for(let k=j+1;k<Math.min(j+4,L.length);k++){ const m=L[k].match(/^([\d,]+)円$/); if(m){ bal=num(m[1]); break } }
+    const date=`${dt[1]}-${dt[2].padStart(2,'0')}-${dt[3].padStart(2,'0')}`, at=`${date} ${dt[4]}`, d=desc.join(' ');
+    out.push({id:`${at}|${dir}|${amt}|${bal??''}`, at, date, ym:date.slice(0,7).replace('-',''), description:d, amount:dir==='入金'?amt:-amt, balance:bal, category:bankCat(d)});
+    i=j;
+  }
+  return out;
+}
+async function importBank(text){
+  await loadCardRules(); const t=parseBank(text);
+  if(!t.length){ bankmsg.textContent='取引が読み取れません。「入金/出金」から始まる明細をそのまま貼ってください'; return }
+  const {data:ex}=await sb.from('bank_tx').select('id').in('id',t.map(x=>x.id)); const have=new Set((ex||[]).map(r=>r.id));
+  const add=t.filter(x=>!have.has(x.id));
+  if(add.length){ const {error}=await sb.from('bank_tx').insert(add); if(error){ bankmsg.textContent='失敗：'+error.message; return } }
+  bankmsg.textContent=`${t.length}件読み取り、新しく${add.length}件入れました（${t[t.length-1].date}〜${t[0].date}）`;
+  bankp.value=''; await initBank(add[0]?.ym||t[0].ym); loadBank();
+}
+async function initBank(sel){
+  const {data}=await sb.from('bank_tx').select('ym'); const ms=[...new Set((data||[]).map(r=>r.ym))].sort().reverse();
+  const cur=sel||bkm.value; bkm.innerHTML=ms.map(m=>`<option value="${m}">${m.slice(0,4)}年${+m.slice(4)}月</option>`).join('')||'<option value="">（明細なし）</option>';
+  if(cur&&ms.includes(cur)) bkm.value=cur;
+}
+async function loadBank(){
+  if(!bkm.options.length) await initBank();
+  const m=bkm.value; if(!m){ bkbody.innerHTML='<tr><td colspan=6 class=sub>まだありません。上に貼り付けてください。</td></tr>'; bksum.textContent=''; return }
+  const {data:t}=await sb.from('bank_tx').select('*').eq('ym',m).order('at');
+  const inn=(t||[]).filter(x=>x.amount>0).reduce((a,x)=>a+x.amount,0), out=(t||[]).filter(x=>x.amount<0).reduce((a,x)=>a-x.amount,0);
+  bksum.textContent=`入金 ${yen(inn)}円 ／ 出金 ${yen(out)}円 ／ 差 ${yen(inn-out)}円`;
+  bkbody.innerHTML=(t||[]).map(x=>`<tr><td>${x.at.slice(5,16)}</td><td>${x.description}</td><td class=n>${x.amount>0?yen(x.amount):''}</td><td class=n>${x.amount<0?yen(-x.amount):''}</td><td class=n>${x.balance!=null?yen(x.balance):''}</td>
+    <td><select onchange="setBankCat('${encodeURIComponent(x.description)}',this.value)" ${x.category==='要確認'?'style="border-color:#dc2626"':''}>${BANK_CATS.map(c=>`<option ${c===x.category?'selected':''}>${c}</option>`).join('')}</select></td></tr>`).join('');
+}
+async function setBankCat(dEnc,cat){
+  const d=decodeURIComponent(dEnc), n='bank:'+cnorm(d);
+  await sb.from('card_rules').upsert({shop_norm:n,category:cat}); CARD_OVR[n]=cat;
+  const {data:t}=await sb.from('bank_tx').select('id,description'); const ids=(t||[]).filter(x=>'bank:'+cnorm(x.description)===n).map(x=>x.id);
+  const {error}=await sb.from('bank_tx').update({category:cat}).in('id',ids); if(error){ alert(error.message); return }
+  loadBank();
+}
+
+async function saveCost(ym,kind,val){
+  // 空欄にしたら行を消す（月の欄は定額に戻る）
+  const {error} = val===''
+    ? await sb.from('monthly_costs').delete().eq('ym',ym).eq('kind',kind)
+    : await sb.from('monthly_costs').upsert({ym,kind,amount_jpy:(PLUS_KINDS.includes(kind)?1:-1)*Math.abs(+val||0),note:ym==='定額'?null:undefined});
+  if(error){ alert('保存できません：'+error.message); return }
+  loadCash();
+}
+async function loadPf(){
+  const end=pfm.value, n=+pfn.value, months=[];
+  for(let i=n-1;i>=0;i--){ const d=new Date(+end.slice(0,4),+end.slice(4)-1-i,1); months.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`) }
+  const from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
+  const os=await allRows(()=>sb.from('orders').select('ordered_on,platform,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,listing_fee_jpy,other_fee_jpy,return_cost_jpy,items(cost_jpy)').gte('ordered_on',from).order('id'));
+  const it=await allRows(()=>sb.from('items').select('purchased_on,cost_jpy,status,sold_on').order('kno'));
+  const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',months);
+  const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={};
+  const add=(k,m,v)=>{ if(!(m in (R[k]??=z()))) return; R[k][m]+=v||0 };
+  (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6); const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
+    add('売上',m,s); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
+    add('実送料',m,-(o.ship_actual_jpy??o.ship_est_jpy)); if(o.ship_actual_jpy==null){ add('うち見込みの送料',m,-o.ship_est_jpy); add('送料が未入力の件数',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
+    add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
+  (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
+  (it||[]).forEach(i=>{ if(!i.purchased_on) return; const m=i.purchased_on.replace(/-/g,'').slice(0,6); add('仕入数',m,1); add('仕入額',m,i.cost_jpy) });
+  months.forEach(m=>{ const last=`${m.slice(0,4)}-${m.slice(4)}-31`;
+    (it||[]).forEach(i=>{ if(i.purchased_on&&i.purchased_on<=last&&(!i.sold_on||i.sold_on>last)){ add('在庫数',m,1); add('在庫金額',m,i.cost_jpy) } }) });
+  const g=k=>R[k]??z();
+  R['利益']=z(); R['利益率']=z(); R['利益(諸費用控除後)']=z();
+  months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
+    R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
+    R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
+  const rows=['売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち見込みの送料','送料が未入力の件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+  const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
+  pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
+    rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
+      return `<tr><th>${k}</th>${months.map(m=>`<td class="n ${v[m]<0?'neg':''}">${fmt(k,v[m])}</td>`).join('')}<td class=n><b>${tot==null?'—':fmt(k,tot)}</b></td></tr>` }).join('')+'</tbody>';
+}
+
+// 販売情報
+async function loadOrders(){
+  const [y,m]=om.value.split('-'); const last=new Date(+y,+m,0).getDate();
+  let q=sb.from('orders').select('*').gte('ordered_on',`${y}-${m}-01`).lte('ordered_on',`${y}-${m}-${last}`).order('ordered_on');
+  if(onp.checked) q=q.eq('processed',false);
+  const {data}=await q;
+  obody.innerHTML=(data||[]).map(o=>`<tr><td>${o.ordered_on}</td><td>${o.order_no||''}</td><td>${o.kno||''}</td><td>${o.platform}</td><td class=n>${yen(o.item_price_jpy)}</td><td class=n>${yen(o.ship_charged_jpy)}</td><td class=n>${yen(o.ship_actual_jpy)}</td><td class=n>${yen(o.duty_jpy)}</td><td>${o.country||''}</td><td>${o.processed?'処理済':'<span class=neg>未処理</span>'}</td></tr>`).join('')||'<tr><td colspan=10 class=sub>データがありません</td></tr>';
+}
+
+// CSV取込（eBayStock export/items_full.csv）
+function parseCsv(t){ const rows=[]; let r=[],c='',q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){c+='"';i++} else q=false } else c+=ch }
+    else if(ch==='"') q=true; else if(ch===','){ r.push(c); c='' } else if(ch==='\n'){ r.push(c); rows.push(r); r=[]; c='' } else if(ch!=='\r') c+=ch }
+  if(c||r.length){ r.push(c); rows.push(r) } return rows; }
+const d8 = s => s&&/^\d{8}$/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6)}` : null;
+// 3種類を見分けて、items_full → 実績明細 → 出品中一覧 の順に取り込む（後のものが正しい状態で上書きする）
+async function importCsv(){
+  if(!csv.files.length){ iomsg.textContent='ファイルを選んでください'; return }
+  const jobs=[];
+  for(const f of csv.files){ const rows=parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[k.trim(),i]));
+    const kind='販売日' in ix?2:'品番' in ix?3:'kno' in ix?1:(h[0]||'').trim().startsWith('社名')?4:0;
+    if(kind===4) rows.unshift(h);
+    if(!kind){ iomsg.textContent=`${f.name}：見たことのない形のCSVです。取り込みを中止しました`; return }
+    jobs.push({kind,rows,ix,name:f.name}); }
+  jobs.sort((a,b)=>a.kind-b.kind||a.rows.length-b.rows.length);
+  const done=[];
+  for(const j of jobs){ const r=await [null,importFull,importSales,importListed,importSheet][j.kind](j.rows,j.ix);
+    if(!r.ok){ iomsg.textContent=[...done,`${j.name}：${r.msg}`].join(' ／ '); return } done.push(r.msg); iomsg.textContent=done.join(' ／ ')+' …'; }
+  iomsg.textContent=done.join(' ／ '); initFilters(); loadItems();
+}
+
+// 手持ちの「収支計算表」CSV（1行目が「社名　2026年, 1月, 2月…」）。現金収支の画面の行に読み替えて入れる
+const SHEET_MAP=[['ebay売上','eBay入金'],['Etsy売上','Etsy入金'],['消費税還付','消費税還付'],['利息','利息'],
+  ['直引き取引','その他収入'],['TAX Return','その他収入'],['ヤフオク返金','その他収入'],['ヤフオク売上','その他収入'],
+  ['楽天','@楽天'],['Paypay','@PayPay'],['三井住友','@三井住友'],['JCB','@JCB'],['Epos','@Epos'],
+  ['Amzon','Amazon'],['Amazon','Amazon'],['ワンロック','ワンロック'],['税理士','税理士'],
+  ['個人事業税','税金'],['住民税','税金'],['所得税','税金'],['みほへ振込','家族への振込'],['かほへ振込','家族への振込'],
+  ['引き落とし','その他支払'],['その他','その他支払'],['ヤマト運輸','その他支払']];
+async function importSheet(rows){
+  const year=((rows[0][0]||'').match(/(20\d\d)年/)||[])[1]; if(!year) return {ok:false,msg:'収支計算表の年が読めません（1行目に「2026年」が必要）'};
+  const n=x=>{ x=(x||'').replace(/[¥,\s]/g,''); return /^-?\d+(\.\d+)?$/.test(x)?Math.round(+x):0 };
+  const sum={};
+  rows.slice(1).forEach(r=>{ const lab=(r[0]||'').trim(); const hit=SHEET_MAP.find(([k])=>lab.startsWith(k)); if(!hit) return;
+    const kind=hit[1][0]==='@'?'CFS:'+hit[1].slice(1):'CF:'+hit[1];   // CFS:＝カードの引き落とし額（明細が無い月にだけ使う）
+    for(let i=1;i<=12;i++){ const v=n(r[i]); if(v){ const key=year+String(i).padStart(2,'0')+'|'+kind; sum[key]=(sum[key]||0)+v } } });
+  const recs=Object.entries(sum).map(([k,v])=>{ const [ym,kind]=k.split('|'); return {ym,kind,amount_jpy:Math.abs(v)} });
+  for(let i=0;i<recs.length;i+=500){ const {error}=await sb.from('monthly_costs').upsert(recs.slice(i,i+500)); if(error) return {ok:false,msg:'失敗：'+error.message} }
+  const ms=[...new Set(recs.map(r=>r.ym))].sort();
+  return {ok:true,msg:`収支計算表${year}年：${ms.length}か月分・${recs.length}マス（${ms[0]?.slice(4)}月〜${ms[ms.length-1]?.slice(4)}月）`};
+}
+async function importFull(rows, ix){
+  const items=[], orders=[];
+  rows.filter(r=>r.length>1).forEach(r=>{ const v=k=>r[ix[k]]?.trim();
+    const kno=+v('kno'); const st=v('status')==='sold'?'sold':'listed';
+    items.push({kno,status:st,location:'ワンロック',location_status:st==='listed'?'出品中':null,title:v('title'),
+      cost_jpy:+v('cost_jpy')||null,purchased_on:d8(v('date_purchased')),listed_on:d8(v('date_listed')),sold_on:d8(v('date_sold')),
+      specs:{Brand:v('brand')||undefined,Department:{W:'Women',M:'Men',U:'Unisex Adults'}[v('gender')]}});
+    if(st==='sold') orders.push({kno,ordered_on:d8(v('date_sold')),platform:v('platform')||'その他',item_price_jpy:+v('price_jpy')||0,
+      ship_charged_jpy:0,ship_actual_jpy:null,sales_fee_jpy:null,processed:true,
+      // eBayStockの利益から逆算した費用合計を販売手数料欄に仮置き（送料・手数料の内訳はCSVに無い）
+      _profit:+v('profit_jpy')});
+  });
+  orders.forEach(o=>{ const it=items.find(i=>i.kno===o.kno); o.sales_fee_jpy=Math.max(0,o.item_price_jpy-(it.cost_jpy||0)-o._profit); delete o._profit; });
+  iomsg.textContent=`商品${items.length}件を取り込み中…`;
+  for(let i=0;i<items.length;i+=500){ const {error}=await sb.from('items').upsert(items.slice(i,i+500)); if(error) return {ok:false,msg:'失敗：'+error.message} }
+  const kn=orders.map(o=>o.kno); for(let i=0;i<kn.length;i+=500) await sb.from('orders').delete().in('kno',kn.slice(i,i+500));
+  for(let i=0;i<orders.length;i+=500){ const {error}=await sb.from('orders').insert(orders.slice(i,i+500)); if(error) return {ok:false,msg:'注文の取込失敗：'+error.message} }
+  return {ok:true,msg:`旧データ：商品${items.length}件・販売${orders.length}件`};
+}
+
+// eBayStockの「出品中一覧」CSV（品番,eBay出品ID,商品名,…）。出品中の商品だけ上書きする
+async function importListed(rows, ix){
+  const q=x=>(x??'').trim().replace(/^="?|"$/g,'').trim(); const dt=x=>{ x=q(x).replace(/\//g,'-'); return /^\d{4}-\d{2}-\d{2}$/.test(x)?x:null };
+  const rs=rows.filter(r=>r.length>1&&/^\d+$/.test(q(r[ix['品番']]))); const v=(r,k)=>q(r[ix[k]]);
+  iomsg.textContent=`出品中${rs.length}件を取り込み中…`;
+  // 型番マスタを先に作る
+  const rmap=new Map(); rs.forEach(r=>{ const n=v(r,'リサーチデータ名'); if(n&&!rmap.has(n)) rmap.set(n,{name:n,brand:v(r,'ブランド')||null,model:v(r,'型番')||null}) });
+  const rid={};
+  if(rmap.size){ const {data,error}=await sb.from('research').upsert([...rmap.values()],{onConflict:'name'}).select('id,name');
+    if(error) return {ok:false,msg:'型番の取込失敗：'+error.message}; data.forEach(x=>rid[x.name]=x.id); }
+  const items=rs.map(r=>({kno:+v(r,'品番'),status:'listed',location:'ワンロック',location_status:'出品中',research_id:rid[v(r,'リサーチデータ名')]??null,
+    title:v(r,'商品名'),condition:v(r,'コンディション')||null,price_usd:+v(r,'出品価格(USD)')||null,shipping_policy:(r[ix['配送ポリシー名']]??'').trim()||null,
+    cost_jpy:(+v(r,'仕入原価(円)')||0)+(+v(r,'仕入送料(円)')||0)||null,purchased_on:dt(r[ix['仕入日']]),
+    first_listed_on:dt(r[ix['初回出品日']]),listed_on:dt(r[ix['最後の出品日']]),sold_on:null,
+    specs:{Brand:v(r,'ブランド')||undefined,'Reference Number':v(r,'型番')||undefined}}));
+  for(let i=0;i<items.length;i+=500){ const {error}=await sb.from('items').upsert(items.slice(i,i+500)); if(error) return {ok:false,msg:'失敗：'+error.message} }
+  // 一覧に無いのに「出品」のままの商品（売れた・取り下げた可能性）は数だけ知らせる
+  const cur=await allRows(()=>sb.from('items').select('kno').eq('status','listed').order('kno')); const set=new Set(items.map(i=>i.kno));
+  const gone=cur.filter(x=>!set.has(x.kno)).length;
+  return {ok:true,msg:`出品中${items.length}件・型番${rmap.size}件`+(gone?`（一覧に無いのに「出品」のままの商品が${gone}件あります）`:'')};
+}
+
+// eBayStockの「実績明細」CSV（品番,販売日,販売PF,…）。売れた商品と、1件ごとの売上・手数料・送料・関税を入れる
+async function importSales(rows, ix){
+  const q=x=>(x??'').trim().replace(/^="?|"$/g,'').trim(); const v=(r,k)=>q(r[ix[k]]);
+  const num=(r,k)=>{ const x=v(r,k); return x===''||isNaN(+x)?null:+x }; const yenOf=(r,k)=>{ const x=num(r,k); return x==null?null:Math.round(x) };
+  const pf=x=>/etsy|esty/i.test(x)?'Etsy':x==='eBay'?'eBay':x==='自社'?'自社':'その他';
+  const rs=rows.filter(r=>r.length>1&&/^\d+$/.test(q(r[ix['品番']]))&&/^\d{4}\/\d{2}\/\d{2}$/.test(v(r,'販売日')));
+  const items=[], orders=[];
+  rs.forEach(r=>{ const kno=+v(r,'品番'), day=v(r,'販売日').replace(/\//g,'-'), rate=num(r,'為替レート'), total=yenOf(r,'売上合計(円)')||0;
+    const price=rate&&num(r,'商品価格(USD)')!=null?Math.min(total,Math.round(num(r,'商品価格(USD)')*rate)):total;
+    const real=v(r,'送料区分')==='実値', pr=yenOf(r,'利益(関税後/円)');
+    const est=yenOf(r,'推定送料(円)')??(pr==null?null:Math.max(0,total-(yenOf(r,'仕入原価(円)')||0)-(yenOf(r,'販売手数料(円)')||0)-(yenOf(r,'Payoneer手数料(円)')||0)-(yenOf(r,'関税(円)')||0)-pr));
+    items.push({kno,status:'sold',location_status:null,title:v(r,'商品名'),cost_jpy:yenOf(r,'仕入原価(円)'),sold_on:day,ebay_item_id:v(r,'eBay ID')||null});
+    orders.push({kno,ordered_on:day,platform:pf(v(r,'販売PF')),item_price_jpy:price,ship_charged_jpy:total-price,
+      ship_actual_jpy:real?yenOf(r,'実送料(円)'):null,  // 未入力は空のまま（0円ではない）
+      ship_est_jpy:real?null:est,                        // 未入力のときeBayStockが利益から引いている見込み送料
+      sales_fee_jpy:yenOf(r,'販売手数料(円)'),payoneer_fee_jpy:yenOf(r,'Payoneer手数料(円)'),duty_jpy:yenOf(r,'関税(円)'),
+      promo_fee_jpy:(yenOf(r,'プロモーション費用(広告/円)')||0)+(yenOf(r,'プロモーション費用(プレミアム/円)')||0),
+      listing_fee_jpy:yenOf(r,'出品関連手数料(円)'),other_fee_jpy:yenOf(r,'その他eBay手数料(円)'),return_cost_jpy:yenOf(r,'返品費用(円)'),
+      sales_usd:num(r,'売上合計(USD)'),fx_rate:rate,country:v(r,'配送先国')||null,ship_method:v(r,'配送方法')||null,processed:true}); });
+  for(let i=0;i<items.length;i+=500){ const {error}=await sb.from('items').upsert(items.slice(i,i+500)); if(error) return {ok:false,msg:'失敗：'+error.message} }
+  const kn=orders.map(o=>o.kno); for(let i=0;i<kn.length;i+=500){ const {error}=await sb.from('orders').delete().in('kno',kn.slice(i,i+500)); if(error) return {ok:false,msg:'失敗：'+error.message} }
+  for(let i=0;i<orders.length;i+=500){ const {error}=await sb.from('orders').insert(orders.slice(i,i+500)); if(error) return {ok:false,msg:'注文の取込失敗：'+error.message} }
+  const noShip=orders.filter(o=>o.ship_actual_jpy==null).length;
+  const days=orders.map(o=>o.ordered_on).sort();
+  return {ok:true,msg:`実績${orders.length}件（${days[0]||''}〜${days[days.length-1]||''}、実送料が未入力${noShip}件）`};
+}
+
+// eBayとの接続（鍵は裏方にあり、ここには無い）
+async function ebayCall(action,extra){ const {data,error}=await sb.functions.invoke('ebay',{body:{action,...(extra||{})}});
+  if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
+async function ebayConnect(){ ebmsg.textContent='eBayの許可画面を用意しています…'; const r=await ebayCall('auth_url');
+  if(r.error){ ebmsg.textContent='接続できません：'+r.error; return }
+  window.open(r.url,'_blank'); ebmsg.textContent=`eBayの画面（${r.env==='production'?'本番':'テスト環境'}）で許可したら、「接続を確認」を押してください。`; }
+async function ebayStatus(){ ebmsg.textContent='確認中…'; ebpol.innerHTML=''; const r=await ebayCall('status');
+  if(r.error){ ebmsg.textContent='確認できません：'+r.error; return }
+  const env=r.env==='production'?'本番':'テスト環境';
+  if(!r.connected){ ebmsg.textContent=`まだ接続していません（${env}。鍵は${r.keys?'入っています':'まだ入っていません'}）`; return }
+  if(r.policies_ready===false){ ebmsg.textContent=`接続中（${env}）。ただしeBay側で送料・返品ポリシーの機能がまだ有効になっていません。`;
+    ebpol.innerHTML=r.env==='sandbox'?'<button class="btn" onclick="ebayOptin()">ポリシーを有効にする（テスト環境）</button>':`<p>eBayからの返事：${String(r.note||'').replace(/[&<>]/g,'')}</p>`; return }
+  ebmsg.textContent=`接続中（${env}）。接続日 ${(r.connected_at||'').slice(0,10)}／再接続の期限 ${(r.refresh_expires_at||'').slice(0,10)||'—'}`;
+  const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); const li=(t,a)=>`<p><b>${t}</b>（${a.length}件）：${a.map(x=>esc(x.name)).join('、')||'なし'}</p>`;
+  ebpol.innerHTML=li('送料ポリシー',r.fulfillment)+li('返品ポリシー',r.returns)+li('支払いポリシー',r.payment); }
+
+async function ebayOptin(){ ebmsg.textContent='有効にしています…'; const r=await ebayCall('optin');
+  ebmsg.textContent=r.error?'有効にできません：'+r.error:'申し込みました。反映に時間がかかることがあります（最長1日）。少しおいて「接続を確認」を押してください。'; ebpol.innerHTML=''; }
+
+// eBayに出ている商品の写真・商品番号・URLを、品番で突き合わせて取り込む（eBay側は読むだけ）
+async function ebaySync(){ ebmsg.textContent='eBayから出品中の一覧を読んでいます…（1分ほどかかることがあります）'; ebpol.innerHTML=''; const r=await ebayCall('sync_listings');
+  if(r.error){ ebmsg.textContent='取り込めません：'+r.error; return }
+  ebmsg.textContent=`${r.env==='production'?'本番':'テスト環境'}：eBayに出品中 ${r.total}件のうち ${r.matched}件に写真を入れました。`;
+  const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  ebpol.innerHTML=(r.unknown_count?`<p>品番が合わなかったもの ${r.unknown_count}件：${r.unknown.map(esc).join('、')}</p>`:'')+(r.no_photo?`<p>写真が無かったもの ${r.no_photo}件</p>`:''); loadItems(); }
+
+// Claudeが作った下書き（JSONの配列）を商品として入れる。同じ下書き（draft_id）を二度読んでも増えない
+async function importDrafts(){ const f=djson.files[0]; if(!f){ djmsg.textContent='ファイルを選んでください'; return }
+  let ds; try{ ds=JSON.parse(await f.text()) }catch(e){ djmsg.textContent='読めないファイルです：'+e.message; return }
+  if(!Array.isArray(ds)||!ds.length){ djmsg.textContent='下書きが入っていません'; return }
+  const {data:rs}=await sb.from('research').select('id,name'); const rid=Object.fromEntries((rs||[]).map(r=>[r.name,r.id]));
+  const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); let next=(mx?.[0]?.kno||0)+1;
+  const done=await allRows(()=>sb.from('items').select('kno,memo').like('memo','%[下書き:%').order('kno')); let added=0, skipped=0; const made=[];
+  for(const d of ds){ const mark=`[下書き:${d.draft_id||d.folder||d.title}]`;
+    if(done.some(x=>(x.memo||'').includes(mark))){ skipped++; continue }
+    const rn=(d.research_name||'').trim();
+    if(rn&&!rid[rn]){ const {data,error}=await sb.from('research').insert({name:rn,brand:d.brand||null,model:d.model||null}).select('id').single(); if(error){ djmsg.textContent='型番の登録に失敗：'+error.message; return } rid[rn]=data.id }
+    const it={kno:next,status:'stock',location:d.location||'自宅',location_status:'出品待ち',research_id:rid[rn]??null,title:(d.title||'').slice(0,80),condition:d.condition||null,
+      price_usd:d.price_usd||null,cost_jpy:d.cost_jpy||null,purchased_on:d.purchased_on||null,supplier:d.supplier||null,serial_no:d.serial_no||null,
+      condition_note:d.condition_note||null,appearance_note:d.appearance_note||null,accessories:d.accessories||null,specs:d.specs||{},
+      memo:[d.memo,d.check?'要確認：'+d.check:null,mark].filter(Boolean).join('\n')};
+    const {error}=await sb.from('items').insert(it); if(error){ djmsg.textContent=`品番${next}で失敗：`+error.message; return } made.push(next); next++; added++; }
+  djmsg.textContent=`下書き${added}本を入れました`+(made.length?`（品番 ${made[0]}〜${made[made.length-1]}）`:'')+(skipped?`。読み込み済み${skipped}本は飛ばしました`:''); initFilters(); loadItems(); }
+
+// 型番が付いていない商品を、タイトルに型番が含まれるかでつなぐ（長い型番を優先。付いているものは触らない）
+async function linkResearch(){ lkmsg.textContent=' 調べています…';
+  const rs=(await allRows(()=>sb.from('research').select('id,model').order('id'))).filter(r=>r.model&&r.model.trim().length>=4).sort((a,b)=>b.model.length-a.model.length);
+  const its=await allRows(()=>sb.from('items').select('kno,title').is('research_id',null).order('kno'));
+  const by={}; its.forEach(i=>{ const t=(i.title||'').toLowerCase(); const r=rs.find(r=>t.includes(r.model.trim().toLowerCase())); if(r) (by[r.id]??=[]).push(i.kno) });
+  let n=0; for(const [id,knos] of Object.entries(by)){ for(let i=0;i<knos.length;i+=200){ const {error}=await sb.from('items').update({research_id:+id}).in('kno',knos.slice(i,i+200)).is('research_id',null);
+      if(error){ lkmsg.textContent=' 失敗：'+error.message; return } n+=Math.min(200,knos.length-i) } }
+  lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
+
+boot();
+</script>
+</body>
+</html>
