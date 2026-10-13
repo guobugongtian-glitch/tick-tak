@@ -92,7 +92,29 @@ td.ph .noph{display:block;width:56px;height:56px;border-radius:6px;background:#e
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:16px 4px;font:inherit;font-size:16px;cursor:pointer}
 .menu button:last-child{border-bottom:0}
 .dfq{display:none}
-dialog.quick .adv,dialog.quick .dff{display:none}
+dialog.quick .adv,dialog.quick .qh,dialog.quick .dff{display:none}
+.note{background:#f3f6ff;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.7;margin-top:8px;color:#334}
+.note:empty{display:none}
+.fold summary{cursor:pointer;padding:12px 0;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary::after{content:"＋";color:var(--sub);font-size:20px;flex:0 0 auto}
+.fold[open] summary::after{content:"−"}
+textarea.ttl{font-size:16px;line-height:1.5;min-height:84px}
+.fs-spec{padding-top:2px;padding-bottom:2px}
+dialog.quick .db{display:flex;flex-direction:column;background:var(--bg);padding:0}
+dialog.quick fieldset{border:0;border-radius:0;background:#fff;margin:0 0 10px;padding:14px 16px}
+dialog.quick legend{float:left;width:100%;font-size:17px;font-weight:700;color:var(--ink);padding:0;margin-bottom:8px}
+dialog.quick legend+*{clear:both}
+dialog.quick .fs-photo{order:1}dialog.quick .fs-basic{order:2}dialog.quick .fs-list{order:3}dialog.quick .fs-price{order:4}dialog.quick .fs-spec{order:5}
+dialog.quick .g2{grid-template-columns:1fr;gap:0}
+dialog.quick .g2 label{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;font-size:16px;color:var(--ink);border-bottom:1px solid var(--line);min-height:54px}
+dialog.quick .g2 label:last-child{border-bottom:0}
+dialog.quick .g2 label input,dialog.quick .g2 label select{width:60%;min-width:0;border:0;text-align:right;text-align-last:right;background:none;font-size:17px;padding:8px 0}
+dialog.quick label.big input{font-size:26px;font-weight:800;color:#e5342a}
+dialog.quick .fs-spec .g2 label{font-size:14px;min-height:46px}
+dialog.quick .fs-spec .g2 label input{font-size:15px}
+dialog.quick .profit{background:var(--bg);border-radius:12px;padding:10px 14px;margin:10px 0 0}
+dialog.quick #vout{background:#fff;padding:8px 16px}
 dialog.quick .dfq{display:flex}
 .btn:disabled{opacity:.35;cursor:not-allowed}
 fieldset{min-width:0}
@@ -153,12 +175,6 @@ input[type=file]{max-width:100%}
   #v-items tr.st-sold::after{content:"SOLD";position:absolute;left:-26px;top:10px;transform:rotate(-45deg);background:#e5342a;color:#fff;font-size:11px;font-weight:700;padding:2px 30px;pointer-events:none}
   #v-items tr.st-stock::after{content:"保管";position:absolute;right:4px;top:4px;background:#1d2330cc;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;pointer-events:none}
   html,body{max-width:100vw;overflow-x:hidden}
-  dialog.quick .g2{grid-template-columns:1fr;gap:0}
-  dialog.quick .g2 label{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line);padding:6px 0}
-  dialog.quick .g2 label input,dialog.quick .g2 label select{width:58%;border:0;text-align:right;background:none;font-size:16px;padding:8px 0}
-  dialog.quick fieldset{border:0;border-radius:0;border-bottom:8px solid var(--bg);margin:0;padding:12px 4px}
-  dialog.quick legend{font-size:13px;color:var(--sub);font-weight:400}
-  dialog.quick .db{padding:0 10px}
   .dfq .btn.s{flex:1 1 30%;min-height:34px;padding:4px;font-size:12px;background:none;color:var(--sub);text-decoration:underline}
   .dk{display:none}
   .pills .chip{min-height:0;padding:5px 12px}
@@ -352,33 +368,34 @@ input[type=file]{max-width:100%}
 <dialog id="dlg"><form method="dialog" id="ifm" onsubmit="return false">
   <div class="dh"><b id="dtitle">商品登録</b><button class="btn s" onclick="dlg.close()">✕</button></div>
   <div class="db">
-    <fieldset><legend>写真（1枚目が表紙）</legend>
+    <fieldset class="fs-photo"><legend>写真（1枚目が表紙）</legend>
       <div class="ptiles"><label class="ptile add" for="pfile"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>写真を追加</span></label><div id="iphotos"></div></div>
       <input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)" hidden><div id="pmsg" class="sub"></div>
     </fieldset>
-    <fieldset><legend>基本</legend><div class="g2">
-      <label>品番(SKU)*<input name="kno" type="number" required></label>
+    <fieldset class="fs-basic"><legend>商品</legend><div class="g2">
+      <label class="qh">品番(SKU)*<input name="kno" type="number" required></label>
       <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
-      <label>ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
+      <label class="qh">ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
       <label class="hide">保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
       <label class="hide">保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
-      <label>コンディション<select name="condition"></select></label>
+      <label>状態<select name="condition"></select></label>
     </div>
-    <div class="row"><button class="btn" type="button" onclick="fillFromPast()">過去の出品から入れる</button><span id="rhint" class="sub"></span></div>
-    <div id="rpast" class="sub" style="line-height:1.6"></div></fieldset>
-    <fieldset><legend>利益計算</legend><div class="g2">
-      <label>売価 ($)<input name="price_usd" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
-      <label>配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="30" oninput="calcI()"></label>
-      <label>仕入値 (円)<input name="cost_jpy" type="number" oninput="calcI()"></label>
+    <div class="row"><button class="btn s" type="button" onclick="fillFromPast()">過去の出品から入れる</button></div>
+    <div id="rhint" class="note"></div>
+    <div id="rpast" class="note"></div></fieldset>
+    <fieldset class="fs-price"><legend>価格</legend><div class="g2">
+      <label class="big">売価 ($)<input name="price_usd" inputmode="decimal" placeholder="0.00" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
+      <label class="qh">配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="0" oninput="calcI()"></label>
+      <label>仕入値 (円)<input name="cost_jpy" type="number" inputmode="numeric" placeholder="0" oninput="calcI()"></label>
     </div><p class="profit" id="iprofit">—</p></fieldset>
-    <fieldset><legend>仕入情報</legend><div class="g2">
+    <fieldset class="fs-buy qh"><legend>仕入情報</legend><div class="g2">
       <label>仕入日<input name="purchased_on" type="date"></label>
       <label>仕入先<select name="supplier"><option></option><option>ヤフオク</option><option>メルカリ</option><option>ラクマ</option><option>キタムラ</option><option>ハードオフ</option><option>仕入れツアー</option><option>その他</option></select></label>
       <label>仕入先URL<input name="supplier_url"></label>
     </div></fieldset>
-    <fieldset><legend>出品情報</legend>
-      <label class="sub">出品タイトル（<span id="tlen">0</span>/80）</label>
-      <input name="title" maxlength="80" style="width:100%" oninput="tlen.textContent=this.value.length">
+    <fieldset class="fs-list"><legend>商品名と説明</legend>
+      <label class="sub">商品名（英語・<span id="tlen">0</span>/80字）</label>
+      <textarea name="title" maxlength="80" rows="3" class="ttl" placeholder="[Near MINT] Brand Model Ref ... Watch From JAPAN" oninput="tlen.textContent=this.value.length"></textarea>
       <div class="g2" style="margin-top:8px">
         <label>シリアルNo<input name="serial_no"></label>
         <label>配送サービス<input name="shipping_service" value="FedEx International Priority"></label>
@@ -388,11 +405,13 @@ input[type=file]{max-width:100%}
         <label>販売日<input name="sold_on" type="date"></label>
         <label>出品URL<input name="listing_url"></label>
       </div>
-      <label class="sub">コンディション補足</label><textarea name="condition_note"></textarea>
-      <label class="sub">外観補足</label><textarea name="appearance_note"></textarea>
-      <label class="sub">付属品</label><textarea name="accessories"></textarea>
+      <details class="fold"><summary>状態・外観・付属品の説明（英語・書かなくても出せます）</summary>
+        <label class="sub">状態の説明</label><textarea name="condition_note" placeholder="Works fine. Small scratches on the case."></textarea>
+        <label class="sub">外観</label><textarea name="appearance_note"></textarea>
+        <label class="sub">付属品</label><textarea name="accessories" placeholder="Watch only"></textarea>
+      </details>
     </fieldset>
-    <fieldset><legend>アイテムスペック</legend><div class="g2" id="specs"></div></fieldset>
+    <fieldset class="fs-spec"><details class="fold" id="spfold"><summary>スペック <span id="spcount" class="sub"></span></summary><div class="g2" id="specs"></div></details></fieldset>
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
@@ -494,7 +513,8 @@ function initDialog(){
 // スペック欄：決まった項目＋その商品（または手本）が持っている項目
 function renderSpecs(o){ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const keys=[...new Set([...SPECS,...Object.keys(o||{})])];
-  specs.innerHTML=keys.map(s=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}"></label>`).join(''); }
+  specs.innerHTML=keys.map(s=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}"></label>`).join('');
+  const n=keys.filter(s=>o?.[s]).length; spcount.textContent=n?`（${n}項目 入っています。押すと開きます）`:'（まだ空です。型番を選ぶと入ります）'; }
 let POLICIES=[];
 // 送料ポリシーは名前に価格帯が入っている（SpeedPak 301-400 など）。売価が入ったら合うものを選ぶ
 function pickPolicy(){ const p=+ifm.price_usd.value; if(!p) return;
@@ -535,12 +555,12 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
     ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT';
-    ifm.location.value='自宅'; if(quick) dtitle.textContent='出品'; }
+    ifm.location.value='自宅'; if(quick) dtitle.textContent='出品（品番 '+ifm.kno.value+'）'; }
   tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
 }
 function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
   if(!pr){ el.textContent='—'; return } const gross=(pr+sh)*s.fx, fee=gross*(s.fee+s.pay)/100, p=cost?gross-fee-cost-s.ship:null;
-  el.innerHTML=`<span class="pl"><span>売上（$${(pr+sh).toFixed(2)}×${s.fx}円）</span><span>${yen(gross)}円</span></span>
+  el.innerHTML=`<span class="pl"><span>売上（$${(pr+sh).toFixed(2)} × ${s.fx}円）</span><span>${yen(gross)}円</span></span>
     <span class="pl sub"><span>販売手数料の見込み（${s.fee+s.pay}%）</span><span>−${yen(fee)}円</span></span>
     <span class="pl sub"><span>送料の目安</span><span>−${yen(s.ship)}円</span></span>
     <span class="pl sub"><span>仕入値</span><span>${cost?'−'+yen(cost)+'円':'未入力'}</span></span>
@@ -1116,7 +1136,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013201807';
+const BUILD='20261013202020';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
