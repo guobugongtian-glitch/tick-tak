@@ -309,6 +309,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 .radv div{margin-top:4px}
 .radv .sug{background:#fff;border:1px solid #e5e0d3;border-radius:4px;padding:1px 6px}
 .radv .chip{background:#fff;color:#222;border:1px solid #cfcfcf;padding:2px 10px;min-height:0;font-size:12px;margin-left:6px}
+.tideas .kw{background:#fff;color:#222;border:1px solid #cfcfcf;padding:2px 10px;min-height:0;font-size:12px;margin:2px 0}
 </style>
 </head>
 <body>
@@ -574,7 +575,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <fieldset class="fs-list"><legend>商品名と説明</legend>
       <label class="sub">商品名（英語・<span id="tlen">0</span>/80字）</label>
       <textarea name="title" maxlength="80" rows="3" class="ttl" placeholder="[Near MINT] Brand Model Ref ... Watch From JAPAN" oninput="tlen.textContent=this.value.length;seoCheck()"></textarea>
-      <div class="row"><button class="btn s" type="button" onclick="titleIdeas()">売れたタイトルから案を出す</button><button class="btn s" type="button" onclick="boostTitle()">空いた字数に検索語を足す</button></div><div id="tideas" class="tideas"></div>
+      <div class="row"><button class="btn s" type="button" onclick="titleIdeas()">売れたタイトルから案を出す</button><button class="btn s" type="button" onclick="boostTitle()">空いた字数に検索語を足す</button><button class="btn s" type="button" onclick="otherTitles()">ほかのセラーのタイトルを見る</button></div><div id="tideas" class="tideas"></div>
       <div id="seo" class="note"></div>
       <div class="g2" style="margin-top:8px">
         <label>シリアルNo<input name="serial_no"></label>
@@ -865,6 +866,24 @@ function boostTitle(){ let t=ifm.title.value.trim(); const tail=/\s*(From\s+JAPA
   for(const c of cand){ if(t.toLowerCase().includes(c.toLowerCase().replace(/ (dial|band)$/,''))) continue; if((t+' '+c+end).length>80) continue; t+=' '+c; added++ }
   ifm.title.value=((t+end).length<=80?t+end:t).slice(0,80); tlen.textContent=ifm.title.value.length; seoCheck();
   if(!added) seo.innerHTML+='<div class="sub">足せる語がありませんでした（スペックが空か、もう入っています）。</div>'; }
+// 同じ型を出している、ほかのセラーのタイトルを見る。eBayの検索で上のほうに出ている順（＝eBayが売れやすいと見ている順）
+// 押すとそのタイトルが入る（状態は自分のものに差し替え）。みんなが使っていて自分のタイトルに無い語も出す
+async function otherTitles(){ const model=spv('Reference Number')||spv('Model')||ifm.research_name.value.trim(), q=[spv('Brand'),model].filter(Boolean).join(' ');
+  if(q.length<3){ tideas.innerHTML='<span class="sub">先に型番（とブランド）を入れてください。</span>'; return }
+  tideas.innerHTML=`<span class="sub">eBayで「${q.replace(/[<>&]/g,'')}」を調べています…</span>`; const r=await ebayCall('lookup_specs',{q});
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  if(r.error){ tideas.innerHTML=`<span class="neg">調べられません：${esc(r.error)}</span>`; return }
+  const ls=(r.listings||[]).filter(x=>x.title); if(!ls.length){ tideas.innerHTML='<span class="sub">同じ型の出品が見つかりませんでした。型番の書き方を変えて試してください。</span>'; return }
+  const cond=ifm.condition.value, mine=ifm.title.value.toLowerCase(), cnt={};
+  ls.forEach(x=>[...new Set(x.title.replace(/[^A-Za-z0-9+' ]/g,' ').split(/\s+/).filter(w=>w.length>2))].forEach(w=>{ const k=w.toLowerCase(); (cnt[k]??={w,n:0}).n++ }));
+  const stop=new Set(['the','and','for','with','from','new','mint','near','exc','top','box']);
+  const hot=Object.values(cnt).filter(x=>x.n>=Math.max(2,Math.ceil(ls.length/4))&&!mine.includes(x.w.toLowerCase())&&!stop.has(x.w.toLowerCase())).sort((a,b)=>b.n-a.n).slice(0,12);
+  tideas.innerHTML=`<div class="sub">eBayの検索で上に出ている、ほかのセラーの出品 ${ls.length}件（「${esc(q)}」）。押すとタイトルに入ります。そのままではなく、自分の商品に合わせて直してください（色・サイズ・付属品など）。</div>`
+    +(hot.length?`<div class="sub">みんなが使っていて、自分のタイトルに無い語：${hot.map(x=>`<button type="button" class="chip kw" data-w="${esc(x.w)}">${esc(x.w)}（${x.n}）</button>`).join(' ')}</div>`:'')
+    +ls.map((x,i)=>`<button type="button" class="tidea" data-i="${i}">${esc(x.title)}<small>${x.price?`${x.currency==='USD'?'$':''}${esc(x.price)}${x.currency&&x.currency!=='USD'?' '+esc(x.currency):''}・`:''}${x.title.length}字</small></button>`).join('');
+  tideas.querySelectorAll('.tidea').forEach(b=>b.onclick=()=>{ ifm.title.value=fitTitle(ls[+b.dataset.i].title,cond); tlen.textContent=ifm.title.value.length; seoCheck() });
+  tideas.querySelectorAll('.kw').forEach(b=>b.onclick=()=>{ let t=ifm.title.value.trim(); const tail=/\s*(From\s+JAPAN|JAPAN)\s*$/i.exec(t); const head=tail?t.slice(0,tail.index).trim():t, end=tail?' '+tail[1]:'';
+    const s=head+' '+b.dataset.w+end; if(s.length>80){ seo.innerHTML='<span class="neg">80字を超えるので足せません。別の語を消してから押してください。</span>'; return } ifm.title.value=s; tlen.textContent=s.length; b.remove(); seoCheck() }); }
 function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
   if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
   const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
@@ -1611,7 +1630,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013214005';
+const BUILD='20261013214304';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
