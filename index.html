@@ -52,7 +52,26 @@ legend{font-weight:600;padding:0 4px}
 .profit{font-weight:700;font-size:16px}
 #login{max-width:360px;margin:80px auto}
 .hide{display:none!important}
-nav button.sell{background:#b91c1c;color:#fff;font-weight:700;padding:6px 16px}
+nav button{display:inline-flex;align-items:center;gap:4px}
+nav .ic{display:none}
+nav button.mo{display:none}
+nav button.sell{background:#e5342a;color:#fff;font-weight:700;padding:6px 16px}
+td.ph{cursor:pointer;width:64px}
+td.ph img{width:56px;height:56px;object-fit:cover;border-radius:6px;display:block}
+td.ph .noph{display:block;width:56px;height:56px;border-radius:6px;background:#eef0f3;color:var(--sub);font-size:9px;line-height:1.2;overflow:hidden;padding:3px}
+.ptiles{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+#iphotos{display:flex;gap:8px}
+.ptile{position:relative;flex:0 0 96px;width:96px}
+.ptile img{width:96px;height:96px;object-fit:cover;border-radius:8px;display:block}
+.ptile b{position:absolute;left:4px;top:4px;background:#e5342a;color:#fff;font-size:11px;padding:1px 6px;border-radius:4px}
+.ptile div{display:flex;justify-content:space-between;margin-top:4px}
+.ptile div button{border:0;background:#e5e7eb;border-radius:6px;width:30px;height:28px;font-size:12px;cursor:pointer}
+.ptile.add{height:96px;border:2px dashed #c9ced6;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#e5342a;font-size:12px;font-weight:700;cursor:pointer;background:#fff}
+.profit{font-weight:400;font-size:14px}
+.pl{display:flex;justify-content:space-between;padding:3px 0}
+.pl.tot{font-weight:700;font-size:16px;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:16px 4px;font:inherit;font-size:16px;cursor:pointer}
+.menu button:last-child{border-bottom:0}
 .dfq{display:none}
 dialog.quick .adv,dialog.quick .dff{display:none}
 dialog.quick .dfq{display:flex}
@@ -66,9 +85,14 @@ input[type=file]{max-width:100%}
   .btn,.chip{min-height:42px;padding:9px 14px}
   header{padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top))}
   header b{font-size:16px}
-  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;overflow-x:auto;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
-  nav button{flex:0 0 auto;padding:10px 12px;white-space:nowrap;font-size:13px}
-  nav button.sell{position:sticky;left:0;z-index:1;font-size:16px;padding:10px 22px;border-radius:22px;margin-right:6px;box-shadow:0 2px 8px #0003}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:var(--card);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  nav button{flex-direction:column;gap:1px;padding:6px 0;font-size:11px;border-radius:8px;background:none!important;color:var(--sub)}
+  nav button.on{color:#e5342a;font-weight:700}
+  nav .ic{display:block}
+  nav button.mh{display:none}
+  nav button.mo{display:inline-flex}
+  nav button.sell{background:none!important;color:#e5342a;font-size:11px;padding:0 0 6px;box-shadow:none;position:static}
+  nav button.sell .ic{width:54px;height:54px;padding:13px;margin-top:-22px;border-radius:27px;background:#e5342a;color:#fff;box-shadow:0 3px 10px #e5342a66}
   main{padding:10px}
   .card{padding:12px}
   dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
@@ -82,19 +106,27 @@ input[type=file]{max-width:100%}
   textarea{min-height:80px}
   .g2{grid-template-columns:1fr 1fr}
   #v-items thead{display:none}
-  #v-items table,#v-items tbody{display:block}
-  #v-items tr{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:2px 10px;padding:10px 4px;border-bottom:1px solid var(--line)}
-  #v-items td{border:0;padding:0;min-width:0;overflow-wrap:anywhere}
-  #v-items td.n{white-space:normal;text-align:right}
+  #v-items .tbl{overflow:visible}
+  #v-items table{display:block;background:none}
+  #v-items tbody{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+  #v-items tr{display:block;position:relative;background:#eef0f3;aspect-ratio:1;overflow:hidden;border-radius:4px}
+  #v-items td{display:none;border:0;padding:0}
+  #v-items td.ph{display:block;width:100%;height:100%}
+  #v-items td.ph img{width:100%;height:100%;border-radius:0}
+  #v-items td.ph .noph{width:100%;height:100%;border-radius:0;font-size:11px;padding:8px 6px 26px}
+  #v-items td:nth-child(6){display:block;position:absolute;left:0;bottom:0;background:#000a;color:#fff;font-weight:700;font-size:12px;padding:2px 8px;border-radius:0 8px 0 0;white-space:nowrap;pointer-events:none}
+  #v-items tr.st-sold::after{content:"SOLD";position:absolute;left:-26px;top:10px;transform:rotate(-45deg);background:#e5342a;color:#fff;font-size:11px;font-weight:700;padding:2px 30px;pointer-events:none}
+  #v-items tr.st-stock::after{content:"保管";position:absolute;right:4px;top:4px;background:#1d2330cc;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;pointer-events:none}
   html,body{max-width:100vw;overflow-x:hidden}
-  #v-items td:nth-child(1){grid-row:1 / span 3}
-  #v-items td:nth-child(2){font-weight:700}
-  #v-items td:nth-child(3){grid-column:3;grid-row:1;color:var(--sub);font-size:12px}
-  #v-items td:nth-child(4){grid-column:3;grid-row:2;font-size:12px}
-  #v-items td:nth-child(5){grid-column:2;grid-row:2 / span 2;font-size:13px}
-  #v-items td:nth-child(6){grid-column:3;grid-row:3;font-weight:700}
-  #v-items td:nth-child(7),#v-items td:nth-child(8){display:none}
-  .fab{display:flex;position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:7;width:60px;height:60px;border-radius:30px;border:0;background:var(--ok);color:#fff;font-size:30px;align-items:center;justify-content:center;box-shadow:0 4px 14px #0004}
+  dialog.quick .g2{grid-template-columns:1fr;gap:0}
+  dialog.quick .g2 label{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line);padding:6px 0}
+  dialog.quick .g2 label input,dialog.quick .g2 label select{width:58%;border:0;text-align:right;background:none;font-size:16px;padding:8px 0}
+  dialog.quick fieldset{border:0;border-radius:0;border-bottom:8px solid var(--bg);margin:0;padding:12px 4px}
+  dialog.quick legend{font-size:13px;color:var(--sub);font-weight:400}
+  dialog.quick .db{padding:0 10px}
+  .dfq .btn.s{flex:1 1 30%;min-height:34px;padding:4px;font-size:12px;background:none;color:var(--sub);text-decoration:underline}
+  #v-items .card .row{margin:2px 0}
+  #v-items .card{padding:8px 10px}
 }
 </style>
 </head>
@@ -111,15 +143,16 @@ input[type=file]{max-width:100%}
 <header>
   <b>Watch Stock</b>
   <nav>
-    <button class="sell" onclick="openItem(null,true)">出品</button>
-    <button data-v="items" class="on">商品管理</button>
-    <button data-v="research">リサーチ</button>
-    <button data-v="pf">実績確認</button>
-    <button data-v="cash">収支計算表</button>
-    <button data-v="card">カード明細</button>
-    <button data-v="bank">銀行明細</button>
-    <button data-v="orders">販売情報</button>
-    <button data-v="io">取込/設定</button>
+    <button data-v="items" class="on"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>商品</span></button>
+    <button data-v="pf"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>実績</span></button>
+    <button class="sell" onclick="openItem(null,true)"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>出品</span></button>
+    <button data-v="cash"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l6 8 6-8M12 12v8M7 13h10M7 17h10"/></svg><span>収支</span></button>
+    <button data-v="research" class="mh"><span>リサーチ</span></button>
+    <button data-v="card" class="mh"><span>カード明細</span></button>
+    <button data-v="bank" class="mh"><span>銀行明細</span></button>
+    <button data-v="orders" class="mh"><span>販売情報</span></button>
+    <button data-v="io" class="mh"><span>取込/設定</span></button>
+    <button data-v="more" class="mo"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
   </nav>
 </header>
 <main>
@@ -140,6 +173,16 @@ input[type=file]{max-width:100%}
     <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価(送料)</th><th class="n">仕入値</th><th class="n">想定利益</th></tr></thead>
     <tbody id="itbody"></tbody>
   </table></div>
+</section>
+
+<section id="v-more" class="hide">
+  <div class="card menu">
+    <button onclick="go('research')">リサーチ・利益計算</button>
+    <button onclick="go('orders')">販売情報</button>
+    <button onclick="go('card')">カード明細</button>
+    <button onclick="go('bank')">銀行明細</button>
+    <button onclick="go('io')">取込・eBay接続・設定</button>
+  </div>
 </section>
 
 <!-- リサーチ -->
@@ -268,12 +311,12 @@ input[type=file]{max-width:100%}
   <div class="dh"><b id="dtitle">商品登録</b><button class="btn s" onclick="dlg.close()">✕</button></div>
   <div class="db">
     <fieldset><legend>写真（1枚目が表紙）</legend>
-      <div id="iphotos" class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-start"></div>
-      <div class="row"><input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)"><span id="pmsg" class="sub"></span></div>
+      <div class="ptiles"><label class="ptile add" for="pfile"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>写真を追加</span></label><div id="iphotos"></div></div>
+      <input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)" hidden><div id="pmsg" class="sub"></div>
     </fieldset>
     <fieldset><legend>基本</legend><div class="g2">
       <label>品番(SKU)*<input name="kno" type="number" required></label>
-      <label>型番(リサーチデータ名)<input name="research_name" list="rlist" onchange="showPast()"></label>
+      <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
       <label>ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
       <label>保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
       <label>保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
@@ -352,6 +395,7 @@ async function boot(){
   initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl();
 }
 
+function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
 async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
@@ -389,8 +433,8 @@ async function loadItems(){
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
-    const ph=r.photos?.[0]; const img=ph?`<a href="${r.listing_url||ph}" target="_blank" rel="noopener"><img src="${ph}" loading="lazy" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block"></a>`:'';
-    return `<tr><td>${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    const ph=r.photos?.[0]; const img=ph?`<img src="${ph}" loading="lazy" alt="">`:`<span class="noph">${(r.title||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
+    return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}${r.shipping_usd?` ($${r.shipping_usd})`:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td></tr>` }).join('');
@@ -450,11 +494,17 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
     if(quick){ dtitle.textContent='出品'; ifm.location.value='自宅'; ifm.location_status.value='出品待ち' } }
   tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
 }
-function calcI(){ $('iprofit').textContent=fmtP(profit(ifm.price_usd.value,ifm.shipping_usd.value,ifm.cost_jpy.value)); }
+function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
+  if(!pr){ el.textContent='—'; return } const gross=(pr+sh)*s.fx, fee=gross*(s.fee+s.pay)/100, p=cost?gross-fee-cost-s.ship:null;
+  el.innerHTML=`<span class="pl"><span>売上（$${(pr+sh).toFixed(2)}×${s.fx}円）</span><span>${yen(gross)}円</span></span>
+    <span class="pl sub"><span>販売手数料の見込み（${s.fee+s.pay}%）</span><span>−${yen(fee)}円</span></span>
+    <span class="pl sub"><span>送料の目安</span><span>−${yen(s.ship)}円</span></span>
+    <span class="pl sub"><span>仕入値</span><span>${cost?'−'+yen(cost)+'円':'未入力'}</span></span>
+    <span class="pl tot ${p!=null&&p<0?'neg':''}"><span>利益の見込み</span><span>${p==null?'—':yen(p)+'円（'+(p/gross*100).toFixed(0)+'%）'}</span></span>`; }
 // 写真：並べ替え・外す・追加（追加はパソコンの写真を小さくしてから写真置き場へ送る）
 let PH=[];
-function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div style="text-align:center"><a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" alt="" style="width:84px;height:84px;object-fit:cover;border-radius:6px;display:block;${i===0?'outline:3px solid #2563eb':''}"></a>
-    <button type="button" class="chip" onclick="movePhoto(${i},-1)" title="前へ">◀</button><button type="button" class="chip" onclick="movePhoto(${i},1)" title="後ろへ">▶</button><button type="button" class="chip" onclick="dropPhoto(${i})" title="この商品から外す">✕</button></div>`).join('')||'<span class="sub">写真はまだありません</span>'; }
+function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div class="ptile"><a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" alt=""></a>${i===0?'<b>表紙</b>':''}
+    <div><button type="button" onclick="movePhoto(${i},-1)" title="前へ">◀</button><button type="button" onclick="movePhoto(${i},1)" title="後ろへ">▶</button><button type="button" onclick="dropPhoto(${i})" title="この商品から外す">✕</button></div></div>`).join(''); }
 function movePhoto(i,d){ const j=i+d; if(j<0||j>=PH.length) return; [PH[i],PH[j]]=[PH[j],PH[i]]; drawPhotos(); }
 function dropPhoto(i){ PH.splice(i,1); drawPhotos(); }
 function shrink(file){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const max=1600, k=Math.min(1,max/Math.max(img.width,img.height));
