@@ -621,8 +621,10 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
   ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
-  if(!POLICIES.length){ const ps=await allRows(()=>sb.from('items').select('shipping_policy').not('shipping_policy','is',null).order('kno'));
-    POLICIES=[...new Set(ps.map(x=>x.shipping_policy))].sort(); plist.innerHTML=POLICIES.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join(''); }
+  if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
+    const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
+    ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
+    POLICIES=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(x=>x[0]); plist.innerHTML=POLICIES.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join(''); }
   const {data:rs} = await sb.from('research').select('id,name').order('name');
   RES = Object.fromEntries((rs||[]).map(r=>[r.name,r.id])); rlist.innerHTML=(rs||[]).map(r=>`<option value="${r.name}">`).join('');
   if(kno){ const {data:r} = await sb.from('items').select('*,research(name)').eq('kno',kno).single();
@@ -1219,7 +1221,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013203303';
+const BUILD='20261013203347';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
