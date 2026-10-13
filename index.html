@@ -281,6 +281,16 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   .menu{border:0!important}
   .menu button{padding:18px 4px;font-size:16px}
 }
+/* 商品画面の下のボタン：同じ大きさで横に並べる。お知らせはボタンの上に1行で */
+.dff{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:stretch}
+.dff .btn{min-height:46px;margin:0;font-size:14px;padding:6px 10px}
+.dff #dmsg{grid-column:1/-1;order:-1;text-align:center}
+.dff #dmsg:empty{display:none}
+.dff .btn.s:last-child{display:none}
+.tideas{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.tidea{text-align:left;border:1px solid #cfcfcf;border-radius:6px;background:#fff;padding:8px 10px;font:inherit;font-size:14px;cursor:pointer;line-height:1.4}
+.tidea small{display:block;color:var(--sub);font-size:11px;margin-top:2px}
+@media (max-width:700px){ .dff{grid-template-columns:1fr 1fr} .dff .btn{font-size:13px} }
 </style>
 </head>
 <body>
@@ -355,7 +365,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <div class="row" style="margin-top:8px"><input id="rkw" type="search" placeholder="型番・ブランドで絞る" style="flex:1;min-width:0" oninput="drawResearch()">
       <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
     <div class="row sub">残したい利益 <input id="rtarget" type="number" value="10000" style="width:100px" oninput="drawResearch()"> 円</div>
-    <div id="rlist"></div>
+    <div id="rcards"></div>
     <p class="sub" id="rnote"></p>
   </div>
   <div class="card">
@@ -540,7 +550,9 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     </div></fieldset>
     <fieldset class="fs-list"><legend>商品名と説明</legend>
       <label class="sub">商品名（英語・<span id="tlen">0</span>/80字）</label>
-      <textarea name="title" maxlength="80" rows="3" class="ttl" placeholder="[Near MINT] Brand Model Ref ... Watch From JAPAN" oninput="tlen.textContent=this.value.length"></textarea>
+      <textarea name="title" maxlength="80" rows="3" class="ttl" placeholder="[Near MINT] Brand Model Ref ... Watch From JAPAN" oninput="tlen.textContent=this.value.length;seoCheck()"></textarea>
+      <div class="row"><button class="btn s" type="button" onclick="titleIdeas()">売れたタイトルから案を出す</button><button class="btn s" type="button" onclick="boostTitle()">空いた字数に検索語を足す</button></div><div id="tideas" class="tideas"></div>
+      <div id="seo" class="note"></div>
       <div class="g2" style="margin-top:8px">
         <label>シリアルNo<input name="serial_no"></label>
         <label>配送サービス<input name="shipping_service" value="FedEx International Priority"></label>
@@ -562,7 +574,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">出品中の説明文を新しい形に直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる（直して出し直す）</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
@@ -782,6 +794,54 @@ async function showPast(){ rhint.textContent=''; rpast.innerHTML=''; PAST=[]; co
     +(now.length?`<br>いま出品中：${now.slice(0,4).map(r=>`$${r.price_usd} ${r.condition||''}（品番${r.kno}）`).join('、')}`:'');
   if(dlg.classList.contains('quick')&&PAST.length&&!ifm.title.value) fillFromPast(); }
 
+// タイトルの案を出す。①同じ型番で速く売れた自分のタイトル（売れるまでの日数つき）②いま出品中の同じ型のタイトル ③スペックから組み立てた形
+function fitTitle(t,cond){ t=String(t||'').replace(/^\s*\[[^\]]*\]\s*/,'').replace(/\s+/g,' ').trim(); let s=(cond?`[${cond}] `:'')+t;
+  if(s.length>80){ s=s.slice(0,80); const k=s.lastIndexOf(' '); if(k>50) s=s.slice(0,k) } return s; }
+function specTitle(cond){ const sp=k=>(document.querySelector(`[data-spec="${k}"]`)?.value||'').trim();
+  const dep=/women|ladies/i.test(sp('Department'))?"Women's":/men/i.test(sp('Department'))?"Men's":/unisex/i.test(sp('Department'))?'Unisex':'';
+  const mv=/quartz/i.test(sp('Movement'))?'Quartz':/auto/i.test(sp('Movement'))?'Automatic':/manual|hand/i.test(sp('Movement'))?'Hand-Winding':'';
+  const model=sp('Model'), ref=sp('Reference Number'), parts=['Vintage',sp('Brand'),model,ref&&!model.includes(ref)?ref:'',sp('Dial Color')?sp('Dial Color')+' Dial':'',sp('Case Size').replace(/\s+/g,''),mv,dep,'Watch','From JAPAN'];
+  return fitTitle(parts.filter(Boolean).join(' '),cond); }
+function titleIdeas(){ const cond=ifm.condition.value, ideas=[], seen=new Set(), add=(t,why)=>{ const s=fitTitle(t,cond); const key=s.toLowerCase(); if(s.length<20||seen.has(key)) return; seen.add(key); ideas.push({s,why}) };
+  const days=r=>r.listed_on&&r.sold_on?Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5):null;
+  PAST.filter(r=>r.status==='sold'&&r.title).map(r=>({r,d:days(r)})).sort((a,b)=>(a.d??999)-(b.d??999)).slice(0,3)
+    .forEach(({r,d})=>add(r.title,`同じ型で売れたタイトル${d!=null?`（${d}日で売れた）`:''}${r.orders?.[0]?.sales_usd?`・$${r.orders[0].sales_usd}`:''}`));
+  PAST.filter(r=>r.status==='listed'&&(r.ebay?.title||r.title)).slice(0,1).forEach(r=>add(r.ebay?.title||r.title,'いま出品中の同じ型のタイトル'));
+  const st=specTitle(cond); if(st.replace(/^\[[^\]]*\]\s*/,'').split(' ').length>=5) add(st,'スペックから組み立てた形');
+  const esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  tideas.innerHTML=ideas.length?ideas.map((x,i)=>`<button type="button" class="tidea" data-i="${i}">${esc(x.s)}<small>${esc(x.why)}・${x.s.length}字</small></button>`).join('')
+    :'<span class="sub">案を出せません。先に型番を選ぶか、スペック（Brand・Model など）を入れてください。</span>';
+  tideas.querySelectorAll('.tidea').forEach(b=>b.onclick=()=>{ ifm.title.value=ideas[+b.dataset.i].s; tlen.textContent=ifm.title.value.length; seoCheck() });
+  return ideas; }
+// ===== eBayの検索に出やすくする（SEO）チェック =====
+// eBayの検索は、タイトルの語とスペック（Item specifics）の埋まり具合を見る。足りない所を教える
+const spv=k=>(document.querySelector(`[data-spec="${k}"]`)?.value||'').trim();
+function seoCheck(){ const t=ifm.title.value, low=t.toLowerCase(), has=w=>w&&low.includes(String(w).toLowerCase()), items=[];
+  const ok=(c,good,bad)=>items.push(`<div>${c?'<b style="color:#15803d">✓</b>':'<b class="neg">✗</b>'} ${c?good:bad}</div>`);
+  ok(t.length>=65,`タイトル ${t.length}字（80字をほぼ使えています）`,`タイトルが${t.length}字。80字まで使えます。あと${80-t.length}字、検索される語を足せます`);
+  const brand=spv('Brand'), model=spv('Model'), ref=spv('Reference Number');
+  if(brand) ok(has(brand),'ブランド名が入っています',`ブランド名「${brand}」がタイトルにありません`);
+  if(ref||model) ok(has(ref)||has(model),'型番・モデル名が入っています',`型番「${ref||model}」がタイトルにありません`);
+  ok(/watch/i.test(t),'「Watch」が入っています','「Watch」がタイトルにありません');
+  ok(/women|men|ladies|unisex|boys/i.test(t),"性別（Women's / Men's）が入っています","Women's か Men's を入れると、性別で探す人に出ます");
+  ok(/quartz|automatic|hand.?wind|manual|qz/i.test(t),'動き方（Quartz など）が入っています','Quartz / Automatic などを入れると探されやすくなります');
+  const words=low.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>3), dup=[...new Set(words.filter((w,i)=>words.indexOf(w)!==i))];
+  ok(!dup.length,'同じ語の繰り返しはありません',`同じ語が2回あります（${dup.join(', ')}）。別の語に替えると字数が生きます`);
+  ok(!/[!★☆♪◆■●]|l@@k|wow/i.test(t),'記号や飾りの語はありません','！や★などは検索に効きません。外して語を足しましょう');
+  const need=['Brand','Type','Department','Movement','Case Material','Band Material','Dial Color','Case Size','Display','Model','Reference Number'], miss=need.filter(k=>!spv(k));
+  const filled=[...document.querySelectorAll('[data-spec]')].filter(i=>i.value.trim()).length;
+  ok(!miss.length,`大事なスペックが全部入っています（全部で${filled}項目）`,`スペックが空です：${miss.join('、')}（絞り込み検索に出なくなります）`);
+  ok(PH.length>=8,`写真 ${PH.length}枚`,`写真が${PH.length}枚。8枚以上あると選ばれやすくなります（最大24枚）`);
+  seo.innerHTML='<b>検索に出やすいかのチェック</b>'+items.join(''); }
+// タイトルが短いとき、スペックにあってタイトルに無い語を後ろに足す（80字まで。From JAPAN は最後に残す）
+function boostTitle(){ let t=ifm.title.value.trim(); const tail=/\s*(From\s+JAPAN|JAPAN)\s*$/i.exec(t); if(tail) t=t.slice(0,tail.index).trim();
+  const dep=/women|ladies/i.test(spv('Department'))?"Women's":/men/i.test(spv('Department'))?"Men's":'';
+  const mv=/quartz/i.test(spv('Movement'))?'Quartz':/auto/i.test(spv('Movement'))?'Automatic':'';
+  const cand=[mv,dep,spv('Dial Color')&&spv('Dial Color')+' Dial',spv('Case Material'),spv('Band Material')&&spv('Band Material')+' Band',spv('Style'),spv('Case Size').replace(/\s+/g,''),/watch/i.test(t)?'':'Watch'].filter(Boolean);
+  const end=tail?' '+tail[1]:' From JAPAN'; let added=0;
+  for(const c of cand){ if(t.toLowerCase().includes(c.toLowerCase().replace(/ (dial|band)$/,''))) continue; if((t+' '+c+end).length>80) continue; t+=' '+c; added++ }
+  ifm.title.value=((t+end).length<=80?t+end:t).slice(0,80); tlen.textContent=ifm.title.value.length; seoCheck();
+  if(!added) seo.innerHTML+='<div class="sub">足せる語がありませんでした（スペックが空か、もう入っています）。</div>'; }
 function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
   if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
   const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
@@ -791,9 +851,11 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   if(src.shipping_policy) ifm.shipping_policy.value=src.shipping_policy; pickPolicy();
   if(src.store_cat1||src.ebay?.store_cat) ifm.store_cat1.value=src.store_cat1||src.ebay.store_cat;
   if(!ifm.condition_note.value) ifm.condition_note.value=src.condition_note||src.ebay?.condition_desc||'';
-  calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
+  calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`;
+  // 同じ型で実際に速く売れたタイトルがあれば、それを優先して入れる
+  const ideas=titleIdeas(); const best=ideas.find(x=>x.why.startsWith('同じ型で売れた')); if(best){ ifm.title.value=best.s; tlen.textContent=best.s.length } seoCheck(); }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
-  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
     ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
@@ -816,7 +878,7 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
     const {data:st}=await sb.from('items').select('kno,title,memo,cost_jpy,purchased_on').eq('status','stock').order('kno',{ascending:false}).limit(200);
     stockpick.classList.toggle('hide',!quick||!st?.length);
     if(st?.length) stocksel.innerHTML='<option value="">仕入れ済みの商品から選ぶ（'+st.length+'件）</option>'+st.map(x=>`<option value="${x.kno}">${String(x.title||(x.memo||'').split('\n')[0].replace(/^台帳：/,'')||'品番'+x.kno).replace(/[<>&]/g,'').slice(0,34)}｜${x.purchased_on||''}｜${yen(x.cost_jpy)}円</option>`).join(''); }
-  tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast(); spmsg.textContent=''; loadSpecVals();
+  tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast(); spmsg.textContent=''; loadSpecVals(); seoCheck();
 }
 function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
   if(!pr){ el.textContent='—'; return } const gross=(pr+sh)*s.fx, fee=gross*(s.fee+s.pay)/100, p=cost?gross-fee-cost-s.ship:null;
@@ -985,7 +1047,7 @@ function searchLinks(q){ const e=encodeURIComponent, jp=jpQuery(q), en=String(q|
     +a('eBay 売れた',`https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1`)
     +a('Etsy',`https://www.etsy.com/search?q=${e(en+' watch')}`); }
 let RSTAT=[];
-async function loadResearch(){ rlist.innerHTML='<p class="sub">集計しています…</p>';
+async function loadResearch(){ rcards.innerHTML='<p class="sub">集計しています…</p>';
   const its=await allRows(()=>sb.from('items').select('kno,status,cost_jpy,listed_on,first_listed_on,sold_on,research(name,brand,model),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,sales_usd)').not('research_id','is',null).order('kno'));
   const g={}, med=a=>{ if(!a.length) return null; a=[...a].sort((x,y)=>x-y); return a[Math.floor(a.length/2)] };
   its.forEach(r=>{ const n=r.research?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research.brand||'',sold:0,listed:0,stock:0,old:0,sales:[],prof:[],days:[],costs:[],eb:0,et:0};
@@ -1005,7 +1067,7 @@ function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.
   let a=RSTAT.filter(x=>(!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k))&&(k||tab==='all'||(tab==='rec'?isRec(x):isNg(x))));
   const rec=x=>(isRec(x)?1e9:0)+(x.ap||0)*((x.w90??60)/100)*Math.min(1,x.sold/5);
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>(p.md??1e9)-(q.md??1e9)}[rsort.value]);
-  rlist.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
+  rcards.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
     const cap=x.ms!=null&&x.acut!=null?Math.max(0,Math.floor((x.ms-x.acut-target)/100)*100):null;
     const e=encodeURIComponent, jp=jpQuery(x.name), en=x.name;
     return `<div class="rrow"><div class="rmain">
@@ -1515,7 +1577,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013212232';
+const BUILD='20261013212816';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
