@@ -548,7 +548,7 @@ async function boot(){
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
 async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
-  const os=await allRows(()=>sb.from('orders').select('country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
+  const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
   hsales.textContent=yen(s); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
@@ -558,11 +558,13 @@ function thumb(u){ if(!u) return u;
   if(u.includes('i.ebayimg.com')) return u.replace('/$_57.','/$_35.').replace('/$_1.','/$_35.').replace(/\/s-l\d+\./,'/s-l300.');
   if(u.includes('/watch-photos/')&&!u.includes('_t.jpg')) return u.replace(/\.jpg$/,'_t.jpg');
   return u; }
-// 実送料：実額が入っていればそれ。無い注文は決めた額（2026-10-13 本人指定：アメリカ・イスラエル5,700円、ほか3,500円）
+// 実送料：実額が入っていればそれ。無い注文は、eBay以外で売れた分だけ決めた額（2026-10-13 本人指定：アメリカ・イスラエル5,700円、ほか3,500円）。
+// eBayで売れた分は関税込みの請求で額が違うので、決めた額は当てない（eBayStockの見込み額のまま。本人に金額を確認中）
 const SHIP_RULE={US:5700,IL:5700,other:3500};
 const shipRule=o=>SHIP_RULE[(o.country||'').toUpperCase()]??SHIP_RULE.other;
 const hasShip=o=>o.ship_actual_jpy>0;   // 0円は「入っていない」と同じ扱い
-const shipOf=o=>hasShip(o)?o.ship_actual_jpy:shipRule(o);
+const isEbay=o=>o.platform==='eBay';
+const shipOf=o=>hasShip(o)?o.ship_actual_jpy:isEbay(o)?(o.ship_est_jpy??0):shipRule(o);
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
 async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
@@ -864,7 +866,7 @@ function loadCash(){
 }
 async function loadProfit(){
   const months=monthsBack(cm.value,+cn.value), from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
-  const {data:os}=await sb.from('orders').select('ordered_on,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
+  const {data:os}=await sb.from('orders').select('ordered_on,platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
   const {data:it}=await sb.from('items').select('purchased_on,cost_jpy').gte('purchased_on',from);
   const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
   const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={}, g=k=>R[k]??=z();
@@ -1136,7 +1138,7 @@ async function loadPf(){
   const add=(k,m,v)=>{ if(!(m in (R[k]??=z()))) return; R[k][m]+=v||0 };
   (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6); const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
     add('売上',m,s); add('うち商品の売上',m,o.item_price_jpy); add('うち送料の売上',m,o.ship_charged_jpy); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
-    add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('うち決めた額の送料',m,-shipRule(o)); add('実額が無い件数',m,1); if(!o.country) add('うち国が分からない件数',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('実額が無い件数',m,1); if(isEbay(o)) add('うちeBay分の見込み（関税込み・未確定）',m,-(o.ship_est_jpy??0)); else { add('うち決めた額の送料（eBay以外）',m,-shipRule(o)); if(!o.country) add('うち国が分からない件数',m,1) } } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
     add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
   (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
@@ -1148,7 +1150,7 @@ async function loadPf(){
   months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
     R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
     R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
-  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決めた額の送料','実額が無い件数','うち国が分からない件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決めた額の送料（eBay以外）','うちeBay分の見込み（関税込み・未確定）','実額が無い件数','うち国が分からない件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
   const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
   pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
     rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
@@ -1329,7 +1331,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013205009';
+const BUILD='20261013205039';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
