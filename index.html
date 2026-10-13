@@ -105,7 +105,7 @@ dialog.quick .db{display:flex;flex-direction:column;background:var(--bg);padding
 dialog.quick fieldset{border:0;border-radius:0;background:#fff;margin:0 0 10px;padding:14px 16px}
 dialog.quick legend{float:left;width:100%;font-size:17px;font-weight:700;color:var(--ink);padding:0;margin-bottom:8px}
 dialog.quick legend+*{clear:both}
-dialog.quick .fs-photo{order:1}dialog.quick .fs-basic{order:2}dialog.quick .fs-list{order:3}dialog.quick .fs-price{order:4}dialog.quick .fs-spec{order:5}
+dialog.quick .fs-photo{order:1}dialog.quick .fs-basic{order:2}dialog.quick .fs-list{order:3}dialog.quick .fs-size{order:4}dialog.quick .fs-price{order:5}dialog.quick .fs-spec{order:6}
 dialog.quick .g2{grid-template-columns:1fr;gap:0}
 dialog.quick .g2 label{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;font-size:16px;color:var(--ink);border-bottom:1px solid var(--line);min-height:54px}
 dialog.quick .g2 label:last-child{border-bottom:0}
@@ -333,7 +333,7 @@ input[type=file]{max-width:100%}
   </div>
   <div class="card">
     <h3 style="margin-top:0">説明文のひな形</h3>
-    <p class="sub">出品の説明文の型。{title} {condition} {condition_note} {appearance} {accessories} {specs} の場所に商品の中身が入ります。</p>
+    <p class="sub">出品の説明文の型。{title} {condition} {condition_note} {appearance} {accessories} {size} {specs} の場所に商品の中身が入ります。</p>
     <textarea id="desctpl" style="width:100%;height:180px;font-family:monospace"></textarea>
     <div class="row"><button class="btn" onclick="saveDescTpl()">保存（この端末）</button><button class="btn s" onclick="desctpl.value=DESC_DEFAULT">最初の形に戻す</button><span id="dtmsg" class="sub"></span></div>
   </div>
@@ -383,6 +383,12 @@ input[type=file]{max-width:100%}
     <div class="row"><button class="btn s" type="button" onclick="fillFromPast()">過去の出品から入れる</button></div>
     <div id="rhint" class="note"></div>
     <div id="rpast" class="note"></div></fieldset>
+    <fieldset class="fs-size"><legend>サイズ（入れるとサイズ表が説明文に付きます）</legend><div class="g2">
+      <label>ケースの幅 (mm)<input id="sz_w" type="number" step="0.1" inputmode="decimal" placeholder="例 24" oninput="sizeToSpecs()"></label>
+      <label>ケースの厚み (mm)<input id="sz_t" type="number" step="0.1" inputmode="decimal" placeholder="例 6" oninput="sizeToSpecs()"></label>
+      <label>ベルトの幅 (mm)<input id="sz_b" type="number" step="0.1" inputmode="decimal" placeholder="例 12" oninput="sizeToSpecs()"></label>
+      <label>腕まわり 最大 (cm)<input id="sz_r" type="number" step="0.1" inputmode="decimal" placeholder="例 16" oninput="sizeToSpecs()"></label>
+    </div></fieldset>
     <fieldset class="fs-price"><legend>価格</legend><div class="g2">
       <label class="big">売価 ($)<input name="price_usd" inputmode="decimal" placeholder="0.00" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
       <label class="qh">配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="0" oninput="calcI()"></label>
@@ -429,7 +435,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CONDS = ['Unused','Almost Unused','Top MINT','MINT','Almost MINT','Near MINT','Exc+5','Exc+4','Exc+3','Exc','As-Is','For Parts','Brand New'];
-const SPECS = ['Brand','Department','Type','Reference Number','Model','Style','Band Material','Display','Case Material','Water Resistance','Year Manufactured','With Papers','With Original Box/Packaging','Indices','Case Size','Case Thickness','Movement','Dial Color','Closure'];
+const SPECS = ['Brand','Department','Type','Reference Number','Model','Style','Band Material','Display','Case Material','Water Resistance','Year Manufactured','With Papers','With Original Box/Packaging','Indices','Case Size','Case Thickness','Band Width','Max Wrist Size','Movement','Dial Color','Closure'];
 const ST = {stock:'保管',listed:'出品',sold:'販売'};
 const yen = n => n==null||isNaN(n) ? '—' : Math.round(n).toLocaleString('ja-JP');
 const $ = id => document.getElementById(id);
@@ -532,9 +538,21 @@ async function fillSpecs(){ const sv=await loadSpecVals(); const brand=(document
     const v=b.length&&bt>=3&&b[0][1]/bt>=0.7?b[0][0]:g.length&&gt>=sv.n*0.5&&g[0][1]/gt>=0.8?g[0][0]:null;
     if(v){ cur[k]=v; n++ } }
   renderSpecs(cur); spfold.open=true; spmsg.textContent=n?`${n}項目を「いつもの値」で入れました。違うところだけ直してください。`:'自動で入れられる項目はありませんでした。'; }
+// サイズ欄 ⇄ スペック（Case Size など）。数字だけ入れれば「24 mm」の形でスペックに入る
+const SIZE=[['sz_w','Case Size','mm'],['sz_t','Case Thickness','mm'],['sz_b','Band Width','mm'],['sz_r','Max Wrist Size','cm']];
+function sizeToSpecs(){ SIZE.forEach(([id,k,u])=>{ const el=document.querySelector(`[data-spec="${k}"]`), v=$(id).value; if(el) el.value=v?`${+v} ${u}`:'' }); }
+function specsToSize(o){ SIZE.forEach(([id,k,u])=>{ const m=String(o?.[k]??'').match(/([\d.]+)\s*(mm|cm|in)?/i); let v=m?+m[1]:''; const un=(m?.[2]||u).toLowerCase();
+    if(v!==''&&un!==u) v=un==='in'?(u==='mm'?v*25.4:v*2.54):un==='cm'&&u==='mm'?v*10:un==='mm'&&u==='cm'?v/10:v; $(id).value=v===''?'':Math.round(v*10)/10 }); }
+// 説明文に入れるサイズ表（mm/cm とインチ）
+function sizeTable(specs){ const lab={'Case Size':'Case width','Case Thickness':'Case thickness','Band Width':'Band width','Max Wrist Size':'Fits wrist up to'};
+  const rows=SIZE.map(([id,k,u])=>{ const m=String(specs?.[k]??'').match(/([\d.]+)\s*(mm|cm|in)?/i); if(!m) return ''; let v=+m[1]; const un=(m[2]||u).toLowerCase();
+    const mm=un==='in'?v*25.4:un==='cm'?v*10:v, inch=(mm/25.4).toFixed(2);
+    return `<tr><td style="padding:6px 14px;border:1px solid #ccc">${lab[k]}</td><td style="padding:6px 14px;border:1px solid #ccc;text-align:right">${u==='cm'?(mm/10).toFixed(1)+' cm':Math.round(mm*10)/10+' mm'}</td><td style="padding:6px 14px;border:1px solid #ccc;text-align:right">${inch} in</td></tr>` }).join('');
+  return rows?`<table style="border-collapse:collapse;margin:6px 0"><tr><th style="padding:6px 14px;border:1px solid #ccc;background:#f3f3f3;text-align:left">Size</th><th style="padding:6px 14px;border:1px solid #ccc;background:#f3f3f3">Metric</th><th style="padding:6px 14px;border:1px solid #ccc;background:#f3f3f3">Inch</th></tr>${rows}</table><p style="font-size:13px;color:#666">Measured by hand. Please allow a small margin of error.</p>`:''; }
 function renderSpecs(o){ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const keys=[...new Set([...SPECS,...Object.keys(o||{})])];
   specs.innerHTML=keys.map((s,i)=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}" list="sv${i}"><datalist id="sv${i}">${SV?topVals(SV.all[s]).slice(0,12).map(([v])=>`<option value="${esc(v)}">`).join(''):''}</datalist></label>`).join('');
+  specsToSize(o);
   const n=keys.filter(s=>o?.[s]).length; spcount.textContent=n?`（${n}項目 入っています。押すと開きます）`:'（まだ空です。型番を選ぶと入ります）'; }
 let POLICIES=[];
 // 送料ポリシーは名前に価格帯が入っている（SpeedPak 301-400 など）。売価が入ったら合うものを選ぶ
@@ -614,6 +632,8 @@ const DESC_DEFAULT=`<div style="font-family:Arial,Helvetica,sans-serif;font-size
 <p>{appearance}</p>
 <h3>Accessories</h3>
 <p>{accessories}</p>
+<h3>Size</h3>
+{size}
 <h3>Details</h3>
 {specs}
 <p>Ships from Japan.</p>
@@ -622,8 +642,9 @@ const getDescTpl=()=>{ try{ return localStorage.getItem('ws_desc_tpl')||DESC_DEF
 function saveDescTpl(){ try{ localStorage.setItem('ws_desc_tpl',desctpl.value) }catch(e){} dtmsg.textContent='保存しました（この端末）'; }
 function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   const sp=Object.entries(f.specs||{}).filter(([,v])=>v).map(([k,v])=>`<tr><td style="padding:2px 12px 2px 0"><b>${e(k)}</b></td><td>${e(v)}</td></tr>`).join('');
-  return getDescTpl().replaceAll('{title}',e(f.title)).replaceAll('{condition}',e(f.condition)).replaceAll('{condition_note}',e(f.condition_note)||'-')
-    .replaceAll('{appearance}',e(f.appearance_note)||'-').replaceAll('{accessories}',e(f.accessories)||'Watch only').replaceAll('{specs}',`<table>${sp}</table>`); }
+  let tpl=getDescTpl(); if(!tpl.includes('{size}')) tpl=tpl.includes('{specs}')?tpl.replace('{specs}','{size}\n{specs}'):tpl+'\n{size}';   // 前に保存したひな形にもサイズ表を足す
+  return tpl.replaceAll('{title}',e(f.title)).replaceAll('{condition}',e(f.condition)).replaceAll('{condition_note}',e(f.condition_note)||'-')
+    .replaceAll('{appearance}',e(f.appearance_note)||'-').replaceAll('{accessories}',e(f.accessories)||'Watch only').replaceAll('{specs}',`<table>${sp}</table>`).replaceAll('{size}',sizeTable(f.specs)||'-'); }
 // eBayに内容を見てもらう（出品はされない）。先に保存してから送る
 async function verifyItem(){ vout.innerHTML='保存しています…'; const f=await saveItem(true); if(!f){ vout.innerHTML=''; return }
   vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:buildDesc(f)});
@@ -1159,7 +1180,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013202724';
+const BUILD='20261013203016';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
