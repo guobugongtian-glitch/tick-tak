@@ -53,6 +53,16 @@ legend{font-weight:600;padding:0 4px}
 #login{max-width:360px;margin:80px auto}
 .hide{display:none!important}
 nav button{display:inline-flex;align-items:center;gap:4px}
+.card{border:0;border-radius:16px;box-shadow:0 1px 3px #1d233014,0 4px 14px #1d23300a}
+.hero{background:linear-gradient(135deg,#1d2330,#39425a);color:#fff;border-radius:20px;padding:18px 20px;margin-bottom:12px;box-shadow:0 6px 18px #1d233033}
+.hl{font-size:13px;opacity:.8}
+.hbig{font-size:38px;font-weight:800;letter-spacing:.5px;line-height:1.2}
+.hbig small{font-size:15px;font-weight:400;margin-left:4px;opacity:.8}
+.hrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.hrow div{background:#ffffff18;border-radius:12px;padding:8px 6px;text-align:center}
+.hrow b{display:block;font-size:15px}
+.hrow span{font-size:10px;opacity:.8}
+.btn,.chip{border-radius:10px}
 .filt{padding:10px 12px 0}
 .seg{display:flex;margin-top:6px}
 .seg .chip{flex:1;background:none;color:var(--sub);border-radius:0;border-bottom:3px solid transparent;font-weight:600;padding:10px 4px}
@@ -117,8 +127,13 @@ input[type=file]{max-width:100%}
   #v-items thead{display:none}
   #v-items .tbl{overflow:visible}
   #v-items table{display:block;background:none}
-  #v-items tbody{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
-  #v-items tr{display:block;position:relative;background:#eef0f3;aspect-ratio:1;overflow:hidden;border-radius:4px}
+  #v-items tbody{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .hero{padding:14px 14px}
+  .hbig{font-size:32px}
+  .hrow{gap:6px;margin-top:8px}
+  .hrow div{padding:6px 2px}
+  .hrow b{font-size:13px}
+  #v-items tr{display:block;position:relative;background:#eef0f3;aspect-ratio:1;overflow:hidden;border-radius:12px}
   #v-items td{display:none;border:0;padding:0}
   #v-items td.ph{display:block;width:100%;height:100%}
   #v-items td.ph img{width:100%;height:100%;border-radius:0}
@@ -169,6 +184,16 @@ input[type=file]{max-width:100%}
 
 <!-- 商品管理 -->
 <section id="v-items">
+  <div class="hero">
+    <div class="hl"><span id="hm">今月</span>の売上</div>
+    <div class="hbig"><span id="hsales">—</span><small>円</small></div>
+    <div class="hrow">
+      <div><b id="hprofit">—</b><span>利益の見込み</span></div>
+      <div><b id="hsold">—</b><span>売れた数</span></div>
+      <div><b id="hlisted">—</b><span>出品中</span></div>
+      <div><b id="hstock">—</b><span>在庫の金額</span></div>
+    </div>
+  </div>
   <div class="card filt">
     <div class="row"><input id="kw" type="search" placeholder="品番・タイトルでさがす" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadItems()">
       <button class="btn" onclick="loadItems()">検索</button>
@@ -399,10 +424,17 @@ async function boot(){
   if(!session){ $('login').classList.remove('hide'); return }
   $('login').classList.add('hide'); $('app').classList.remove('hide');
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl();
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero();
 }
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
+// いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
+async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
+  const os=await allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
+  let s=0,p=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; p+=x-(o.items?.cost_jpy||0)-(o.ship_actual_jpy??o.ship_est_jpy??0)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
+  const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
+  hsales.textContent=yen(s); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
+  hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
 async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
