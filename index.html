@@ -469,7 +469,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   </div>
   <div class="card">
     <h3 style="margin-top:0">説明文のひな形</h3>
-    <p class="sub">ふだんは、いまeBayに出ている同じ状態の出品の説明文をそのまま土台に使います（商品名と品番を差し替え、サイズ表を足す）。下のひな形は、土台にできる出品が無いときだけ使います。{title} {condition} {condition_note} {appearance} {accessories} {size} {specs} の場所に商品の中身が入ります。</p>
+    <p class="sub">出品の説明文は、決まった新しいデザイン（白地・黒・金、状態の目盛りつき）で自動で作ります。下のひな形は今は使っていません。{title} {condition} {condition_note} {appearance} {accessories} {size} {specs} の場所に商品の中身が入ります。</p>
     <textarea id="desctpl" style="width:100%;height:180px;font-family:monospace"></textarea>
     <div class="row"><button class="btn" onclick="saveDescTpl()">保存（この端末）</button><button class="btn s" onclick="desctpl.value=DESC_DEFAULT">最初の形に戻す</button><span id="dtmsg" class="sub"></span></div>
   </div>
@@ -551,9 +551,9 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
         <label>出品URL<input name="listing_url"></label>
       </div>
       <details class="fold"><summary>状態・外観・付属品の説明（英語・書かなくても出せます）</summary>
-        <label class="sub">状態の説明</label><textarea name="condition_note" placeholder="Works fine. Small scratches on the case."></textarea>
-        <label class="sub">外観</label><textarea name="appearance_note"></textarea>
-        <label class="sub">付属品</label><textarea name="accessories" placeholder="Watch only"></textarea>
+        <label class="sub">動作（Functional。空なら It works properly.）</label><textarea name="condition_note" placeholder="It works properly."></textarea>
+        <label class="sub">外観（Appearance。空ならいつもの文）</label><textarea name="appearance_note" placeholder="Appearance is beautiful. Tiny scuffs from normal use."></textarea>
+        <label class="sub">付属品（Bundled Items。空ならいつもの文）</label><textarea name="accessories" placeholder="All you can see on the picture will be included."></textarea>
       </details>
     </fieldset>
     <fieldset class="fs-spec"><details class="fold" id="spfold"><summary>スペック <span id="spcount" class="sub"></span></summary>
@@ -859,17 +859,60 @@ const DESC_DEFAULT=`<div style="font-family:Arial,Helvetica,sans-serif;font-size
 </div>`;
 const getDescTpl=()=>{ try{ return localStorage.getItem('ws_desc_tpl')||DESC_DEFAULT }catch(e){ return DESC_DEFAULT } };
 function saveDescTpl(){ try{ localStorage.setItem('ws_desc_tpl',desctpl.value) }catch(e){} dtmsg.textContent='保存しました（この端末）'; }
-// いまeBayに出ている出品の説明文（同じ型番→同じ状態の順で探す）を土台にする。見つからなければ下のひな形
-async function buildDescAsync(f){ let tpl=null; const rid=RES[(ifm.research_name.value||'').trim()];
-  const find=async byRid=>{ let q=sb.from('items').select('d:ebay->>description').eq('ebay->>currency','USD').eq('condition',f.condition).neq('kno',+f.kno).not('ebay','is',null); if(byRid) q=q.eq('research_id',rid);
-    const {data}=await q.order('listed_on',{ascending:false}).limit(1); return data?.[0]?.d||null };
-  try{ if(f.condition){ if(rid) tpl=await find(true); if(!tpl) tpl=await find(false) } }catch(e){}
-  if(!tpl||!/<h1[^>]*>[\s\S]*?<\/h1>/.test(tpl)) return buildDesc(f);
-  const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-  let d=tpl.replace(/(<h1[^>]*>)[\s\S]*?(<\/h1>)/,(m,a,b)=>`${a}${e(f.title)} #${f.kno}${b}`);
-  const extra=[f.condition_note?`<h3 class="h3c">Notes;</h3><div class="d3 desc">${e(f.condition_note)}</div>`:'', f.appearance_note?`<div class="d3 desc">${e(f.appearance_note)}</div>`:'',
-    f.accessories?`<h3 class="h3c">Accessories;</h3><div class="d3 desc">${e(f.accessories)}</div>`:'', sizeTable(f.specs)?`<h3 class="h3c">Size;</h3><div class="d3 desc">${sizeTable(f.specs)}</div>`:''].join('');
-  return d+extra; }
+// ===== 説明文（eBayの商品ページに出る部分）=====
+// 文章は今までの出品と同じ内容。見た目だけ作り直した（白地・黒・金、状態は6段階の目盛り、スマホでも読める幅）
+const D_SCALE=[['TOP MINT','Pre-owned, almost new item'],['MINT','Pre-owned, like new'],['NEAR MINT','Pre-owned, almost no signs of use'],['EXCELLENT+++++','Pre-owned, minimal signs of use'],['EXCELLENT','Pre-owned, heavy signs of use'],['VERY GOOD','Poor appearance']];
+const D_COND={'Brand New':-1,'Unused':-1,'Almost Unused':-1,'Top MINT':0,'MINT':1,'Almost MINT':1,'Near MINT':2,'Exc+5':3,'Exc+4':4,'Exc+3':4,'Exc':4,'As-Is':5,'For Parts':5};
+function buildDescStyled(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  const ci=D_COND[f.condition]??2, unused=ci<0, cname=unused?String(f.condition||'UNUSED').toUpperCase():D_SCALE[ci][0], cdesc=unused?'Unused item':D_SCALE[ci][1];
+  const SHORT=['TOP MINT','MINT','NEAR MINT','EXC +5','EXC','V.GOOD'];
+  const scale=SHORT.map((n,k)=>`<td class="ws-st${k===ci?' ws-on':''}">${n}</td>`).join('');
+  const sec=(t,b)=>`<div class="ws-sec"><div class="ws-h">${t}</div><div class="ws-b">${b}</div></div>`;
+  const serial=f.serial_no?sec('Serial Number',e(f.serial_no)):'', size=sizeTable(f.specs);
+  return `<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+.ws{max-width:860px;margin:0 auto;font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.7;font-size:15px}
+.ws *{box-sizing:border-box}
+.ws-top{border-top:3px solid #1a1a1a;border-bottom:1px solid #d9d4c7;padding:22px 4px 18px;text-align:center}
+.ws-kicker{font-size:11px;letter-spacing:3px;color:#b08d57;font-weight:700}
+.ws-title{font-size:22px;font-weight:700;line-height:1.35;margin:8px 0 6px}
+.ws-sku{display:inline-block;font-size:12px;color:#777;border:1px solid #d9d4c7;border-radius:20px;padding:1px 12px}
+.ws-cond{background:#f7f5f0;border-radius:10px;padding:20px 16px;margin:22px 0;text-align:center}
+.ws-cl{font-size:11px;letter-spacing:3px;color:#777}
+.ws-cn{font-size:28px;font-weight:800;letter-spacing:1px;margin:2px 0}
+.ws-cd{font-size:14px;color:#444;margin-bottom:14px}
+.ws-scale{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed}
+.ws-st{font-size:10px;font-weight:700;color:#aaa;background:#fff;border:1px solid #e5e0d3;border-radius:4px;padding:6px 2px;text-align:center;white-space:nowrap}
+.ws-on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.ws-sec{border-bottom:1px solid #ece8dd;padding:14px 4px}
+.ws-h{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b08d57;font-weight:700;margin-bottom:4px}
+.ws-b{font-size:15px}
+.ws-note{font-size:13px;color:#666;text-align:center;padding:16px 8px}
+.ws-pol{background:#fafafa;border-radius:10px;padding:6px 16px;margin-top:20px}
+.ws-pol .ws-sec:last-child{border-bottom:0}
+.ws-pol .ws-b{font-size:13.5px;color:#444}
+.ws-b table{border-collapse:collapse;margin:4px 0;width:100%;max-width:460px}
+.ws-b td,.ws-b th{padding:7px 12px!important;border:1px solid #ddd!important;font-size:14px}
+.ws-b th{background:#f7f5f0!important}
+@media (max-width:600px){.ws{font-size:14px}.ws-title{font-size:18px}.ws-cn{font-size:24px}.ws-st{font-size:8.5px;padding:5px 1px}}
+</style>
+<div class="ws">
+<div class="ws-top"><div class="ws-kicker">VINTAGE WATCH FROM JAPAN</div><div class="ws-title">${e(f.title)}</div><span class="ws-sku">Item No. ${e(f.kno)}</span></div>
+<div class="ws-cond"><div class="ws-cl">TOTAL CONDITION</div><div class="ws-cn">${e(cname)}</div><div class="ws-cd">${cdesc}</div>
+<table class="ws-scale"><tr>${scale}</tr></table></div>
+${serial}
+${sec('Appearance',f.appearance_note?e(f.appearance_note):'Appearance is beautiful.<br>Tiny scuffs from normal use. It shows signs of use.<br>* Please check photos.')}
+${sec('Functional',f.condition_note?e(f.condition_note):'It works properly.')}
+${sec('Bundled Items',f.accessories?e(f.accessories):'All you can see on the picture will be included in a set of a package.')}
+${size?sec('Size',size):''}
+<div class="ws-note">Above condition is based on my own opinion. Please check the photos carefully.<br>Please feel free to contact me for any questions. Thank you.</div>
+<div class="ws-pol">
+${sec('Shipping','I send a product by FedEx International Priority. I attach the tracking number.<br>Shipping is available from Monday to Friday. Weekends are not available because the office is closed.')}
+${sec('Storage and Packing','Immediately after shooting, the item is placed in a closed container with desiccant and stored in a temperature- and humidity-controlled warehouse 24 hours a day, 365 days a year.<br>By weight and shape of each product, I use 13 kinds of cushioning materials and pursue safety and weight reduction.')}
+${sec('Returns','Customer service and satisfaction are very important to us. I have an unconditional return policy if notified within 30 days of the receipt of the item.<br>All returned items must be in the original condition. Please contact me first before you ship it back to me. The postage of the returned goods is a buyer burden.')}
+${sec('International Buyers','Import duties, taxes, and charges are not included in the item price or shipping cost. These charges are the buyer\'s responsibility.<br>Please check with your country\'s customs office to determine what these additional costs will be prior to bidding or buying.')}
+</div></div>`; }
+async function buildDescAsync(f){ return buildDescStyled(f); }
 function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   const sp=Object.entries(f.specs||{}).filter(([,v])=>v).map(([k,v])=>`<tr><td style="padding:2px 12px 2px 0"><b>${e(k)}</b></td><td>${e(v)}</td></tr>`).join('');
   let tpl=getDescTpl(); if(!tpl.includes('{size}')) tpl=tpl.includes('{specs}')?tpl.replace('{specs}','{size}\n{specs}'):tpl+'\n{size}';   // 前に保存したひな形にもサイズ表を足す
@@ -1455,7 +1498,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013211229';
+const BUILD='20261013211419';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
