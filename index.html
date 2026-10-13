@@ -302,6 +302,10 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 .rv .ra .btn{min-height:40px;font-size:13px;padding:4px 8px}
 .rv .rmsg{grid-column:1/-1;font-size:13px}
 .rv .rtitle{width:100%;font-size:14px;min-height:54px;margin-top:4px}
+.radv{grid-column:1/-1;background:#fbf8f1;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.7}
+.radv div{margin-top:4px}
+.radv .sug{background:#fff;border:1px solid #e5e0d3;border-radius:4px;padding:1px 6px}
+.radv .chip{background:#fff;color:#222;border:1px solid #cfcfcf;padding:2px 10px;min-height:0;font-size:12px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -1592,7 +1596,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013213259';
+const BUILD='20261013213720';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -1666,6 +1670,46 @@ function setup() {
 }
 `; lsbox.classList.remove('hide'); lsmsg.textContent=' できました。下の手順で台帳に貼ってください。'; }
 
+// タイトルに、スペックにあって入っていない検索語を80字まで足す（画面に依らない版）。From JAPAN は最後に残す
+function boostText(title,specs){ let t=String(title||'').replace(/\s+/g,' ').trim(); const sp=k=>String(specs?.[k]??'').trim();
+  const tail=/\s*(From\s+JAPAN|JAPAN)\s*$/i.exec(t); if(tail) t=t.slice(0,tail.index).trim();
+  const dep=/women|ladies/i.test(sp('Department'))?"Women's":/men/i.test(sp('Department'))?"Men's":'';
+  const mv=/quartz/i.test(sp('Movement'))?'Quartz':/auto/i.test(sp('Movement'))?'Automatic':'';
+  // まず大事な語（動き方・性別・Watch）を自然な順で足す。From JAPAN は入る余地があるときだけ最後に付ける
+  const must=[/quartz|automatic|qz|hand.?wind/i.test(t)?'':mv,/women|men|ladies|unisex/i.test(t)?'':dep,/watch/i.test(t)?'':'Watch'].filter(Boolean);
+  const more=[sp('Dial Color')&&sp('Dial Color')+' Dial',sp('Case Material'),sp('Style'),sp('Case Size').replace(/\s+/g,'')].filter(Boolean);
+  const end=' '+(tail?tail[1]:'From JAPAN'), inT=c=>t.toLowerCase().includes(c.toLowerCase().replace(/ dial$/,''));
+  // Watch は必ず最後の語にしたいので、先に場所を確保してから前に語を挟む
+  const needWatch=must.includes('Watch'); let core=must.filter(c=>c!=='Watch');
+  for(const c of core){ if(!inT(c)&&(t+' '+c+(needWatch?' Watch':'')).length<=80) t+=' '+c }
+  for(const c of more){ if(!inT(c)&&(t+' '+c+(needWatch?' Watch':'')+end).length<=80) t+=' '+c }
+  if(needWatch&&(t+' Watch').length<=80) t+=' Watch';
+  return (t+end).length<=80?t+end:t.slice(0,80); }
+// 見直しのアドバイス：タイトル・値段・スペック・写真について、その商品に合わせた具体的な提案を作る
+function adviceFor(r,sold){ const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])), out=[], t=r.title||'', dd=d=>d?Math.round((Date.now()-new Date(d))/864e5):null;
+  // タイトル
+  const better=boostText(t,r.specs), tp=[];
+  if(t.length<65) tp.push(`${t.length}字しか使っていません（80字まで使えます）`);
+  if(!/watch/i.test(t)) tp.push('「Watch」が無い'); if(!/women|men|ladies|unisex/i.test(t)) tp.push("Women's / Men's が無い"); if(!/quartz|automatic|qz|hand.?wind/i.test(t)) tp.push('Quartz / Automatic が無い');
+  const b=String(r.specs?.Brand||''), ref=String(r.specs?.['Reference Number']||r.specs?.Model||''); if(b&&!t.toLowerCase().includes(b.toLowerCase())) tp.push(`ブランド名 ${b} が無い`); if(ref&&ref.length>=3&&!t.toLowerCase().includes(ref.toLowerCase())) tp.push(`型番 ${ref} が無い`);
+  if(tp.length||better!==t) out.push(`<div><b>タイトル</b>：${tp.length?esc(tp.join('、'))+'。':'形は良いです。'}${better!==t?`<br>案：<span class="sug">${esc(better)}</span>（${better.length}字）<button type="button" class="chip" onclick="rvUse(this)" data-t="${esc(better)}">この案を使う</button>`:''}</div>`);
+  const fast=(sold||[]).filter(x=>x.title&&x.d!=null).sort((a,b)=>a.d-b.d)[0];
+  if(fast&&fast.title.replace(/^\[[^\]]*\]\s*/,'')!==t.replace(/^\[[^\]]*\]\s*/,'')){ const ft=fitTitle(fast.title,r.condition); out.push(`<div>同じ型でいちばん速く売れたタイトル（${fast.d}日）：<span class="sug">${esc(ft)}</span><button type="button" class="chip" onclick="rvUse(this)" data-t="${esc(ft)}">この案を使う</button></div>`) }
+  // 値段
+  const us=(sold||[]).map(x=>x.usd).filter(Boolean).sort((a,b)=>a-b), ds=(sold||[]).map(x=>x.d).filter(x=>x!=null).sort((a,b)=>a-b), age=dd(r.first_listed_on||r.listed_on);
+  if(us.length>=2&&r.price_usd){ const med=us[Math.floor(us.length/2)], gap=Math.round((r.price_usd/med-1)*100), md=ds.length?ds[Math.floor(ds.length/2)]:null;
+    let adv; if(gap>10&&age>60) adv=`相場より${gap}%高く、${age}日売れていません。<b>$${(Math.round(med)-0.01).toFixed(2)} 前後まで下げる</b>のが目安です。`;
+    else if(gap>10) adv=`相場より${gap}%高めです。まだ${age??'?'}日なので様子見でもよいですが、動かなければ下げる候補です。`;
+    else if(gap<-10) adv=`相場より${-gap}%安いです。値上げの余地があります。`;
+    else adv=age>90?`相場どおりですが${age}日売れていません。タイトルと写真を直して再出品するのが先です。`:'相場どおりです。';
+    out.push(`<div><b>値段</b>：同じ型は ${us.length}本売れていて、中央 $${med}（$${us[0]}〜$${us[us.length-1]}）${md!=null?`、売れるまで中央${md}日`:''}。いま $${r.price_usd}。${adv}</div>`);
+  } else if(age>90) out.push(`<div><b>値段</b>：同じ型の販売実績が少なく相場は出せません。${age}日売れていないので、5〜10%下げるか、再出品で検索の順位を戻すのが候補です。</div>`);
+  // スペック・写真
+  const need=['Brand','Type','Department','Movement','Case Material','Band Material','Dial Color','Case Size','Display'], miss=need.filter(k=>!String(r.specs?.[k]??'').trim());
+  if(miss.length) out.push(`<div><b>スペック</b>：${esc(miss.join('、'))} が空です。絞り込み検索に出ないので、「くわしく開く」で入れてください。</div>`);
+  const n=(r.photos||[]).length; if(n<8) out.push(`<div><b>写真</b>：${n}枚です。裏ぶた・側面・ベルトの留め具・付属品を足して8枚以上にすると選ばれやすくなります。</div>`);
+  return out.length?`<div class="radv"><b style="color:#b08d57">アドバイス</b>${out.join('')}</div>`:'<div class="radv"><b style="color:#b08d57">アドバイス</b><div>大きな問題は見当たりません。値段だけ見て「そのままでよい」で大丈夫です。</div></div>'; }
+function rvUse(b){ const ta=b.closest('.rv').querySelector('.rtitle'); ta.value=b.dataset.t; ta.focus(); }
 // ===== 毎日の見直し（1日5本）=====
 // 出品中の商品のうち、最後に見直してから（見直していなければ出品してから）いちばん日が経っている順に5本出す
 const RV_PER_DAY=5; const jstToday=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10);
@@ -1673,10 +1717,14 @@ async function loadReviewCount(){ const {count}=await sb.from('items').select('k
   const n=count||0; rvcount.textContent=`${n} / ${RV_PER_DAY} 本 済み`; rvbtn.textContent=n>=RV_PER_DAY?'もっと見る':(rvlist.classList.contains('hide')?'はじめる':'とじる'); return n; }
 async function toggleReview(){ if(!rvlist.classList.contains('hide')){ rvlist.classList.add('hide'); loadReviewCount(); return } rvlist.classList.remove('hide'); await drawReview(); }
 async function drawReview(){ rvlist.innerHTML='<p class="sub">選んでいます…</p>'; const done=await loadReviewCount(), today=jstToday();
-  const {data}=await sb.from('items').select('kno,title,price_usd,cost_jpy,condition,photos,listed_on,first_listed_on,reviewed_on,ebay_item_id,listing_url,specs,research(name)').eq('status','listed').not('ebay_item_id','is',null).or(`reviewed_on.is.null,reviewed_on.lt.${today}`).limit(400);
+  const {data}=await sb.from('items').select('kno,research_id,title,price_usd,cost_jpy,condition,photos,listed_on,first_listed_on,reviewed_on,ebay_item_id,listing_url,specs,research(name)').eq('status','listed').not('ebay_item_id','is',null).or(`reviewed_on.is.null,reviewed_on.lt.${today}`).limit(400);
   const age=r=>r.reviewed_on||r.listed_on||r.first_listed_on||'2000-01-01';
   const picks=(data||[]).sort((a,b)=>age(a)<age(b)?-1:1).slice(0,Math.max(1,RV_PER_DAY-done)||RV_PER_DAY);
   if(!picks.length){ rvlist.innerHTML='<p class="sub">見直す商品はもうありません。</p>'; return }
+  // 同じ型で売れた実績（値段・日数・タイトル）をまとめて読む
+  const rids=[...new Set(picks.map(r=>r.research_id).filter(Boolean))], SOLD={};
+  if(rids.length){ const {data:sd}=await sb.from('items').select('research_id,title,listed_on,sold_on,orders(sales_usd)').eq('status','sold').in('research_id',rids).limit(1000);
+    (sd||[]).forEach(x=>(SOLD[x.research_id]??=[]).push({title:x.title,usd:+x.orders?.[0]?.sales_usd||null,d:x.listed_on&&x.sold_on?Math.round((new Date(x.sold_on)-new Date(x.listed_on))/864e5):null})) }
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])), dd=d=>d?Math.round((Date.now()-new Date(d))/864e5):null;
   rvlist.innerHTML=picks.map(r=>{ const t=r.title||'', low=t.toLowerCase(), tips=[];
     if(t.length<65) tips.push(`タイトル${t.length}字（あと${80-t.length}字使える）`); if(!/watch/i.test(t)) tips.push('Watchが無い'); if(!/women|men|ladies|unisex/i.test(t)) tips.push('性別が無い'); if((r.photos||[]).length<8) tips.push(`写真${(r.photos||[]).length}枚`);
@@ -1688,6 +1736,7 @@ async function drawReview(){ rvlist.innerHTML='<p class="sub">選んでいます
         <div class="rm">仕入値 ${yen(r.cost_jpy)}円・いまの値段での利益の見込み ${p?yen(p.p)+'円':'—'}${tips.length?`<br><span class="neg">気になる点：${tips.join('、')}</span>`:''}</div>
         <div class="rp">$<input type="number" step="0.01" class="rvp" value="${r.price_usd||''}"><button class="chip" type="button" onclick="rvCut(this,0.95)">−5%</button><button class="chip" type="button" onclick="rvCut(this,0.9)">−10%</button><button class="chip" type="button" onclick="rvCut(this,1)">元に戻す</button></div>
         <textarea class="rtitle" maxlength="80">${esc(t)}</textarea></div>
+      ${adviceFor(r,SOLD[r.research_id])}
       <div class="ra"><button class="btn" type="button" onclick="rvDo(this,'revise_fields')">値段・タイトルを変える</button><button class="btn g" type="button" onclick="rvDo(this,'relist')">この内容で再出品</button>
         <button class="btn s" type="button" onclick="rvSeen(this)">そのままでよい</button><button class="btn s" type="button" onclick="openItem(${r.kno})">くわしく開く</button>${r.listing_url?`<a class="btn s" style="text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(r.listing_url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}</div>
       <div class="rmsg sub"></div></div>` }).join(''); }
