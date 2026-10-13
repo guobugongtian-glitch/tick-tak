@@ -58,6 +58,8 @@ nav button{display:inline-flex;align-items:center;gap:4px}
 .hl{font-size:13px;opacity:.8}
 .hbig{font-size:38px;font-weight:800;letter-spacing:.5px;line-height:1.2}
 .hbig small{font-size:15px;font-weight:400;margin-left:4px;opacity:.8}
+.hsplit{font-size:13px;opacity:.9;margin-top:2px}
+.hsplit b{font-size:15px}
 .hrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
 .hrow div{background:#ffffff18;border-radius:12px;padding:8px 6px;text-align:center}
 .hrow b{display:block;font-size:15px}
@@ -213,6 +215,7 @@ input[type=file]{max-width:100%}
   <div class="hero">
     <div class="hl"><span id="hm">今月</span>の売上</div>
     <div class="hbig"><span id="hsales">—</span><small>円</small></div>
+    <div class="hsplit">商品 <b id="hitem">—</b>円　／　送料 <b id="hship">—</b>円</div>
     <div class="hrow">
       <div><b id="hprofit">—</b><span>利益の見込み</span></div>
       <div><b id="hsold">—</b><span>売れた数</span></div>
@@ -469,9 +472,9 @@ function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
 async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
   const os=await allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
-  let s=0,p=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; p+=x-(o.items?.cost_jpy||0)-(o.ship_actual_jpy??o.ship_est_jpy??0)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
+  let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-(o.ship_actual_jpy??o.ship_est_jpy??0)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
-  hsales.textContent=yen(s); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
+  hsales.textContent=yen(s); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
   hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
 // 一覧用の小さい写真のURL（eBayの写真は300px版、自分で入れた写真は _t 付きの小さい版）。無ければ元の写真に戻す
 function thumb(u){ if(!u) return u;
@@ -1027,7 +1030,7 @@ async function loadPf(){
   const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={};
   const add=(k,m,v)=>{ if(!(m in (R[k]??=z()))) return; R[k][m]+=v||0 };
   (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6); const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
-    add('売上',m,s); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
+    add('売上',m,s); add('うち商品の売上',m,o.item_price_jpy); add('うち送料の売上',m,o.ship_charged_jpy); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
     add('実送料',m,-(o.ship_actual_jpy??o.ship_est_jpy)); if(o.ship_actual_jpy==null){ add('うち見込みの送料',m,-o.ship_est_jpy); add('送料が未入力の件数',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
     add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
@@ -1040,7 +1043,7 @@ async function loadPf(){
   months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
     R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
     R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
-  const rows=['売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち見込みの送料','送料が未入力の件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち見込みの送料','送料が未入力の件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
   const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
   pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
     rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
@@ -1221,7 +1224,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013203347';
+const BUILD='20261013203538';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
