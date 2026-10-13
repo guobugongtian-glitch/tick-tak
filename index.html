@@ -291,6 +291,17 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 .tidea{text-align:left;border:1px solid #cfcfcf;border-radius:6px;background:#fff;padding:8px 10px;font:inherit;font-size:14px;cursor:pointer;line-height:1.4}
 .tidea small{display:block;color:var(--sub);font-size:11px;margin-top:2px}
 @media (max-width:700px){ .dff{grid-template-columns:1fr 1fr} .dff .btn{font-size:13px} }
+.rv{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px}
+.rv img,.rv .noph{width:96px;height:96px;object-fit:cover;border-radius:6px;display:block;background:#f2f2f2}
+.rv .rt{font-weight:700;font-size:14px;line-height:1.4}
+.rv .rm{font-size:12px;color:var(--sub);margin:2px 0 6px}
+.rv .rp{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.rv .rp input{width:104px;font-size:16px;font-weight:700;text-align:right}
+.rv .rp .chip{background:#fff;color:#222;border:1px solid #cfcfcf;padding:4px 10px;min-height:0;font-size:12px}
+.rv .ra{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;grid-column:1/-1}
+.rv .ra .btn{min-height:40px;font-size:13px;padding:4px 8px}
+.rv .rmsg{grid-column:1/-1;font-size:13px}
+.rv .rtitle{width:100%;font-size:14px;min-height:54px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -332,6 +343,10 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
       <div><b id="hlisted">—</b><span>出品中</span></div>
       <div><b id="hstock">—</b><span>在庫の金額</span></div>
     </div>
+  </div>
+  <div class="card" id="rvcard">
+    <div class="row" style="justify-content:space-between"><b>今日の見直し <span id="rvcount" class="sub"></span></b><button class="btn" id="rvbtn" onclick="toggleReview()">はじめる</button></div>
+    <div id="rvlist" class="hide"></div>
   </div>
   <div class="card filt">
     <div class="row"><input id="kw" type="search" placeholder="品番・タイトルでさがす" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadItems()">
@@ -612,7 +627,7 @@ async function boot(){
   if(!session){ $('login').classList.remove('hide'); return }
   $('login').classList.add('hide'); $('app').classList.remove('hide');
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero(); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero(); loadReviewCount(); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
@@ -1577,7 +1592,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013212816';
+const BUILD='20261013213259';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -1650,6 +1665,43 @@ function setup() {
   syncLedger();
 }
 `; lsbox.classList.remove('hide'); lsmsg.textContent=' できました。下の手順で台帳に貼ってください。'; }
+
+// ===== 毎日の見直し（1日5本）=====
+// 出品中の商品のうち、最後に見直してから（見直していなければ出品してから）いちばん日が経っている順に5本出す
+const RV_PER_DAY=5; const jstToday=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+async function loadReviewCount(){ const {count}=await sb.from('items').select('kno',{count:'exact',head:true}).eq('status','listed').eq('reviewed_on',jstToday());
+  const n=count||0; rvcount.textContent=`${n} / ${RV_PER_DAY} 本 済み`; rvbtn.textContent=n>=RV_PER_DAY?'もっと見る':(rvlist.classList.contains('hide')?'はじめる':'とじる'); return n; }
+async function toggleReview(){ if(!rvlist.classList.contains('hide')){ rvlist.classList.add('hide'); loadReviewCount(); return } rvlist.classList.remove('hide'); await drawReview(); }
+async function drawReview(){ rvlist.innerHTML='<p class="sub">選んでいます…</p>'; const done=await loadReviewCount(), today=jstToday();
+  const {data}=await sb.from('items').select('kno,title,price_usd,cost_jpy,condition,photos,listed_on,first_listed_on,reviewed_on,ebay_item_id,listing_url,specs,research(name)').eq('status','listed').not('ebay_item_id','is',null).or(`reviewed_on.is.null,reviewed_on.lt.${today}`).limit(400);
+  const age=r=>r.reviewed_on||r.listed_on||r.first_listed_on||'2000-01-01';
+  const picks=(data||[]).sort((a,b)=>age(a)<age(b)?-1:1).slice(0,Math.max(1,RV_PER_DAY-done)||RV_PER_DAY);
+  if(!picks.length){ rvlist.innerHTML='<p class="sub">見直す商品はもうありません。</p>'; return }
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])), dd=d=>d?Math.round((Date.now()-new Date(d))/864e5):null;
+  rvlist.innerHTML=picks.map(r=>{ const t=r.title||'', low=t.toLowerCase(), tips=[];
+    if(t.length<65) tips.push(`タイトル${t.length}字（あと${80-t.length}字使える）`); if(!/watch/i.test(t)) tips.push('Watchが無い'); if(!/women|men|ladies|unisex/i.test(t)) tips.push('性別が無い'); if((r.photos||[]).length<8) tips.push(`写真${(r.photos||[]).length}枚`);
+    const p=profit(r.price_usd,0,r.cost_jpy), ph=r.photos?.[0];
+    return `<div class="rv" data-kno="${r.kno}" data-price="${r.price_usd||''}">
+      ${ph?`<img src="${thumb(ph)}" loading="lazy" alt="" onerror="this.onerror=null;this.src='${ph}'">`:'<span class="noph"></span>'}
+      <div><div class="rt">${esc(t)}</div>
+        <div class="rm">品番${r.kno}・${esc(r.research?.name||'')}・初回出品から${dd(r.first_listed_on||r.listed_on)??'?'}日・最後の出品から${dd(r.listed_on)??'?'}日${r.reviewed_on?`・前回の見直し ${r.reviewed_on}`:''}</div>
+        <div class="rm">仕入値 ${yen(r.cost_jpy)}円・いまの値段での利益の見込み ${p?yen(p.p)+'円':'—'}${tips.length?`<br><span class="neg">気になる点：${tips.join('、')}</span>`:''}</div>
+        <div class="rp">$<input type="number" step="0.01" class="rvp" value="${r.price_usd||''}"><button class="chip" type="button" onclick="rvCut(this,0.95)">−5%</button><button class="chip" type="button" onclick="rvCut(this,0.9)">−10%</button><button class="chip" type="button" onclick="rvCut(this,1)">元に戻す</button></div>
+        <textarea class="rtitle" maxlength="80">${esc(t)}</textarea></div>
+      <div class="ra"><button class="btn" type="button" onclick="rvDo(this,'revise_fields')">値段・タイトルを変える</button><button class="btn g" type="button" onclick="rvDo(this,'relist')">この内容で再出品</button>
+        <button class="btn s" type="button" onclick="rvSeen(this)">そのままでよい</button><button class="btn s" type="button" onclick="openItem(${r.kno})">くわしく開く</button>${r.listing_url?`<a class="btn s" style="text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(r.listing_url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}</div>
+      <div class="rmsg sub"></div></div>` }).join(''); }
+function rvCut(b,k){ const box=b.closest('.rv'), inp=box.querySelector('.rvp'), base=+box.dataset.price; if(!base) return; const v=base*k; inp.value=k===1?base:(Math.round(v)-0.01).toFixed(2); }
+async function rvSeen(b){ const box=b.closest('.rv'); const {error}=await sb.from('items').update({reviewed_on:jstToday()}).eq('kno',+box.dataset.kno); if(error){ box.querySelector('.rmsg').textContent='保存できません：'+error.message; return } await drawReview(); }
+async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno, msg=box.querySelector('.rmsg'), base=+box.dataset.price, price=+box.querySelector('.rvp').value, title=box.querySelector('.rtitle').value.trim();
+  const orig=box.querySelector('.rt').textContent, chg={}; if(price&&price!==base) chg.price_usd=price; if(title&&title!==orig) chg.title=title;
+  if(action==='revise_fields'&&!Object.keys(chg).length){ msg.textContent='値段かタイトルを変えてから押してください。'; return }
+  const what=[chg.price_usd?`値段 $${base} → $${price}`:null,chg.title?'タイトルを変更':null].filter(Boolean).join('、')||'内容はそのまま';
+  if(!window.confirm(action==='relist'?`品番 ${kno} をeBayで一度終了して、出し直します（${what}）。\n新しい商品番号になり、ウォッチ数は引き継がれません。よろしいですか？`:`品番 ${kno} のeBayの出品を変えます（${what}）。よろしいですか？`)) return;
+  box.querySelectorAll('button').forEach(x=>x.disabled=true); msg.textContent=action==='relist'?'再出品しています…':'eBayを書き換えています…';
+  const r=await ebayCall(action,{kno,...chg});
+  if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
+  msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
 
 boot();
 </script>
