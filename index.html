@@ -184,7 +184,16 @@ input[type=file]{max-width:100%}
 .rlinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
 .lk{display:inline-block;padding:7px 12px;border:1px solid #cfcfcf;border-radius:999px;font-size:13px;color:#222;text-decoration:none;background:#fff}
 .lk.y{border-color:#ff333f;color:#ff333f;font-weight:700}
-.rcard{border-top:1px solid var(--line);padding:14px 0}
+.rrow{display:flex;gap:12px;align-items:stretch;border-top:1px solid var(--line);padding:14px 0}
+.rmain{flex:1;min-width:0}
+.rkv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 12px}
+.rkv span{font-size:11px;color:var(--sub);display:flex;flex-direction:column}
+.rkv b{font-size:15px;color:var(--ink);font-weight:700}
+.rkv .cap b{color:#ff333f}
+.rgo{display:flex;flex-direction:column;gap:8px;flex:0 0 104px}
+.go{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;border:1px solid #cfcfcf;border-radius:6px;font-size:13px;font-weight:700;color:#222;text-decoration:none;line-height:1.4;padding:6px 4px;background:#fff}
+.go.y{background:#ff333f;border-color:#ff333f;color:#fff}
+.rsub a{color:#06c}
 .rname{font-weight:700;font-size:16px;margin-bottom:8px}
 .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:2px;margin-right:6px;vertical-align:2px}
 .tag.ok{background:#ff333f;color:#fff}.tag.ng{background:#eee;color:#666}
@@ -266,6 +275,9 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   .dfq{border-top:1px solid var(--line)}
   .dfq .btn:first-child{min-height:50px}
   .card{border-radius:8px}
+  .rkv{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rgo{flex-basis:86px}
+  .go{font-size:12px}
   .menu{border:0!important}
   .menu button{padding:18px 4px;font-size:16px}
 }
@@ -934,12 +946,22 @@ function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>(p.md??1e9)-(q.md??1e9)}[rsort.value]);
   rlist.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
     const cap=x.ms!=null&&x.acut!=null?Math.max(0,Math.floor((x.ms-x.acut-target)/100)*100):null;
-    return `<div class="rcard"><div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
-      <div class="rstat"><div><b>${x.sold}</b><span>売れた数</span></div><div><b>${x.md??'—'}${x.md!=null?'日':''}</b><span>売れるまで</span></div><div><b>${x.w90??'—'}${x.w90!=null?'%':''}</b><span>90日以内</span></div><div><b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap):'—'}</b><span>利益/本</span></div></div>
-      <div class="rsub">落札額（自分の仕入値）：${x.ac!=null?`平均 ${yen(x.ac)}円（${yen(x.minc)}〜${yen(x.maxc)}円）`:'記録なし'}
-        ${cap!=null?`<br><b>買値の目安：${yen(cap)}円まで</b>（売値の中央 ${yen(x.ms)}円 − 手数料・送料 ${yen(x.acut)}円 − 残したい利益）`:''}
-        <br>いま出品中 ${x.listed}本${x.old?`（うち90日超 <span class="neg">${x.old}本</span>）`:''}${x.stock?`・保管 ${x.stock}本`:''}・売れた販路 eBay ${x.eb}／Etsyほか ${x.et}</div>
-      <div class="rlinks">${searchLinks(x.name)}</div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
+    const e=encodeURIComponent, jp=jpQuery(x.name), en=x.name;
+    return `<div class="rrow"><div class="rmain">
+        <div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
+        <div class="rkv">
+          <span>相場（売れた値段）<b>${x.ms!=null?yen(x.ms)+'円':'—'}</b></span>
+          <span>落札価格（自分の平均）<b>${x.ac!=null?yen(x.ac)+'円':'—'}</b></span>
+          <span class="cap">買値の目安<b>${cap!=null?yen(cap)+'円まで':'—'}</b></span>
+          <span>利益/本<b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap)+'円':'—'}</b></span>
+          <span>売れるまで<b>${x.md!=null?x.md+'日':'—'}${x.w90!=null?`（90日内 ${x.w90}%）`:''}</b></span>
+          <span>売れた数<b>${x.sold}本</b></span>
+        </div>
+        <div class="rsub">落札価格の幅 ${x.minc!=null?`${yen(x.minc)}〜${yen(x.maxc)}円`:'—'}・出品中 ${x.listed}本${x.old?`（90日超 <span class="neg">${x.old}本</span>）`:''}${x.stock?`・保管 ${x.stock}本`:''}・eBay ${x.eb}／Etsyほか ${x.et}
+          　<a href="https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale" target="_blank" rel="noopener">メルカリ</a>・<a href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1" target="_blank" rel="noopener">eBay売れた</a>・<a href="https://www.etsy.com/search?q=${e(en+' watch')}" target="_blank" rel="noopener">Etsy</a></div>
+      </div>
+      <div class="rgo"><a class="go y" href="https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(jp)}&va=${e(jp)}&b=1&n=50" target="_blank" rel="noopener">ヤフオク<br>落札相場 ›</a>
+        <a class="go" href="https://auctions.yahoo.co.jp/search/search?p=${e(jp)}&va=${e(jp)}&s1=end&o1=a" target="_blank" rel="noopener">ヤフオク<br>出品中 ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
   rnote.textContent=`型番が分かっている商品だけの集計です（${RSTAT.length}型）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
 rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
@@ -1432,7 +1454,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013210951';
+const BUILD='20261013211018';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
