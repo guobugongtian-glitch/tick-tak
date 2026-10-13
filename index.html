@@ -445,11 +445,12 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
       <textarea id="lscode" readonly style="width:100%;height:140px;font-family:monospace;font-size:12px"></textarea>
       <div class="row"><button class="btn g" onclick="navigator.clipboard.writeText(lscode.value).then(()=>lsmsg.textContent=' コピーしました',()=>{lscode.select();lsmsg.textContent=' 選択しました。コピーしてください'})">プログラムをコピー</button></div>
       <ol class="sub" style="line-height:1.9;padding-left:20px">
-        <li>パソコンで仕入れ台帳を開き、上のメニューの「拡張機能」→「Apps Script」を押す。</li>
+        <li>パソコンで <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com</a> を開き、「新しいプロジェクト」を押す（台帳を見られるGoogleアカウントで。台帳の「拡張機能」→「Apps Script」からでも同じです）。</li>
         <li>最初から書いてある文字を全部消して、コピーしたプログラムを貼り、フロッピーの絵（保存）を押す。</li>
         <li>上の「実行する関数」で <b>setup</b> を選んで「実行」を押す。</li>
         <li>「承認が必要です」と出たら、自分のGoogleアカウントを選び、「詳細」→「（安全ではないページ）に移動」→「許可」を押す。自分で貼ったプログラムなので、この表示が出ます。</li>
         <li>これで完了。5分おきに台帳を見て、新しい行だけWatch Stockに入れます。</li>
+        <li>「The OAuth client is not fully created yet」と出たら、作ったばかりで準備中です。10分ほどおいて、もう一度 setup を実行してください。Googleの保存容量がいっぱいのアカウントでは作れないことがあります。</li>
       </ol>
       <p class="sub">このプログラムには連携用の合言葉が入っています。ほかの人に渡さないでください。</p>
     </div>
@@ -1454,7 +1455,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013211018';
+const BUILD='20261013211229';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -1494,10 +1495,13 @@ var WS_URL = '${SUPABASE_URL}/rest/v1/rpc/ledger_push';
 var WS_KEY = '${SUPABASE_ANON_KEY}';
 var WS_TOKEN = '${tok}';
 var WS_START = '${start}';
+var WS_SHEET = '1N-xrgQhgo8aYfJAoT5Zp5X_I9E1DFno8CbW2CCwJH2Q';   // 仕入れ台帳
 
 function syncLedger() {
   var rows = [], pad = function (n) { return ('0' + n).slice(-2); };
-  SpreadsheetApp.getActive().getSheets().forEach(function (sh) {
+  // 台帳の中に貼った場合も、script.google.com で新しく作った場合も動く
+  var book = SpreadsheetApp.getActive() || SpreadsheetApp.openById(WS_SHEET);
+  book.getSheets().forEach(function (sh) {
     var m = sh.getName().match(/^(20\\d\\d)\\s*(\\d{1,2})月$/);
     if (!m) return;
     var year = +m[1], tabMonth = +m[2], v = sh.getDataRange().getDisplayValues();
