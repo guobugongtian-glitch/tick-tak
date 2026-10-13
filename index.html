@@ -392,7 +392,7 @@ input[type=file]{max-width:100%}
       <label>ベルトの幅 (mm)<input id="sz_b" type="number" step="0.1" inputmode="decimal" placeholder="例 12" oninput="sizeToSpecs()"></label>
       <label>腕まわり 最大 (cm)<input id="sz_r" type="number" step="0.1" inputmode="decimal" placeholder="例 16" oninput="sizeToSpecs()"></label>
     </div>
-    <div class="row"><button class="btn s" type="button" onclick="makeSizePhoto()">サイズ表の画像を作って写真に入れる</button></div><div id="szmsg" class="note"></div></fieldset>
+    <div class="row"><button class="btn s" type="button" onclick="lookupSpecs()">型番からeBayでサイズを調べる</button><button class="btn s" type="button" onclick="makeSizePhoto()">サイズ表の画像を作って写真に入れる</button></div><div id="szmsg" class="note"></div></fieldset>
     <fieldset class="fs-price"><legend>価格</legend><div class="g2">
       <label class="big">売価 ($)<input name="price_usd" inputmode="decimal" placeholder="0.00" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
       <label class="qh">配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="0" oninput="calcI()"></label>
@@ -547,6 +547,29 @@ const SIZE=[['sz_w','Case Size','mm'],['sz_t','Case Thickness','mm'],['sz_b','Ba
 function sizeToSpecs(){ SIZE.forEach(([id,k,u])=>{ const el=document.querySelector(`[data-spec="${k}"]`), v=$(id).value; if(el) el.value=v?`${+v} ${u}`:'' }); }
 function specsToSize(o){ SIZE.forEach(([id,k,u])=>{ const m=String(o?.[k]??'').match(/([\d.]+)\s*(mm|cm|in)?/i); let v=m?+m[1]:''; const un=(m?.[2]||u).toLowerCase();
     if(v!==''&&un!==u) v=un==='in'?(u==='mm'?v*25.4:v*2.54):un==='cm'&&u==='mm'?v*10:un==='mm'&&u==='cm'?v/10:v; $(id).value=v===''?'':Math.round(v*10)/10 }); }
+// 型番でeBayの出品を探し、サイズとスペックの「多い値」を空欄に入れる（ほかの出品者の入力なので参考）
+const sizeNum=(str,u)=>{ const m=String(str??'').match(/([\d.]+)\s*(mm|cm|in|"|inch)?/i); if(!m) return null; let v=+m[1]; const un=(m[2]||u).toLowerCase().replace('inch','in').replace('"','in');
+  if(un!==u) v=un==='in'?(u==='mm'?v*25.4:v*2.54):un==='cm'&&u==='mm'?v*10:un==='mm'&&u==='cm'?v/10:v; return Math.round(v*10)/10 };
+async function lookupSpecs(){ const sp=k=>(document.querySelector(`[data-spec="${k}"]`)?.value||'').trim();
+  const model=sp('Reference Number')||sp('Model')||ifm.research_name.value.trim(), q=[sp('Brand'),model].filter(Boolean).join(' ');
+  if(q.length<3){ szmsg.textContent='先に型番（とブランド）を入れてください。'; return }
+  szmsg.textContent=`eBayで「${q}」を調べています…`; const r=await ebayCall('lookup_specs',{q});
+  if(r.error){ szmsg.textContent='調べられません：'+r.error; return }
+  if(!r.looked){ szmsg.textContent=`「${q}」に合う出品が見つかりませんでした。型番の書き方を変えて試してください。`; return }
+  const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); let filled=[], lines=[];
+  SIZE.forEach(([id,k,u])=>{ const c=r.aspects[k]; if(!c) return; lines.push(`${k}：${c.map(([v,n])=>`${esc(v)}（${n}件）`).join('、')}`);
+    const v=sizeNum(c[0][0],u); if(v&&!$(id).value){ $(id).value=v; filled.push(k) } });
+  sizeToSpecsKeep();
+  // サイズ以外のスペック：3件以上のうち6割以上が同じ値のものだけ、空欄に入れる
+  const cur={}; document.querySelectorAll('[data-spec]').forEach(i=>cur[i.dataset.spec]=i.value); let n=0;
+  const skip=['Reference Number','Model','Brand','With Papers','With Original Box/Packaging','Year Manufactured','Serial Number','Country/Region of Manufacture','Seller Warranty','Manufacturer Warranty','Customized','Vintage',...SIZE.map(s=>s[1])];
+  for(const [k,c] of Object.entries(r.aspects)){ if(cur[k]||skip.includes(k)) continue; const tot=c.reduce((a,x)=>a+x[1],0); if(tot>=3&&c[0][1]/tot>=0.6){ cur[k]=c[0][0]; n++ } }
+  if(n){ renderSpecs(cur) }
+  szmsg.innerHTML=`eBayの出品 ${r.looked}件を見ました（「${esc(q)}」の検索 ${r.found}件中）。<br>${lines.join('<br>')||'サイズを書いている出品はありませんでした。'}`
+    +`<br><b>${filled.length?`空いていたサイズ ${filled.length}か所`:'サイズは入れていません'}${n?`・スペック ${n}項目`:''}${filled.length||n?' を入れました。':''}</b> ほかの出品者が書いた値です。出す前に実物を測って確かめてください。`
+    +(r.titles?.length?`<br><span class="sub">見た出品の例：${r.titles.slice(0,3).map(esc).join(' ／ ')}</span>`:''); }
+// サイズ欄の値をスペックへ（空のサイズ欄はスペックを消さない）
+function sizeToSpecsKeep(){ SIZE.forEach(([id,k,u])=>{ const el=document.querySelector(`[data-spec="${k}"]`), v=$(id).value; if(el&&v) el.value=`${+v} ${u}` }); }
 // サイズ表の画像（時計の絵に寸法を入れたもの）。入っている数字だけ描く
 function drawSizeChart(){ const g=k=>+$(k).value||null, w=g('sz_w'), t=g('sz_t'), b=g('sz_b'), r=g('sz_r'); if(!w&&!t&&!b&&!r) return null;
   const c=document.createElement('canvas'); c.width=c.height=1600; const x=c.getContext('2d'), ink='#1d2330', red='#e5342a', F='-apple-system,"Helvetica Neue",Arial,sans-serif';
@@ -1224,7 +1247,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013203538';
+const BUILD='20261013203904';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
