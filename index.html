@@ -52,7 +52,10 @@ legend{font-weight:600;padding:0 4px}
 .profit{font-weight:700;font-size:16px}
 #login{max-width:360px;margin:80px auto}
 .hide{display:none!important}
-.fab{display:none}
+nav button.sell{background:#b91c1c;color:#fff;font-weight:700;padding:6px 16px}
+.dfq{display:none}
+dialog.quick .adv,dialog.quick .dff{display:none}
+dialog.quick .dfq{display:flex}
 .btn:disabled{opacity:.35;cursor:not-allowed}
 fieldset{min-width:0}
 input[type=file]{max-width:100%}
@@ -65,13 +68,14 @@ input[type=file]{max-width:100%}
   header b{font-size:16px}
   nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;overflow-x:auto;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
   nav button{flex:0 0 auto;padding:10px 12px;white-space:nowrap;font-size:13px}
+  nav button.sell{position:sticky;left:0;z-index:1;font-size:16px;padding:10px 22px;border-radius:22px;margin-right:6px;box-shadow:0 2px 8px #0003}
   main{padding:10px}
   .card{padding:12px}
   dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
   .dh{padding-top:calc(12px + env(safe-area-inset-top))}
   .df{flex-wrap:wrap;gap:8px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   .df .btn{flex:1 1 46%;min-height:40px;padding:6px 8px;font-size:13px}
-  .df .btn.s:last-child{display:none}
+  .dff .btn.s:last-child{display:none}
   .df #dmsg{flex:1 1 100%;order:9}
   .g2 label input,.g2 label select{min-width:0;width:100%}
   .db{padding:10px}
@@ -107,6 +111,7 @@ input[type=file]{max-width:100%}
 <header>
   <b>Watch Stock</b>
   <nav>
+    <button class="sell" onclick="openItem(null,true)">出品</button>
     <button data-v="items" class="on">商品管理</button>
     <button data-v="research">リサーチ</button>
     <button data-v="pf">実績確認</button>
@@ -117,7 +122,6 @@ input[type=file]{max-width:100%}
     <button data-v="io">取込/設定</button>
   </nav>
 </header>
-<button class="fab" onclick="openItem()" aria-label="商品を登録">＋</button>
 <main>
 
 <!-- 商品管理 -->
@@ -307,7 +311,8 @@ input[type=file]{max-width:100%}
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn" type="button" id="pubbtn" style="background:#b91c1c" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn" type="button" id="pubbtn" style="background:#b91c1c" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dfq"><button class="btn" type="button" id="qbtn" style="background:#b91c1c;flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
 
@@ -352,8 +357,8 @@ async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
 
 // 画面切替
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
   ({items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders})[b.dataset.v]?.();
 });
@@ -395,6 +400,8 @@ async function loadItems(){
 function initDialog(){
   ifm.condition.innerHTML = CONDS.map(c=>`<option>${c}</option>`).join('');
   renderSpecs({});
+  ['status','location','location_status','serial_no','shipping_service','store_cat1','listed_on','sold_on','listing_url','memo','supplier_url'].forEach(n=>{ const el=ifm.elements[n]; (el?.closest('label')||el)?.classList.add('adv') });
+  ifm.querySelectorAll('label.sub').forEach(l=>{ if(l.textContent.trim()==='商品備考') l.classList.add('adv') });
 }
 // スペック欄：決まった項目＋その商品（または手本）が持っている項目
 function renderSpecs(o){ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -413,7 +420,8 @@ async function showPast(){ rhint.textContent=''; rpast.innerHTML=''; PAST=[]; co
   const days=r=>r.listed_on&&r.sold_on?Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5)+'日':'';
   const now=PAST.filter(r=>r.status==='listed'&&r.price_usd);
   rpast.innerHTML=(ps.length?`販売実績 ${ps.length}本（送料込み）：中央 $${ps[Math.floor(ps.length/2)]}／最安 $${ps[0]}／最高 $${ps[ps.length-1]}<br>最近：${sold.slice(0,4).map(r=>`$${r.orders[0].sales_usd} ${r.condition||''} ${r.sold_on||''} ${days(r)}`).join('、')}`:'この型番の販売実績はまだありません')
-    +(now.length?`<br>いま出品中：${now.slice(0,4).map(r=>`$${r.price_usd} ${r.condition||''}（品番${r.kno}）`).join('、')}`:''); }
+    +(now.length?`<br>いま出品中：${now.slice(0,4).map(r=>`$${r.price_usd} ${r.condition||''}（品番${r.kno}）`).join('、')}`:'');
+  if(dlg.classList.contains('quick')&&PAST.length&&!ifm.title.value) fillFromPast(); }
 function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
   if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
   const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
@@ -424,7 +432,7 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   if(src.store_cat1||src.ebay?.store_cat) ifm.store_cat1.value=src.store_cat1||src.ebay.store_cat;
   if(!ifm.condition_note.value) ifm.condition_note.value=src.condition_note||src.ebay?.condition_desc||'';
   calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
-async function openItem(kno){
+async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
   ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ const ps=await allRows(()=>sb.from('items').select('shipping_policy').not('shipping_policy','is',null).order('kno'));
     POLICIES=[...new Set(ps.map(x=>x.shipping_policy))].sort(); plist.innerHTML=POLICIES.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join(''); }
@@ -438,7 +446,8 @@ async function openItem(kno){
     PH=[...(r.photos||[])]; drawPhotos();
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
-    ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT'; }
+    ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT';
+    if(quick){ dtitle.textContent='出品'; ifm.location.value='自宅'; ifm.location_status.value='出品待ち' } }
   tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
 }
 function calcI(){ $('iprofit').textContent=fmtP(profit(ifm.price_usd.value,ifm.shipping_usd.value,ifm.cost_jpy.value)); }
@@ -482,10 +491,12 @@ function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/<
 async function verifyItem(){ vout.innerHTML='保存しています…'; const f=await saveItem(true); if(!f){ vout.innerHTML=''; return }
   vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:buildDesc(f)});
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>a.map(x=>`<li>${esc(x)}</li>`).join('');
-  if(r.error){ vout.innerHTML=`<b class=neg>確認できません：</b>${esc(r.error)}`; return }
+  if(r.error){ vout.innerHTML=`<b class=neg>確認できません：</b>${esc(r.error)}`; return false }
   VERIFIED=r.ok?sig(f):null; pubbtn.disabled=!r.ok;
   vout.innerHTML=(r.ok?`<b style="color:#15803d">eBayの確認を通りました（${r.env==='production'?'本番':'テスト環境'}。出品はしていません）</b>`:'<b class=neg>このままでは出品できません。eBayからの指摘：</b>')
-    +(r.errors.length?`<ul class=neg>${li(r.errors)}</ul>`:'')+(r.warnings.length?`注意：<ul>${li(r.warnings)}</ul>`:'')+(r.note?`<p>${esc(r.note)}</p>`:''); }
+    +(r.errors.length?`<ul class=neg>${li(r.errors)}</ul>`:'')+(r.warnings.length?`注意：<ul>${li(r.warnings)}</ul>`:'')+(r.note?`<p>${esc(r.note)}</p>`:''); return r.ok; }
+// 1回押すだけ：保存 → eBayの確認 → 最後の確認 → 出品。確認で指摘が出たらそこで止まる
+async function quickPublish(){ qbtn.disabled=true; try{ if(await verifyItem()) await publishItem() } finally{ qbtn.disabled=false } }
 let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null});
 function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
   const w=window.open('','_blank'); if(w){ w.document.write('<!doctype html><meta charset="utf-8"><title>説明文の見え方</title>'+buildDesc(f)); w.document.close() } }
