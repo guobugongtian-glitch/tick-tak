@@ -562,7 +562,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="revbtn" onclick="reviseDesc()">出品中の説明文を新しい形に直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる（直して出し直す）</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">出品中の説明文を新しい形に直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる（直して出し直す）</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
@@ -793,7 +793,7 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   if(!ifm.condition_note.value) ifm.condition_note.value=src.condition_note||src.ebay?.condition_desc||'';
   calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
-  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
     ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
@@ -805,7 +805,8 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
     for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
     ifm.research_name.value=r.research?.name||'';
     renderSpecs(r.specs||{});
-    PH=[...(r.photos||[])]; drawPhotos(); revbtn.classList.toggle('hide',!(r.status==='listed'&&r.ebay_item_id)); endbtn.classList.toggle('hide',!(r.status==='listed'&&r.ebay_item_id));
+    PH=[...(r.photos||[])]; drawPhotos(); const live=r.status==='listed'&&!!r.ebay_item_id;   // もうeBayに出ている商品：確認・出品のボタンは出さず、直す・取り下げるだけ出す
+    revbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live);
     stockpick.classList.add('hide'); const ln=(r.memo||'').split('\n').find(x=>x.startsWith('台帳：')); lgname.textContent=ln&&!r.title?ln+(r.supplier?`（${r.supplier}・${r.purchased_on||''}・${yen(r.cost_jpy)}円）`:''):'';
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
@@ -942,7 +943,7 @@ async function endListing(){ const kno=+ifm.kno.value; if(!kno) return;
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.error){ vout.innerHTML=`<b class=neg>取り下げられません：</b>${esc(r.error)}`; return }
   if(!r.ok){ vout.innerHTML=`<b class=neg>取り下げられませんでした。eBayからの指摘：</b><ul class=neg>${li(r.errors)}</ul>`; return }
-  ifm.status.value='stock'; ifm.location_status.value=''; ifm.listing_url.value=''; revbtn.classList.add('hide'); endbtn.classList.add('hide'); VERIFIED=null; pubbtn.disabled=true;
+  ifm.status.value='stock'; ifm.location_status.value=''; ifm.listing_url.value=''; revbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); VERIFIED=null; pubbtn.disabled=true;
   vout.innerHTML='<b style="color:#15803d">出品を取り下げて「保管」に戻しました。</b> 直したら「eBayで確認（出品はしない）」→「eBayに出品する」で出し直せます。'; initFilters(); loadItems(); }
 let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null});
 async function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
@@ -1514,7 +1515,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013212035';
+const BUILD='20261013212232';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
