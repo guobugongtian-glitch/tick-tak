@@ -407,6 +407,30 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <p id="iomsg" class="sub"></p>
   </div>
   <div class="card">
+    <h3 style="margin-top:0">仕入れ台帳の自動連携</h3>
+    <p class="sub">Googleスプレッドシートの「仕入れ台帳」に行を足すと、数分後に自動で「保管」の商品として入るようにします。最初に1回だけ、台帳にプログラムを貼る作業が要ります。</p>
+    <div class="row">いつ以降の仕入れを入れるか <input id="lgstart" type="date"><button class="btn" onclick="makeLedgerScript()">連携用のプログラムを作る</button><span id="lsmsg" class="sub"></span></div>
+    <div id="lsbox" class="hide">
+      <textarea id="lscode" readonly style="width:100%;height:140px;font-family:monospace;font-size:12px"></textarea>
+      <div class="row"><button class="btn g" onclick="navigator.clipboard.writeText(lscode.value).then(()=>lsmsg.textContent=' コピーしました',()=>{lscode.select();lsmsg.textContent=' 選択しました。コピーしてください'})">プログラムをコピー</button></div>
+      <ol class="sub" style="line-height:1.9;padding-left:20px">
+        <li>パソコンで仕入れ台帳を開き、上のメニューの「拡張機能」→「Apps Script」を押す。</li>
+        <li>最初から書いてある文字を全部消して、コピーしたプログラムを貼り、フロッピーの絵（保存）を押す。</li>
+        <li>上の「実行する関数」で <b>setup</b> を選んで「実行」を押す。</li>
+        <li>「承認が必要です」と出たら、自分のGoogleアカウントを選び、「詳細」→「（安全ではないページ）に移動」→「許可」を押す。自分で貼ったプログラムなので、この表示が出ます。</li>
+        <li>これで完了。5分おきに台帳を見て、新しい行だけWatch Stockに入れます。</li>
+      </ol>
+      <p class="sub">このプログラムには連携用の合言葉が入っています。ほかの人に渡さないでください。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">仕入れ台帳を読み込む</h3>
+    <p class="sub">Googleスプレッドシートの「仕入れ台帳」で、入れたい行（商品名〜支払日）を選んでコピーし、下に貼って「読み込む」。1行が「保管」の商品（仕入値・仕入日・仕入先つき）として入ります。前に読み込んだ行は飛ばすので、月のタブを丸ごと貼り直しても二重になりません。出品者の名前と住所は取り込みません。</p>
+    <div class="row">台帳の年 <input id="lgyear" type="number" style="width:90px"> <span class="sub">（台帳の日付に年が無いので、ここの年で入れます）</span></div>
+    <textarea id="lgtext" style="width:100%;height:120px" placeholder="ここに台帳の行を貼る"></textarea>
+    <div class="row"><button class="btn" onclick="importLedger()">読み込む</button><span id="lgmsg" class="sub"></span></div>
+  </div>
+  <div class="card">
     <h3 style="margin-top:0">売れた商品を型番につなぐ</h3>
     <p class="sub">型番がまだ付いていない商品を、タイトルに型番（Reference Number）が含まれるかで探してつなぎます。すでに型番が付いている商品は変えません。つなぐと、登録画面でその型の販売実績が出ます。</p>
     <button class="btn" onclick="linkResearch()">つなぐ</button><span id="lkmsg" class="sub"></span>
@@ -452,7 +476,9 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
       <div class="ptiles"><label class="ptile add" for="pfile"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>写真を追加</span></label><div id="iphotos"></div></div>
       <input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)" hidden><div id="pmsg" class="sub"></div>
     </fieldset>
-    <fieldset class="fs-basic"><legend>商品</legend><div class="g2">
+    <fieldset class="fs-basic"><legend>商品</legend>
+    <div id="stockpick" class="hide"><select id="stocksel" style="width:100%;font-size:16px;padding:10px" onchange="if(this.value)openItem(+this.value,true)"></select></div>
+    <div id="lgname" class="note"></div><div class="g2">
       <label class="qh">品番(SKU)*<input name="kno" type="number" required></label>
       <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
       <label class="qh">ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
@@ -542,7 +568,7 @@ async function boot(){
   if(!session){ $('login').classList.remove('hide'); return }
   $('login').classList.add('hide'); $('app').classList.remove('hide');
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero();
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero(); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
@@ -600,9 +626,9 @@ async function loadItems(){
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
-    const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
-    return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
-    <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||''}</td>
+    const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
+    return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno},${r.status==='stock'})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td></tr>` }).join('');
 }
@@ -734,7 +760,7 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   if(src.store_cat1||src.ebay?.store_cat) ifm.store_cat1.value=src.store_cat1||src.ebay.store_cat;
   if(!ifm.condition_note.value) ifm.condition_note.value=src.condition_note||src.ebay?.condition_desc||'';
   calcI(); rhint.textContent=`品番${src.kno}（${src.condition||''}・$${src.price_usd||'?'}）を手本に入れました。状態・値段・シリアルを直してください。`; }
-async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
+async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
   ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
@@ -743,15 +769,20 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
   const {data:rs} = await sb.from('research').select('id,name').order('name');
   RES = Object.fromEntries((rs||[]).map(r=>[r.name,r.id])); rlist.innerHTML=(rs||[]).map(r=>`<option value="${r.name}">`).join('');
   if(kno){ const {data:r} = await sb.from('items').select('*,research(name)').eq('kno',kno).single();
-    dtitle.textContent='商品更新 '+kno; ifm.kno.readOnly=true;
+    dtitle.textContent=(quick?'出品（品番 ':'商品更新 ')+kno+(quick?'）':''); ifm.kno.readOnly=true;
     for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
     ifm.research_name.value=r.research?.name||'';
     renderSpecs(r.specs||{});
     PH=[...(r.photos||[])]; drawPhotos();
+    stockpick.classList.add('hide'); const ln=(r.memo||'').split('\n').find(x=>x.startsWith('台帳：')); lgname.textContent=ln&&!r.title?ln+(r.supplier?`（${r.supplier}・${r.purchased_on||''}・${yen(r.cost_jpy)}円）`:''):'';
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
     ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT';
-    ifm.location.value='自宅'; if(quick) dtitle.textContent='出品（品番 '+ifm.kno.value+'）'; }
+    ifm.location.value='自宅'; lgname.textContent=''; if(quick) dtitle.textContent='出品（品番 '+ifm.kno.value+'）';
+    // 仕入れ済み（保管）でまだ出していない商品があれば、そこから選べるようにする
+    const {data:st}=await sb.from('items').select('kno,title,memo,cost_jpy,purchased_on').eq('status','stock').order('kno',{ascending:false}).limit(200);
+    stockpick.classList.toggle('hide',!quick||!st?.length);
+    if(st?.length) stocksel.innerHTML='<option value="">仕入れ済みの商品から選ぶ（'+st.length+'件）</option>'+st.map(x=>`<option value="${x.kno}">${String(x.title||(x.memo||'').split('\n')[0].replace(/^台帳：/,'')||'品番'+x.kno).replace(/[<>&]/g,'').slice(0,34)}｜${x.purchased_on||''}｜${yen(x.cost_jpy)}円</option>`).join(''); }
   tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast(); spmsg.textContent=''; loadSpecVals();
 }
 function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
@@ -1336,11 +1367,76 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013205333';
+const BUILD='20261013205822';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkBuild() }); checkBuild();
+
+// 仕入れ台帳（スプレッドシートからコピーした行）を「保管」の商品として入れる
+// 行の形：［色］商品名／購入日／お店／［空き］／金額／URL／名前／住所／クレジット／支払日。列がずれて貼られても、日付の位置を目印に読む
+async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(), rows=lgtext.value.split(/\r?\n/).map(l=>l.split('\t')); const recs=[]; let bad=0;
+  for(const c of rows){ if(c.every(x=>!x.trim())) continue;
+    const d=c.findIndex(x=>/^\s*(\d{4}[\/年])?\s*\d{1,2}[月\/]\s*\d{1,2}日?\s*$/.test(x)); if(d<1){ bad++; continue }
+    const name=c[d-1].trim(), dm=c[d].match(/(?:(\d{4})[\/年])?\s*(\d{1,2})[月\/]\s*(\d{1,2})/), shop=(c[d+1]||'').trim();
+    const ai=c.findIndex((x,i)=>i>d+1&&/^[¥\s]*[\d,]+(\.\d+)?\s*$/.test(x)&&x.trim()); const amount=ai>0?Math.round(+c[ai].replace(/[¥,\s]/g,'')):null;
+    const ui=c.findIndex(x=>/^\s*https?:\/\//.test(x)), url=ui>0?c[ui].trim():null, pay=ui>0?(c[ui+3]||'').trim():'';
+    if(!name||name==='商品名'||!amount){ bad++; continue }
+    const date=`${dm[1]||yr}-${String(dm[2]).padStart(2,'0')}-${String(dm[3]).padStart(2,'0')}`;
+    recs.push({name,date,shop,amount,url,pay,key:url||`${name}|${date}|${amount}`}); }
+  if(!recs.length){ lgmsg.textContent=' 読める行がありません。商品名〜金額の列を含めてコピーしてください。'; return }
+  lgmsg.textContent=' 調べています…';
+  const have=await allRows(()=>sb.from('items').select('kno,supplier_url,memo').or('supplier_url.not.is.null,memo.like.*台帳*').order('kno'));
+  const seen=new Set(); have.forEach(x=>{ if(x.supplier_url) seen.add(x.supplier_url.trim()); const m=(x.memo||'').match(/\[台帳:(.+?)\]/); if(m) seen.add(m[1]) });
+  const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); let next=(mx?.[0]?.kno||0)+1, add=[], skip=0;
+  const SUP=['ヤフオク','メルカリ','ラクマ','キタムラ','ハードオフ','仕入れツアー'];
+  for(const r of recs){ if(seen.has(r.key)){ skip++; continue } seen.add(r.key);
+    add.push({kno:next++,status:'stock',location:'自宅',purchased_on:r.date,cost_jpy:r.amount,supplier:SUP.includes(r.shop)?r.shop:(r.shop?'その他':null),supplier_url:r.url,
+      memo:[`台帳：${r.name}`,r.shop&&!SUP.includes(r.shop)?`お店：${r.shop}`:null,r.pay?`支払：${r.pay}`:null,`[台帳:${r.key}]`].filter(Boolean).join('\n')}); }
+  for(let i=0;i<add.length;i+=200){ const {error}=await sb.from('items').insert(add.slice(i,i+200)); if(error){ lgmsg.textContent=' 失敗：'+error.message; return } }
+  lgmsg.textContent=` ${add.length}件を「保管」に入れました`+(add.length?`（品番 ${add[0].kno}〜${add[add.length-1].kno}、仕入値の合計 ${yen(add.reduce((a,x)=>a+x.cost_jpy,0))}円）`:'')+(skip?`。読み込み済みの${skip}件は飛ばしました`:'')+(bad?`。読めなかった行 ${bad}行（見出しや合計の行など）`:'');
+  if(add.length) lgtext.value=''; initFilters(); loadItems(); loadHero(); }
+
+// 台帳（Googleスプレッドシート）に貼るプログラムを作る。合言葉はログイン中の本人だけが取り出せる
+async function makeLedgerScript(){ lsmsg.textContent=' 作っています…'; const {data:tok,error}=await sb.rpc('ledger_token');
+  if(error||!tok){ lsmsg.textContent=' 作れません：'+(error?.message||'合言葉を取り出せません'); return }
+  const start=lgstart.value||new Date().toISOString().slice(0,10);
+  lscode.value=`// Watch Stock 連携：仕入れ台帳の新しい行を Watch Stock の「保管」に入れる（5分おき）
+// 見るのは「2026 10月」のように年が付いたタブだけ。${start} より前の仕入れは入れない
+var WS_URL = '${SUPABASE_URL}/rest/v1/rpc/ledger_push';
+var WS_KEY = '${SUPABASE_ANON_KEY}';
+var WS_TOKEN = '${tok}';
+var WS_START = '${start}';
+
+function syncLedger() {
+  var rows = [], pad = function (n) { return ('0' + n).slice(-2); };
+  SpreadsheetApp.getActive().getSheets().forEach(function (sh) {
+    var m = sh.getName().match(/^(20\\d\\d)\\s*(\\d{1,2})月$/);
+    if (!m) return;
+    var year = +m[1], tabMonth = +m[2], v = sh.getDataRange().getDisplayValues();
+    for (var i = 3; i < v.length; i++) {
+      var r = v[i], name = String(r[1] || '').trim(), amt = String(r[5] || '').replace(/[¥,\\s]/g, '');
+      var dm = String(r[2] || '').match(/(\\d{1,2})月\\s*(\\d{1,2})/);
+      if (!name || !dm || !/^\\d+(\\.\\d+)?$/.test(amt) || +amt <= 0) continue;
+      var y = (+dm[1] > tabMonth + 1) ? year - 1 : year;   // 1月のタブに12月の仕入れが入っている場合
+      var date = y + '-' + pad(dm[1]) + '-' + pad(dm[2]);
+      if (date < WS_START) continue;
+      rows.push({ name: name, date: date, shop: String(r[3] || '').trim(), amount: Math.round(+amt), url: String(r[6] || '').trim(), pay: String(r[9] || '').trim() });
+    }
+  });
+  if (!rows.length) return;
+  var res = UrlFetchApp.fetch(WS_URL, { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { apikey: WS_KEY, Authorization: 'Bearer ' + WS_KEY }, payload: JSON.stringify({ p_token: WS_TOKEN, p_rows: rows }) });
+  Logger.log(res.getResponseCode() + ' ' + res.getContentText());
+}
+
+// 最初に1回だけ実行する。5分おきに syncLedger が動くようになる
+function setup() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'syncLedger') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('syncLedger').timeBased().everyMinutes(5).create();
+  syncLedger();
+}
+`; lsbox.classList.remove('hide'); lsmsg.textContent=' できました。下の手順で台帳に貼ってください。'; }
 
 boot();
 </script>
