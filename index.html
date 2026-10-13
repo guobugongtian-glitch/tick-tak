@@ -53,6 +53,15 @@ legend{font-weight:600;padding:0 4px}
 #login{max-width:360px;margin:80px auto}
 .hide{display:none!important}
 nav button{display:inline-flex;align-items:center;gap:4px}
+.filt{padding:10px 12px 0}
+.seg{display:flex;margin-top:6px}
+.seg .chip{flex:1;background:none;color:var(--sub);border-radius:0;border-bottom:3px solid transparent;font-weight:600;padding:10px 4px}
+.seg .chip.on{background:none;color:#e5342a;border-bottom-color:#e5342a}
+.pills{padding:8px 0 0;display:flex;gap:6px;flex-wrap:wrap}
+.pills span{display:contents}
+.pills .chip{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:12px;min-height:0}
+.pills .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.filt .pills:last-child{padding-bottom:10px}
 nav .ic{display:none}
 nav button.mo{display:none}
 nav button.sell{background:#e5342a;color:#fff;font-weight:700;padding:6px 16px}
@@ -114,6 +123,7 @@ input[type=file]{max-width:100%}
   #v-items td.ph{display:block;width:100%;height:100%}
   #v-items td.ph img{width:100%;height:100%;border-radius:0}
   #v-items td.ph .noph{width:100%;height:100%;border-radius:0;font-size:11px;padding:8px 6px 26px}
+  #v-items td:nth-child(6):empty{display:none}
   #v-items td:nth-child(6){display:block;position:absolute;left:0;bottom:0;background:#000a;color:#fff;font-weight:700;font-size:12px;padding:2px 8px;border-radius:0 8px 0 0;white-space:nowrap;pointer-events:none}
   #v-items tr.st-sold::after{content:"SOLD";position:absolute;left:-26px;top:10px;transform:rotate(-45deg);background:#e5342a;color:#fff;font-size:11px;font-weight:700;padding:2px 30px;pointer-events:none}
   #v-items tr.st-stock::after{content:"保管";position:absolute;right:4px;top:4px;background:#1d2330cc;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;pointer-events:none}
@@ -125,8 +135,8 @@ input[type=file]{max-width:100%}
   dialog.quick legend{font-size:13px;color:var(--sub);font-weight:400}
   dialog.quick .db{padding:0 10px}
   .dfq .btn.s{flex:1 1 30%;min-height:34px;padding:4px;font-size:12px;background:none;color:var(--sub);text-decoration:underline}
-  #v-items .card .row{margin:2px 0}
-  #v-items .card{padding:8px 10px}
+  .dk{display:none}
+  .pills .chip{min-height:0;padding:5px 12px}
 }
 </style>
 </head>
@@ -159,18 +169,15 @@ input[type=file]{max-width:100%}
 
 <!-- 商品管理 -->
 <section id="v-items">
-  <div class="card">
-    <div class="row">ステータス：<span id="f1"></span></div>
-    <div class="row" id="f2w">詳細状態：<span id="f2"></span></div>
-    <div class="row" id="f3w">詳細状態2：<span id="f3"></span></div>
-    <div class="row">キーワード：<input id="kw" placeholder="品番・タイトル・型番" style="flex:1;max-width:340px">
+  <div class="card filt">
+    <div class="row"><input id="kw" type="search" placeholder="品番・タイトルでさがす" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadItems()">
       <button class="btn" onclick="loadItems()">検索</button>
-      <span style="flex:1"></span>
-      <button class="btn g" onclick="openItem()">＋ 登録</button></div>
+      <button class="btn g dk" onclick="openItem()">＋ 登録</button></div>
+    <div class="seg" id="f1"></div>
   </div>
   <div class="row sub"><span id="cnt"></span></div>
   <div class="tbl"><table>
-    <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価(送料)</th><th class="n">仕入値</th><th class="n">想定利益</th></tr></thead>
+    <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価</th><th class="n">仕入値</th><th class="n">想定利益</th></tr></thead>
     <tbody id="itbody"></tbody>
   </table></div>
 </section>
@@ -318,8 +325,8 @@ input[type=file]{max-width:100%}
       <label>品番(SKU)*<input name="kno" type="number" required></label>
       <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
       <label>ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
-      <label>保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
-      <label>保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
+      <label class="hide">保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
+      <label class="hide">保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
       <label>コンディション<select name="condition"></select></label>
     </div>
     <div class="row"><button class="btn" type="button" onclick="fillFromPast()">過去の出品から入れる</button><span id="rhint" class="sub"></span></div>
@@ -408,27 +415,22 @@ document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
 });
 
 // 商品管理：3段の絞り込み
-const F = {status:'stock', location:'ワンロック', location_status:null};
+const F = {status:'listed', location:null, location_status:null};
 function chips(el, opts, key, after){
   el.innerHTML=''; opts.forEach(o=>{ const b=document.createElement('button'); b.className='chip'+(F[key]===o.v?' on':'');
-    b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key==='location_status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
+    b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
 }
 async function initFilters(){
   const counts = {};
   const data = await allRows(()=>sb.from('items').select('status,location,location_status').order('kno'));
   data.forEach(r=>{ counts[r.status]=(counts[r.status]||0)+1;
     if(r.status==='stock'){ counts['L:'+r.location]=(counts['L:'+r.location]||0)+1;
-      if(r.location===F.location) counts['S:'+r.location_status]=(counts['S:'+r.location_status]||0)+1; } });
-  chips(f1, Object.entries(ST).map(([v,t])=>({v,t:`${t}(${counts[v]||0})`})), 'status', ()=>{F.location_status=null});
-  const isStock = F.status==='stock';
-  f2w.classList.toggle('hide',!isStock); f3w.classList.toggle('hide',!isStock||F.location!=='ワンロック');
-  chips(f2, ['ネット仕入待ち','自宅','ワンロック'].map(v=>({v,t:`${v}(${counts['L:'+v]||0})`})), 'location', ()=>{F.location_status=null});
-  chips(f3, ['ラベル発行待ち','ラベル発行済','出品待ち','出品中'].map(v=>({v,t:`${v}(${counts['S:'+v]||0})`})), 'location_status');
+      if(r.location_status&&(!F.location||r.location===F.location)) counts['S:'+r.location_status]=(counts['S:'+r.location_status]||0)+1; } });
+  chips(f1, [['listed','出品中'],['stock','保管'],['sold','売れた']].map(([v,t])=>({v,t:`${t} ${counts[v]||0}`})), 'status', ()=>{F.location=null;F.location_status=null});
 }
 let RES = {};
 async function loadItems(){
   let q = sb.from('items').select('*,research(name)').eq('status',F.status).order('purchased_on',{ascending:false}).limit(500);
-  if(F.status==='stock'){ q=q.eq('location',F.location); if(F.location_status) q=q.eq('location_status',F.location_status); }
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
@@ -436,7 +438,7 @@ async function loadItems(){
     const ph=r.photos?.[0]; const img=ph?`<img src="${ph}" loading="lazy" alt="">`:`<span class="noph">${(r.title||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||''}</td>
-    <td class=n>${r.price_usd?'$'+r.price_usd:''}${r.shipping_usd?` ($${r.shipping_usd})`:''}</td>
+    <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td></tr>` }).join('');
 }
 
@@ -491,7 +493,7 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
     ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT';
-    if(quick){ dtitle.textContent='出品'; ifm.location.value='自宅'; ifm.location_status.value='出品待ち' } }
+    ifm.location.value='自宅'; if(quick) dtitle.textContent='出品'; }
   tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
 }
 function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
