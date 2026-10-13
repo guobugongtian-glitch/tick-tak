@@ -337,18 +337,19 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 <!-- リサーチ -->
 <section id="v-research" class="hide">
   <div class="card">
-    <h3 style="margin-top:0">すぐ調べる</h3>
-    <div class="row"><input id="rq" type="search" placeholder="型番・ブランド（例：グッチ 1500L）" style="flex:1;min-width:0"></div>
-    <div class="row rlinks" id="rqlinks"></div>
-    <p class="sub">ヤフオクの「落札相場」は、過去に落札された値段の一覧が開きます。ブランド名はカタカナのほうが多く出ます。</p>
-  </div>
-  <div class="card">
-    <h3 style="margin-top:0">自分の実績ランキング</h3>
-    <div class="row"><input id="rkw" type="search" placeholder="型番・ブランドで絞る" style="flex:1;min-width:0" oninput="drawResearch()">
+    <h3 style="margin-top:0">売れる時計の一覧（仕入れリスト）</h3>
+    <p class="sub">自分の店で実際に速く売れて利益が出た型です。「買値の目安」より安く買えるものを探してください。ボタンでヤフオクの落札相場がすぐ開きます。</p>
+    <div class="seg" id="rtabs"><button class="chip on" data-r="rec">おすすめ</button><button class="chip" data-r="all">全部</button><button class="chip" data-r="ng">避けたい</button></div>
+    <div class="row" style="margin-top:8px"><input id="rkw" type="search" placeholder="型番・ブランドで絞る" style="flex:1;min-width:0" oninput="drawResearch()">
       <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
-    <div class="row sub">残したい利益 <input id="rtarget" type="number" value="10000" style="width:100px" oninput="drawResearch()"> 円 → 「買値の目安」が変わります</div>
+    <div class="row sub">残したい利益 <input id="rtarget" type="number" value="10000" style="width:100px" oninput="drawResearch()"> 円</div>
     <div id="rlist"></div>
     <p class="sub" id="rnote"></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">一覧に無い型を調べる</h3>
+    <div class="row"><input id="rq" type="search" placeholder="型番・ブランド（例：グッチ 1500L）" style="flex:1;min-width:0"></div>
+    <div class="row rlinks" id="rqlinks"></div>
   </div>
   <details class="card fold"><summary>利益の計算（手で試す）</summary>
     <div class="g2">
@@ -455,7 +456,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   </div>
   <div class="card">
     <h3 style="margin-top:0">説明文のひな形</h3>
-    <p class="sub">出品の説明文の型。{title} {condition} {condition_note} {appearance} {accessories} {size} {specs} の場所に商品の中身が入ります。</p>
+    <p class="sub">ふだんは、いまeBayに出ている同じ状態の出品の説明文をそのまま土台に使います（商品名と品番を差し替え、サイズ表を足す）。下のひな形は、土台にできる出品が無いときだけ使います。{title} {condition} {condition_note} {appearance} {accessories} {size} {specs} の場所に商品の中身が入ります。</p>
     <textarea id="desctpl" style="width:100%;height:180px;font-family:monospace"></textarea>
     <div class="row"><button class="btn" onclick="saveDescTpl()">保存（この端末）</button><button class="btn s" onclick="desctpl.value=DESC_DEFAULT">最初の形に戻す</button><span id="dtmsg" class="sub"></span></div>
   </div>
@@ -845,6 +846,17 @@ const DESC_DEFAULT=`<div style="font-family:Arial,Helvetica,sans-serif;font-size
 </div>`;
 const getDescTpl=()=>{ try{ return localStorage.getItem('ws_desc_tpl')||DESC_DEFAULT }catch(e){ return DESC_DEFAULT } };
 function saveDescTpl(){ try{ localStorage.setItem('ws_desc_tpl',desctpl.value) }catch(e){} dtmsg.textContent='保存しました（この端末）'; }
+// いまeBayに出ている出品の説明文（同じ型番→同じ状態の順で探す）を土台にする。見つからなければ下のひな形
+async function buildDescAsync(f){ let tpl=null; const rid=RES[(ifm.research_name.value||'').trim()];
+  const find=async byRid=>{ let q=sb.from('items').select('d:ebay->>description').eq('ebay->>currency','USD').eq('condition',f.condition).neq('kno',+f.kno).not('ebay','is',null); if(byRid) q=q.eq('research_id',rid);
+    const {data}=await q.order('listed_on',{ascending:false}).limit(1); return data?.[0]?.d||null };
+  try{ if(f.condition){ if(rid) tpl=await find(true); if(!tpl) tpl=await find(false) } }catch(e){}
+  if(!tpl||!/<h1[^>]*>[\s\S]*?<\/h1>/.test(tpl)) return buildDesc(f);
+  const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  let d=tpl.replace(/(<h1[^>]*>)[\s\S]*?(<\/h1>)/,(m,a,b)=>`${a}${e(f.title)} #${f.kno}${b}`);
+  const extra=[f.condition_note?`<h3 class="h3c">Notes;</h3><div class="d3 desc">${e(f.condition_note)}</div>`:'', f.appearance_note?`<div class="d3 desc">${e(f.appearance_note)}</div>`:'',
+    f.accessories?`<h3 class="h3c">Accessories;</h3><div class="d3 desc">${e(f.accessories)}</div>`:'', sizeTable(f.specs)?`<h3 class="h3c">Size;</h3><div class="d3 desc">${sizeTable(f.specs)}</div>`:''].join('');
+  return d+extra; }
 function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   const sp=Object.entries(f.specs||{}).filter(([,v])=>v).map(([k,v])=>`<tr><td style="padding:2px 12px 2px 0"><b>${e(k)}</b></td><td>${e(v)}</td></tr>`).join('');
   let tpl=getDescTpl(); if(!tpl.includes('{size}')) tpl=tpl.includes('{specs}')?tpl.replace('{specs}','{size}\n{specs}'):tpl+'\n{size}';   // 前に保存したひな形にもサイズ表を足す
@@ -852,7 +864,7 @@ function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/<
     .replaceAll('{appearance}',e(f.appearance_note)||'-').replaceAll('{accessories}',e(f.accessories)||'Watch only').replaceAll('{specs}',`<table>${sp}</table>`).replaceAll('{size}',sizeTable(f.specs)||'-'); }
 // eBayに内容を見てもらう（出品はされない）。先に保存してから送る
 async function verifyItem(){ vout.innerHTML='保存しています…'; const f=await saveItem(true); if(!f){ vout.innerHTML=''; return }
-  vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:buildDesc(f)});
+  vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:await buildDescAsync(f)});
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>a.map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.error){ vout.innerHTML=`<b class=neg>確認できません：</b>${esc(r.error)}`; return false }
   VERIFIED=r.ok?sig(f):null; pubbtn.disabled=!r.ok;
@@ -861,13 +873,13 @@ async function verifyItem(){ vout.innerHTML='保存しています…'; const f=
 // 1回押すだけ：保存 → eBayの確認 → 最後の確認 → 出品。確認で指摘が出たらそこで止まる
 async function quickPublish(){ qbtn.disabled=true; try{ if(await verifyItem()) await publishItem() } finally{ qbtn.disabled=false } }
 let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null});
-function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
-  const w=window.open('','_blank'); if(w){ w.document.write('<!doctype html><meta charset="utf-8"><title>説明文の見え方</title>'+buildDesc(f)); w.document.close() } }
+async function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
+  const w=window.open('','_blank'); const html=await buildDescAsync(f); if(w){ w.document.write('<!doctype html><meta charset="utf-8"><title>説明文の見え方</title>'+html); w.document.close() } }
 // 本当にeBayへ出す。確認を通ったあと中身を変えていないときだけ押せる。押したら取り消しはeBay側での取り下げになる
 async function publishItem(){ const f=await saveItem(true); if(!f) return;
   if(VERIFIED!==sig(f)){ pubbtn.disabled=true; vout.innerHTML='<b class=neg>確認のあとに中身が変わっています。もう一度「eBayで確認」を押してください。</b>'; return }
   if(!window.confirm(`品番 ${f.kno} を $${f.price_usd} でeBayに出品します。\n\n${f.title}\n\n写真 ${PH.length}枚・送料ポリシー ${f.shipping_policy}\n\nよろしいですか？`)) return;
-  pubbtn.disabled=true; vout.innerHTML='eBayに出品しています…'; const r=await ebayCall('publish_listing',{kno:+f.kno,description:buildDesc(f)});
+  pubbtn.disabled=true; vout.innerHTML='eBayに出品しています…'; const r=await ebayCall('publish_listing',{kno:+f.kno,description:await buildDescAsync(f)});
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.error){ vout.innerHTML=`<b class=neg>出品できません：</b>${esc(r.error)}`; return }
   if(!r.ok||!r.item_id){ vout.innerHTML=`<b class=neg>出品できませんでした。eBayからの指摘：</b><ul class=neg>${li(r.errors)}</ul>${r.note?esc(r.note):''}`; return }
@@ -914,20 +926,24 @@ async function loadResearch(){ rlist.innerHTML='<p class="sub">集計してい�
     return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null} });
   drawResearch(); }
 function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.value||0, esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  let a=RSTAT.filter(x=>!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k));
-  const rec=x=>(x.sold>=3&&x.w90!=null&&x.w90>=70&&x.ap>=10000?1e9:0)+(x.ap||0)*((x.w90??40)/100)*Math.min(1,x.sold/5);
+  // おすすめ＝3本以上売れて、利益1万円以上、90日以内に7割以上（日数が入っていない間は利益と本数だけで判定）。避けたい＝売れるまで120日超、または赤字
+  const isRec=x=>x.sold>=3&&x.ap>=10000&&(x.w90==null||x.w90>=70), isNg=x=>x.sold>=3&&((x.md!=null&&x.md>120)||x.ap<3000);
+  const tab=document.querySelector('#rtabs .on')?.dataset.r||'rec';
+  let a=RSTAT.filter(x=>(!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k))&&(k||tab==='all'||(tab==='rec'?isRec(x):isNg(x))));
+  const rec=x=>(isRec(x)?1e9:0)+(x.ap||0)*((x.w90??60)/100)*Math.min(1,x.sold/5);
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>(p.md??1e9)-(q.md??1e9)}[rsort.value]);
-  rlist.innerHTML=a.slice(0,80).map(x=>{ const good=x.sold>=3&&x.w90!=null&&x.w90>=70&&x.ap>=10000, slow=x.md!=null&&x.md>120;
+  rlist.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
     const cap=x.ms!=null&&x.acut!=null?Math.max(0,Math.floor((x.ms-x.acut-target)/100)*100):null;
-    return `<div class="rcard"><div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">遅い</span>':''}${esc(x.name)}</div>
+    return `<div class="rcard"><div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
       <div class="rstat"><div><b>${x.sold}</b><span>売れた数</span></div><div><b>${x.md??'—'}${x.md!=null?'日':''}</b><span>売れるまで</span></div><div><b>${x.w90??'—'}${x.w90!=null?'%':''}</b><span>90日以内</span></div><div><b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap):'—'}</b><span>利益/本</span></div></div>
       <div class="rsub">落札額（自分の仕入値）：${x.ac!=null?`平均 ${yen(x.ac)}円（${yen(x.minc)}〜${yen(x.maxc)}円）`:'記録なし'}
         ${cap!=null?`<br><b>買値の目安：${yen(cap)}円まで</b>（売値の中央 ${yen(x.ms)}円 − 手数料・送料 ${yen(x.acut)}円 − 残したい利益）`:''}
         <br>いま出品中 ${x.listed}本${x.old?`（うち90日超 <span class="neg">${x.old}本</span>）`:''}${x.stock?`・保管 ${x.stock}本`:''}・売れた販路 eBay ${x.eb}／Etsyほか ${x.et}</div>
-      <div class="rlinks">${searchLinks(x.name)}</div></div>` }).join('')||'<p class="sub">まだ実績がありません。</p>';
+      <div class="rlinks">${searchLinks(x.name)}</div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
   rnote.textContent=`型番が分かっている商品だけの集計です（${RSTAT.length}型）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
 rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
+document.querySelectorAll('#rtabs .chip').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#rtabs .chip').forEach(x=>x.classList.toggle('on',x===b)); drawResearch() });
 
 // 実績確認
 function initPf(){ const d=new Date(); pfm.innerHTML=''; for(let i=0;i<24;i++){ const m=new Date(d.getFullYear(),d.getMonth()-i,1);
@@ -1416,7 +1432,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013210742';
+const BUILD='20261013210951';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
