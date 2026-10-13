@@ -910,7 +910,7 @@ ${size?sec('Size',size):''}
 ${sec('Shipping','I ship by eBay SpeedPAK. I attach the tracking number.<br>Shipping is available from Monday to Friday. Weekends are not available because the office is closed.')}
 ${sec('Storage and Packing','Immediately after shooting, the item is placed in a closed container with desiccant and stored in a temperature- and humidity-controlled warehouse 24 hours a day, 365 days a year.<br>By weight and shape of each product, I use 13 kinds of cushioning materials and pursue safety and weight reduction.')}
 ${sec('Returns','Customer service and satisfaction are very important to us. I have an unconditional return policy if notified within 30 days of the receipt of the item.<br>All returned items must be in the original condition. Please contact me first before you ship it back to me. The postage of the returned goods is a buyer burden.')}
-${sec('International Buyers','Import duties, taxes, and charges are not included in the item price or shipping cost. These charges are the buyer\'s responsibility.<br>Please check with your country\'s customs office to determine what these additional costs will be prior to bidding or buying.')}
+${sec('International Buyers','For buyers in the United States: import duties are included in the price. No additional charge at delivery.<br>For buyers in other countries: import duties, taxes, and charges are not included in the item price or shipping cost. These charges are the buyer\'s responsibility. Please check with your country\'s customs office before buying.')}
 </div></div>`; }
 async function buildDescAsync(f){ return buildDescStyled(f); }
 function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
@@ -1498,7 +1498,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013211726';
+const BUILD='20261013211753';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
