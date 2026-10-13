@@ -181,6 +181,17 @@ input[type=file]{max-width:100%}
   .dk{display:none}
   .pills .chip{min-height:0;padding:5px 12px}
 }
+.rlinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.lk{display:inline-block;padding:7px 12px;border:1px solid #cfcfcf;border-radius:999px;font-size:13px;color:#222;text-decoration:none;background:#fff}
+.lk.y{border-color:#ff333f;color:#ff333f;font-weight:700}
+.rcard{border-top:1px solid var(--line);padding:14px 0}
+.rname{font-weight:700;font-size:16px;margin-bottom:8px}
+.tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:2px;margin-right:6px;vertical-align:2px}
+.tag.ok{background:#ff333f;color:#fff}.tag.ng{background:#eee;color:#666}
+.rstat{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;border:1px solid var(--line);border-radius:6px}
+.rstat div{padding:8px 2px;border-left:1px solid var(--line)}.rstat div:first-child{border-left:0}
+.rstat b{display:block;font-size:16px}.rstat span{font-size:11px;color:var(--sub)}
+.rsub{font-size:13px;color:#444;line-height:1.7;margin-top:8px}
 /* ===== メルカリに寄せた見た目（白い面・細い線・赤は押すところだけ） ===== */
 :root{--bg:#f5f5f5;--card:#fff;--ink:#222;--sub:#8a8a8a;--line:#ececec;--accent:#ff333f;--ok:#222}
 body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased}
@@ -326,21 +337,28 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 <!-- リサーチ -->
 <section id="v-research" class="hide">
   <div class="card">
-    <h3 style="margin-top:0">利益計算</h3>
+    <h3 style="margin-top:0">すぐ調べる</h3>
+    <div class="row"><input id="rq" type="search" placeholder="型番・ブランド（例：グッチ 1500L）" style="flex:1;min-width:0"></div>
+    <div class="row rlinks" id="rqlinks"></div>
+    <p class="sub">ヤフオクの「落札相場」は、過去に落札された値段の一覧が開きます。ブランド名はカタカナのほうが多く出ます。</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">自分の実績ランキング</h3>
+    <div class="row"><input id="rkw" type="search" placeholder="型番・ブランドで絞る" style="flex:1;min-width:0" oninput="drawResearch()">
+      <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
+    <div class="row sub">残したい利益 <input id="rtarget" type="number" value="10000" style="width:100px" oninput="drawResearch()"> 円 → 「買値の目安」が変わります</div>
+    <div id="rlist"></div>
+    <p class="sub" id="rnote"></p>
+  </div>
+  <details class="card fold"><summary>利益の計算（手で試す）</summary>
     <div class="g2">
       <label>売価 ($)<input id="r_price" type="number" step="0.01" oninput="calcR()"></label>
-      <label>送料 ($)<input id="r_ship" type="number" step="0.01" value="30" oninput="calcR()"></label>
+      <label>送料 ($)<input id="r_ship" type="number" step="0.01" value="0" oninput="calcR()"></label>
       <label>仕入値 (円)<input id="r_cost" type="number" oninput="calcR()"></label>
       <label>実送料 (円)<input id="r_actship" type="number" oninput="calcR()"></label>
     </div>
     <p class="profit" id="r_out">—</p>
-    <p class="sub">手数料率・為替は「取込/設定」で変更。数字はeBayStockの計算式とずれる可能性あり（実データ照合後に合わせ込む）。</p>
-  </div>
-  <div class="card">
-    <h3 style="margin-top:0">型番ごとの実績</h3>
-    <div class="row"><input id="rkw" placeholder="型番・ブランド" oninput="loadResearch()"></div>
-    <div class="tbl"><table><thead><tr><th>型番</th><th class="n">在庫</th><th class="n">販売</th><th class="n">平均売価</th><th class="n">平均利益</th><th class="n">回転(中央値日)</th></tr></thead><tbody id="rbody"></tbody></table></div>
-  </div>
+  </details>
 </section>
 
 <!-- 実績確認 -->
@@ -869,17 +887,47 @@ async function saveItem(keepOpen){
 
 // リサーチ
 function calcR(){ $('r_out').textContent=fmtP(profit(r_price.value,r_ship.value,r_cost.value,r_actship.value?+r_actship.value:undefined)); }
-async function loadResearch(){
-  const {data} = await sb.from('items').select('status,cost_jpy,price_usd,shipping_usd,listed_on,sold_on,research(name),orders(item_price_jpy,ship_charged_jpy)').limit(5000);
-  const k=(rkw.value||'').toLowerCase(), g={};
-  (data||[]).forEach(r=>{ const n=r.research?.name||'(未設定)'; if(k&&!n.toLowerCase().includes(k)) return;
-    const x=g[n]??={stock:0,sold:0,sales:0,cost:0,days:[]};
-    if(r.status==='sold'){ x.sold++; const o=r.orders?.[0]; x.sales+=(o?.item_price_jpy||0)+(o?.ship_charged_jpy||0); x.cost+=r.cost_jpy||0;
-      if(r.listed_on&&r.sold_on) x.days.push((new Date(r.sold_on)-new Date(r.listed_on))/864e5); } else x.stock++; });
-  const med=a=>{ if(!a.length) return '—'; a.sort((p,q)=>p-q); return Math.round(a[Math.floor(a.length/2)]) };
-  rbody.innerHTML=Object.entries(g).sort((a,b)=>b[1].sold-a[1].sold).slice(0,200).map(([n,x])=>
-    `<tr><td>${n}</td><td class=n>${x.stock}</td><td class=n>${x.sold}</td><td class=n>${x.sold?yen(x.sales/x.sold):'—'}</td><td class=n>${x.sold?yen((x.sales-x.cost)/x.sold):'—'}</td><td class=n>${med(x.days)}</td></tr>`).join('');
-}
+// ===== リサーチ：自分の実績から「速く売れて利益が出る型」を並べ、ヤフオク・メルカリ・eBay・Etsyをすぐ開く =====
+const KANA={'gucci':'グッチ','longines':'ロンジン','christian dior':'ディオール','dior':'ディオール','hermes':'エルメス','rado':'ラドー','bulova':'ブローバ','fendi':'フェンディ','baume & mercier':'ボーム＆メルシエ','baume':'ボーム＆メルシエ','frederique constant':'フレデリックコンスタント','frédérique constant':'フレデリックコンスタント','oris':'オリス','seiko':'セイコー','hamilton':'ハミルトン','andre mouche':'アンドレムーシュ','omega':'オメガ','tissot':'ティソ','concord':'コンコルド','tag heuer':'タグホイヤー','cartier':'カルティエ','chanel':'シャネル','burberry':'バーバリー','citizen':'シチズン','raymond weil':'レイモンドウィル','ebel':'エベル','corum':'コルム'};
+// 英語の型番名 → ヤフオク用（ブランドをカタカナに）
+function jpQuery(q){ let s=String(q||'').trim(), low=s.toLowerCase(); for(const k of Object.keys(KANA).sort((a,b)=>b.length-a.length)){ const i=low.indexOf(k); if(i>=0){ s=(KANA[k]+' '+(s.slice(0,i)+s.slice(i+k.length)).trim()).trim(); break } } return s; }
+function searchLinks(q){ const e=encodeURIComponent, jp=jpQuery(q), en=String(q||'').trim(); if(!en) return '';
+  const a=(t,u,c)=>`<a class="lk ${c||''}" href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  return a('ヤフオク 落札相場',`https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(jp)}&va=${e(jp)}&b=1&n=50`,'y')
+    +a('ヤフオク 出品中',`https://auctions.yahoo.co.jp/search/search?p=${e(jp)}&va=${e(jp)}&s1=end&o1=a`,'y')
+    +a('メルカリ',`https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale`)
+    +a('メルカリ 売り切れ',`https://jp.mercari.com/search?keyword=${e(jp)}&status=sold_out`)
+    +a('eBay 売れた',`https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1`)
+    +a('Etsy',`https://www.etsy.com/search?q=${e(en+' watch')}`); }
+let RSTAT=[];
+async function loadResearch(){ rlist.innerHTML='<p class="sub">集計しています…</p>';
+  const its=await allRows(()=>sb.from('items').select('kno,status,cost_jpy,listed_on,first_listed_on,sold_on,research(name,brand,model),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,sales_usd)').not('research_id','is',null).order('kno'));
+  const g={}, med=a=>{ if(!a.length) return null; a=[...a].sort((x,y)=>x-y); return a[Math.floor(a.length/2)] };
+  its.forEach(r=>{ const n=r.research?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research.brand||'',sold:0,listed:0,stock:0,old:0,sales:[],prof:[],days:[],costs:[],eb:0,et:0};
+    if(r.cost_jpy) x.costs.push(r.cost_jpy);
+    if(r.status==='sold'){ const o=r.orders?.[0]; if(!o) return; x.sold++; const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
+      x.sales.push(s); x.prof.push(s-(r.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)); x.cut=(x.cut||0)+shipOf(o)+(o.sales_fee_jpy||0)+(o.payoneer_fee_jpy||0)+(o.duty_jpy||0);
+      if(o.platform==='eBay') x.eb++; else x.et++;
+      if(r.listed_on&&r.sold_on) x.days.push(Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5));
+    } else if(r.status==='listed'){ x.listed++; const f=r.first_listed_on||r.listed_on; if(f&&(Date.now()-new Date(f))/864e5>90) x.old++ } else x.stock++; });
+  RSTAT=Object.values(g).map(x=>{ const avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
+    return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null} });
+  drawResearch(); }
+function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.value||0, esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let a=RSTAT.filter(x=>!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k));
+  const rec=x=>(x.sold>=3&&x.w90!=null&&x.w90>=70&&x.ap>=10000?1e9:0)+(x.ap||0)*((x.w90??40)/100)*Math.min(1,x.sold/5);
+  a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>(p.md??1e9)-(q.md??1e9)}[rsort.value]);
+  rlist.innerHTML=a.slice(0,80).map(x=>{ const good=x.sold>=3&&x.w90!=null&&x.w90>=70&&x.ap>=10000, slow=x.md!=null&&x.md>120;
+    const cap=x.ms!=null&&x.acut!=null?Math.max(0,Math.floor((x.ms-x.acut-target)/100)*100):null;
+    return `<div class="rcard"><div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">遅い</span>':''}${esc(x.name)}</div>
+      <div class="rstat"><div><b>${x.sold}</b><span>売れた数</span></div><div><b>${x.md??'—'}${x.md!=null?'日':''}</b><span>売れるまで</span></div><div><b>${x.w90??'—'}${x.w90!=null?'%':''}</b><span>90日以内</span></div><div><b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap):'—'}</b><span>利益/本</span></div></div>
+      <div class="rsub">落札額（自分の仕入値）：${x.ac!=null?`平均 ${yen(x.ac)}円（${yen(x.minc)}〜${yen(x.maxc)}円）`:'記録なし'}
+        ${cap!=null?`<br><b>買値の目安：${yen(cap)}円まで</b>（売値の中央 ${yen(x.ms)}円 − 手数料・送料 ${yen(x.acut)}円 − 残したい利益）`:''}
+        <br>いま出品中 ${x.listed}本${x.old?`（うち90日超 <span class="neg">${x.old}本</span>）`:''}${x.stock?`・保管 ${x.stock}本`:''}・売れた販路 eBay ${x.eb}／Etsyほか ${x.et}</div>
+      <div class="rlinks">${searchLinks(x.name)}</div></div>` }).join('')||'<p class="sub">まだ実績がありません。</p>';
+  const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
+  rnote.textContent=`型番が分かっている商品だけの集計です（${RSTAT.length}型）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
+rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
 
 // 実績確認
 function initPf(){ const d=new Date(); pfm.innerHTML=''; for(let i=0;i<24;i++){ const m=new Date(d.getFullYear(),d.getMonth()-i,1);
@@ -1297,7 +1345,8 @@ async function importSales(rows, ix){
     const price=rate&&num(r,'商品価格(USD)')!=null?Math.min(total,Math.round(num(r,'商品価格(USD)')*rate)):total;
     const real=v(r,'送料区分')==='実値', pr=yenOf(r,'利益(関税後/円)');
     const est=yenOf(r,'推定送料(円)')??(pr==null?null:Math.max(0,total-(yenOf(r,'仕入原価(円)')||0)-(yenOf(r,'販売手数料(円)')||0)-(yenOf(r,'Payoneer手数料(円)')||0)-(yenOf(r,'関税(円)')||0)-pr));
-    items.push({kno,status:'sold',location_status:null,title:v(r,'商品名'),cost_jpy:yenOf(r,'仕入原価(円)'),sold_on:day,ebay_item_id:v(r,'eBay ID')||null});
+    const dd=num(r,'出品から販売までの日数'), lo=dd!=null&&dd>=0?new Date(new Date(day).getTime()-dd*864e5).toISOString().slice(0,10):null;
+    items.push({kno,status:'sold',location_status:null,title:v(r,'商品名'),cost_jpy:yenOf(r,'仕入原価(円)'),sold_on:day,listed_on:lo,ebay_item_id:v(r,'eBay ID')||null});
     orders.push({kno,ordered_on:day,platform:pf(v(r,'販売PF')),item_price_jpy:price,ship_charged_jpy:total-price,
       ship_actual_jpy:real?yenOf(r,'実送料(円)'):null,  // 未入力は空のまま（0円ではない）
       ship_est_jpy:real?null:est,                        // 未入力のときeBayStockが利益から引いている見込み送料
@@ -1367,7 +1416,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013205822';
+const BUILD='20261013210742';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
