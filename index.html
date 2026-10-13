@@ -1498,7 +1498,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013211419';
+const BUILD='20261013211532';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -1509,7 +1509,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkBui
 async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(), rows=lgtext.value.split(/\r?\n/).map(l=>l.split('\t')); const recs=[]; let bad=0;
   for(const c of rows){ if(c.every(x=>!x.trim())) continue;
     const d=c.findIndex(x=>/^\s*(\d{4}[\/年])?\s*\d{1,2}[月\/]\s*\d{1,2}日?\s*$/.test(x)); if(d<1){ bad++; continue }
-    const name=c[d-1].trim(), dm=c[d].match(/(?:(\d{4})[\/年])?\s*(\d{1,2})[月\/]\s*(\d{1,2})/), shop=(c[d+1]||'').trim();
+    const name=c[d-1].trim(), dm=c[d].match(/(?:(\d{4})[\/年])?\s*(\d{1,2})[月\/]\s*(\d{1,2})/); let shop=(c[d+1]||'').trim(); if(/yahoo|ヤフオク/i.test(shop)) shop='ヤフオク';
     const ai=c.findIndex((x,i)=>i>d+1&&/^[¥\s]*[\d,]+(\.\d+)?\s*$/.test(x)&&x.trim()); const amount=ai>0?Math.round(+c[ai].replace(/[¥,\s]/g,'')):null;
     const ui=c.findIndex(x=>/^\s*https?:\/\//.test(x)), url=ui>0?c[ui].trim():null, pay=ui>0?(c[ui+3]||'').trim():'';
     if(!name||name==='商品名'||!amount){ bad++; continue }
