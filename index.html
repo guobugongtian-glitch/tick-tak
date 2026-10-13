@@ -560,10 +560,14 @@ function thumb(u){ if(!u) return u;
   return u; }
 // 実送料の決まり（2026-10-13 本人指定）
 //   アメリカ・イスラエル 5,700円／それ以外 3,500円。eBayで売れたアメリカ向けは関税込みなので 5,700円＋商品価格の15%
+//   Etsyは基本アメリカ向けで 5,500円（eBayStockの「その他」もEtsyとして扱う。国が入っていて米国以外なら上の決まり）
 //   eBayStockの「実送料」は1件120〜240円台の値が多く、円ではなさそう（推定）なので、1,000円未満は「入っていない」と見て決まりの額を使う
-const SHIP_RULE={US:5700,IL:5700,other:3500}, EBAY_US_DUTY=0.15;
+const SHIP_RULE={US:5700,IL:5700,other:3500}, EBAY_US_DUTY=0.15, ETSY_SHIP=5500;
+const isEtsy=o=>o.platform==='Etsy'||o.platform==='その他';
 const isEbay=o=>o.platform==='eBay';
-const shipRule=o=>{ const c=(o.country||'').toUpperCase(), base=SHIP_RULE[c]??SHIP_RULE.other; return isEbay(o)&&c==='US'?base+Math.round((o.item_price_jpy||0)*EBAY_US_DUTY):base };
+const shipRule=o=>{ const c=(o.country||'').toUpperCase(), base=SHIP_RULE[c]??SHIP_RULE.other;
+  if(isEtsy(o)&&(!c||c==='US')) return ETSY_SHIP;
+  return isEbay(o)&&c==='US'?base+Math.round((o.item_price_jpy||0)*EBAY_US_DUTY):base };
 const hasShip=o=>o.ship_actual_jpy>=1000;
 const shipOf=o=>hasShip(o)?o.ship_actual_jpy:shipRule(o);
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
@@ -1139,7 +1143,7 @@ async function loadPf(){
   const add=(k,m,v)=>{ if(!(m in (R[k]??=z()))) return; R[k][m]+=v||0 };
   (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6); const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
     add('売上',m,s); add('うち商品の売上',m,o.item_price_jpy); add('うち送料の売上',m,o.ship_charged_jpy); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
-    add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('うち決まりの額で入れた送料',m,-shipRule(o)); add('決まりの額を使った件数',m,1); if(!o.country) add('うち国が分からない件数（3,500円で計算）',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('うち決まりの額で入れた送料',m,-shipRule(o)); add('決まりの額を使った件数',m,1); if(isEtsy(o)&&!o.country) add('うちEtsy（5,500円で計算）の件数',m,1); else if(!o.country) add('うち国が分からない件数（3,500円で計算）',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
     add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
   (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
@@ -1151,7 +1155,7 @@ async function loadPf(){
   months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
     R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
     R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
-  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決まりの額で入れた送料','決まりの額を使った件数','うち国が分からない件数（3,500円で計算）','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決まりの額で入れた送料','決まりの額を使った件数','うちEtsy（5,500円で計算）の件数','うち国が分からない件数（3,500円で計算）','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
   const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
   pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
     rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
@@ -1332,7 +1336,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013205109';
+const BUILD='20261013205333';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
