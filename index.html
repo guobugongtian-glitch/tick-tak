@@ -411,7 +411,9 @@ input[type=file]{max-width:100%}
         <label class="sub">付属品</label><textarea name="accessories" placeholder="Watch only"></textarea>
       </details>
     </fieldset>
-    <fieldset class="fs-spec"><details class="fold" id="spfold"><summary>スペック <span id="spcount" class="sub"></span></summary><div class="g2" id="specs"></div></details></fieldset>
+    <fieldset class="fs-spec"><details class="fold" id="spfold"><summary>スペック <span id="spcount" class="sub"></span></summary>
+      <div class="row"><button class="btn s" type="button" onclick="fillSpecs()">空いている所を「いつもの値」で埋める</button></div><div id="spmsg" class="note"></div>
+      <div class="g2" id="specs"></div></details></fieldset>
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
@@ -464,6 +466,11 @@ async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
   hsales.textContent=yen(s); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
   hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
+// 一覧用の小さい写真のURL（eBayの写真は300px版、自分で入れた写真は _t 付きの小さい版）。無ければ元の写真に戻す
+function thumb(u){ if(!u) return u;
+  if(u.includes('i.ebayimg.com')) return u.replace('/$_57.','/$_35.').replace('/$_1.','/$_35.').replace(/\/s-l\d+\./,'/s-l300.');
+  if(u.includes('/watch-photos/')&&!u.includes('_t.jpg')) return u.replace(/\.jpg$/,'_t.jpg');
+  return u; }
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
 async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
@@ -482,21 +489,19 @@ function chips(el, opts, key, after){
     b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
 }
 async function initFilters(){
-  const counts = {};
-  const data = await allRows(()=>sb.from('items').select('status,location,location_status').order('kno'));
-  data.forEach(r=>{ counts[r.status]=(counts[r.status]||0)+1;
-    if(r.status==='stock'){ counts['L:'+r.location]=(counts['L:'+r.location]||0)+1;
-      if(r.location_status&&(!F.location||r.location===F.location)) counts['S:'+r.location_status]=(counts['S:'+r.location_status]||0)+1; } });
-  chips(f1, [['listed','出品中'],['stock','保管'],['sold','売れた']].map(([v,t])=>({v,t:`${t} ${counts[v]||0}`})), 'status', ()=>{F.location=null;F.location_status=null});
+  // 件数だけ数える（中身は読まない）
+  const n=async s=>(await sb.from('items').select('kno',{count:'exact',head:true}).eq('status',s)).count||0;
+  const [a,b,c]=await Promise.all([n('listed'),n('stock'),n('sold')]);
+  chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`})), 'status', ()=>{F.location=null;F.location_status=null});
 }
 let RES = {};
 async function loadItems(){
-  let q = sb.from('items').select('*,research(name)').eq('status',F.status).order('purchased_on',{ascending:false}).limit(500);
+  let q = sb.from('items').select('*,research(name)').eq('status',F.status).order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
-    const ph=r.photos?.[0]; const img=ph?`<img src="${ph}" loading="lazy" alt="">`:`<span class="noph">${(r.title||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
+    const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
@@ -511,9 +516,25 @@ function initDialog(){
   ifm.querySelectorAll('label.sub').forEach(l=>{ if(l.textContent.trim()==='商品備考') l.classList.add('adv') });
 }
 // スペック欄：決まった項目＋その商品（または手本）が持っている項目
+// いままでの出品で使った値を数えておく（項目ごとに多い順。ブランド別にも）
+let SV=null;
+async function loadSpecVals(){ if(SV) return SV; const rows=await allRows(()=>sb.from('items').select('specs').not('ebay','is',null).order('kno'));
+  const all={}, by={}; rows.forEach(r=>{ const s=r.specs||{}, b=(s.Brand||'').trim().toLowerCase();
+    for(const [k,v] of Object.entries(s)){ if(!v) continue; (all[k]??={})[v]=(all[k][v]||0)+1; if(b) ((by[b]??={})[k]??={})[v]=(by[b][k][v]||0)+1 } });
+  SV={all,by,n:rows.length}; return SV; }
+const topVals=m=>Object.entries(m||{}).sort((a,b)=>b[1]-a[1]);
+// 空いているスペックを「いつもの値」で埋める。同じブランドで7割以上そろっている値、無ければ全体で8割以上の値だけ（型番やサイズなど商品ごとに違うものは入れない）
+async function fillSpecs(){ const sv=await loadSpecVals(); const brand=(document.querySelector('[data-spec="Brand"]')?.value||'').trim().toLowerCase(); let n=0;
+  const cur={}; document.querySelectorAll('[data-spec]').forEach(i=>cur[i.dataset.spec]=i.value);
+  const keys=new Set([...Object.keys(sv.all),...Object.keys(cur)]); const skip=['Reference Number','Model','Case Size','Serial Number','Year Manufactured','MPN','Dial Color','Band Color','Case Color','Lug Width','Case Thickness','Max Wrist Size','Band Width'];
+  for(const k of keys){ if(cur[k]||skip.includes(k)) continue;
+    const b=topVals(sv.by[brand]?.[k]), bt=b.reduce((a,x)=>a+x[1],0), g=topVals(sv.all[k]), gt=g.reduce((a,x)=>a+x[1],0);
+    const v=b.length&&bt>=3&&b[0][1]/bt>=0.7?b[0][0]:g.length&&gt>=sv.n*0.5&&g[0][1]/gt>=0.8?g[0][0]:null;
+    if(v){ cur[k]=v; n++ } }
+  renderSpecs(cur); spfold.open=true; spmsg.textContent=n?`${n}項目を「いつもの値」で入れました。違うところだけ直してください。`:'自動で入れられる項目はありませんでした。'; }
 function renderSpecs(o){ const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const keys=[...new Set([...SPECS,...Object.keys(o||{})])];
-  specs.innerHTML=keys.map(s=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}"></label>`).join('');
+  specs.innerHTML=keys.map((s,i)=>`<label>${esc(s)}<input data-spec="${esc(s)}" value="${esc(o?.[s])}" list="sv${i}"><datalist id="sv${i}">${SV?topVals(SV.all[s]).slice(0,12).map(([v])=>`<option value="${esc(v)}">`).join(''):''}</datalist></label>`).join('');
   const n=keys.filter(s=>o?.[s]).length; spcount.textContent=n?`（${n}項目 入っています。押すと開きます）`:'（まだ空です。型番を選ぶと入ります）'; }
 let POLICIES=[];
 // 送料ポリシーは名前に価格帯が入っている（SpeedPak 301-400 など）。売価が入ったら合うものを選ぶ
@@ -530,6 +551,7 @@ async function showPast(){ rhint.textContent=''; rpast.innerHTML=''; PAST=[]; co
   rpast.innerHTML=(ps.length?`販売実績 ${ps.length}本（送料込み）：中央 $${ps[Math.floor(ps.length/2)]}／最安 $${ps[0]}／最高 $${ps[ps.length-1]}<br>最近：${sold.slice(0,4).map(r=>`$${r.orders[0].sales_usd} ${r.condition||''} ${r.sold_on||''} ${days(r)}`).join('、')}`:'この型番の販売実績はまだありません')
     +(now.length?`<br>いま出品中：${now.slice(0,4).map(r=>`$${r.price_usd} ${r.condition||''}（品番${r.kno}）`).join('、')}`:'');
   if(dlg.classList.contains('quick')&&PAST.length&&!ifm.title.value) fillFromPast(); }
+
 function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
   if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
   const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
@@ -556,7 +578,7 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick&&!kno);
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
     ifm.kno.value=(m?.[0]?.kno||0)+1; ifm.purchased_on.value=new Date().toISOString().slice(0,10); ifm.condition.value='Near MINT';
     ifm.location.value='自宅'; if(quick) dtitle.textContent='出品（品番 '+ifm.kno.value+'）'; }
-  tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast();
+  tlen.textContent=ifm.title.value.length; calcI(); dlg.showModal(); showPast(); spmsg.textContent=''; loadSpecVals();
 }
 function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.value||0, cost=+ifm.cost_jpy.value, el=$('iprofit');
   if(!pr){ el.textContent='—'; return } const gross=(pr+sh)*s.fx, fee=gross*(s.fee+s.pay)/100, p=cost?gross-fee-cost-s.ship:null;
@@ -567,11 +589,11 @@ function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.
     <span class="pl tot ${p!=null&&p<0?'neg':''}"><span>利益の見込み</span><span>${p==null?'—':yen(p)+'円（'+(p/gross*100).toFixed(0)+'%）'}</span></span>`; }
 // 写真：並べ替え・外す・追加（追加はパソコンの写真を小さくしてから写真置き場へ送る）
 let PH=[];
-function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div class="ptile"><a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" alt=""></a>${i===0?'<b>表紙</b>':''}
+function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div class="ptile"><a href="${u}" target="_blank" rel="noopener"><img src="${thumb(u)}" loading="lazy" alt="" onerror="this.onerror=null;this.src='${u}'"></a>${i===0?'<b>表紙</b>':''}
     <div><button type="button" onclick="movePhoto(${i},-1)" title="前へ">◀</button><button type="button" onclick="movePhoto(${i},1)" title="後ろへ">▶</button><button type="button" onclick="dropPhoto(${i})" title="この商品から外す">✕</button></div></div>`).join(''); }
 function movePhoto(i,d){ const j=i+d; if(j<0||j>=PH.length) return; [PH[i],PH[j]]=[PH[j],PH[i]]; drawPhotos(); }
 function dropPhoto(i){ PH.splice(i,1); drawPhotos(); }
-function shrink(file){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const max=1600, k=Math.min(1,max/Math.max(img.width,img.height));
+function shrink(file,max=1600){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,max/Math.max(img.width,img.height));
     const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(img.src); c.toBlob(b=>b?res(b):rej(new Error('画像を変換できません')),'image/jpeg',0.86) }; img.onerror=()=>rej(new Error('画像を開けません')); img.src=URL.createObjectURL(file) }); }
 async function addPhotos(inp){ const kno=ifm.kno.value; if(!kno){ pmsg.textContent='先に品番を入れてください'; return }
@@ -579,6 +601,7 @@ async function addPhotos(inp){ const kno=ifm.kno.value; if(!kno){ pmsg.textConte
   for(const f of files){ pmsg.textContent=`送っています… ${n+1}/${files.length}`;
     try{ const blob=await shrink(f), path=`${kno}/${Date.now()}_${n}.jpg`;
       const {error}=await sb.storage.from('watch-photos').upload(path,blob,{contentType:'image/jpeg'}); if(error) throw error;
+      sb.storage.from('watch-photos').upload(path.replace(/\.jpg$/,'_t.jpg'),await shrink(f,360),{contentType:'image/jpeg'}).catch(()=>{});
       PH.push(sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl); n++; drawPhotos();
     }catch(e){ pmsg.textContent=`${f.name} を送れません：${e.message}`; return } }
   inp.value=''; pmsg.textContent=`${n}枚を追加しました。「保存」を押すと商品に残ります。`; }
@@ -1104,7 +1127,7 @@ async function ebayOptin(){ ebmsg.textContent='有効にしています…'; con
 // eBayに出ている商品の写真・商品番号・URLを、品番で突き合わせて取り込む（eBay側は読むだけ）
 async function ebaySync(){ ebmsg.textContent='eBayから出品中の一覧を読んでいます…（1分ほどかかることがあります）'; ebpol.innerHTML=''; const r=await ebayCall('sync_listings');
   if(r.error){ ebmsg.textContent='取り込めません：'+r.error; return }
-  ebmsg.textContent=`${r.env==='production'?'本番':'テスト環境'}：eBayに出品中 ${r.total}件のうち ${r.matched}件に写真を入れました。`;
+  ebmsg.textContent=`${r.env==='production'?'本番':'テスト環境'}：eBayに出品中 ${r.total}件（海外版を含めると${r.all_sites??'?'}件）のうち ${r.matched}件に写真と出品内容を入れました。アメリカ向けの出品は${r.usd??'?'}件。`;
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   ebpol.innerHTML=(r.unknown_count?`<p>品番が合わなかったもの ${r.unknown_count}件：${r.unknown.map(esc).join('、')}</p>`:'')+(r.no_photo?`<p>写真が無かったもの ${r.no_photo}件</p>`:''); loadItems(); }
 
@@ -1136,7 +1159,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013202020';
+const BUILD='20261013202724';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
