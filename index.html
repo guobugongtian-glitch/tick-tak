@@ -181,6 +181,83 @@ input[type=file]{max-width:100%}
   .dk{display:none}
   .pills .chip{min-height:0;padding:5px 12px}
 }
+/* ===== メルカリに寄せた見た目（白い面・細い線・赤は押すところだけ） ===== */
+:root{--bg:#f5f5f5;--card:#fff;--ink:#222;--sub:#8a8a8a;--line:#ececec;--accent:#ff333f;--ok:#222}
+body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased}
+header{border-bottom:1px solid var(--line)}
+header b{font-weight:800;letter-spacing:.3px}
+.btn{background:var(--accent);border-radius:4px;font-weight:700}
+.btn.g{background:#222}
+.btn.s{background:#fff;color:#222;border:1px solid #cfcfcf;font-weight:500}
+.chip{border-radius:4px}
+.card{border-radius:8px;box-shadow:none;border:1px solid var(--line)}
+nav button.on{background:none;color:#222;font-weight:700;box-shadow:inset 0 -3px 0 var(--accent);border-radius:0}
+nav button.sell{background:var(--accent)}
+.hero{background:#fff;color:var(--ink);border-radius:8px;box-shadow:none;border:1px solid var(--line);padding:16px 18px}
+.hl{color:var(--sub);opacity:1;font-size:13px}
+.hbig{font-size:36px;font-weight:800;letter-spacing:0}
+.hbig::before{content:"¥";font-size:22px;font-weight:700;margin-right:2px}
+.hbig small{display:none}
+.hsplit{color:var(--sub);opacity:1}
+.hsplit b{color:var(--ink)}
+.hrow{gap:0;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.hrow div{background:none;border-radius:0;border-left:1px solid var(--line);padding:2px 4px}
+.hrow div:first-child{border-left:0}
+.hrow b{font-size:16px}
+.hrow span{color:var(--sub);opacity:1}
+#kw{background:#f0f0f0;border:0;border-radius:999px;padding:10px 16px}
+.filt .btn{border-radius:999px;background:#222}
+.seg{border-bottom:1px solid var(--line)}
+.seg .chip{color:var(--sub);font-weight:500;margin-bottom:-1px}
+.seg .chip.on{color:#222;font-weight:800;border-bottom-color:var(--accent)}
+.filt{padding-bottom:0}
+.note{background:#f7f7f7;color:#444}
+.ptile.add{border:0;background:#f2f2f2;color:#666;font-weight:500}
+.ptile.add .ic{width:30px;height:30px}
+.ptile b{background:var(--accent);border-radius:2px}
+.pl.tot{font-size:17px}
+dialog{border-radius:8px}
+dialog.quick fieldset{padding:0 16px 6px;margin:0}
+dialog.quick legend{float:none;display:block;box-sizing:content-box;width:100%;background:#f5f5f5;color:#666;font-size:13px;font-weight:700;padding:12px 16px;margin:0 -16px 4px}
+.dfq .btn.s{text-decoration:none!important}
+.hrow b{white-space:nowrap}
+dialog.quick .db{background:#fff}
+dialog.quick .fs-spec summary,dialog.quick .fold summary{font-weight:500}
+dialog.quick label.big input{color:#222}
+dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radius:4px}
+.dfq .btn:first-child{border-radius:4px}
+@media (max-width:700px){
+  body{background:#fff}
+  header{justify-content:center;padding-bottom:10px}
+  header b{margin:0;font-size:17px}
+  main{padding:0}
+  main>section{padding:12px}
+  main>#v-items{padding:0}
+  .hero{border:0;border-radius:0;border-bottom:8px solid #f5f5f5;margin:0;padding:16px}
+  #v-items .filt{border:0;border-radius:0;margin:0;padding:10px 12px 0;position:sticky;top:0;z-index:4;background:#fff}
+  #v-items .filt .btn{display:none}
+  #v-items .row.sub{padding:8px 12px 6px;margin:0}
+  #v-items tbody{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+  #v-items tr{border-radius:0;background:#f2f2f2}
+  #v-items td:nth-child(6){left:0;bottom:10px;background:#000000b8;font-size:15px!important;font-weight:700;padding:3px 12px 3px 8px;border-radius:0 14px 14px 0}
+  #v-items td.ph .noph{font-size:12px;color:#777;padding:12px 10px 40px}
+  #v-items tr.st-sold::after{content:"SOLD";left:-30px;top:14px;background:var(--accent);font-size:12px;padding:3px 36px;letter-spacing:.5px}
+  #v-items tr.st-stock::after{content:"下書き";right:6px;top:6px;background:#222c;border-radius:2px;font-size:11px;padding:2px 7px}
+  nav{border-top:1px solid var(--line);padding-top:2px}
+  nav button{color:#8a8a8a;box-shadow:none!important}
+  nav button.on{color:#222!important;font-weight:700}
+  nav button.sell{color:var(--accent)!important;font-weight:700}
+  nav button.sell .ic{background:var(--accent);box-shadow:0 2px 8px #ff333f55}
+  dialog{border-radius:0}
+  .dh{justify-content:center;border-bottom:1px solid var(--line)}
+  .dh b{font-size:17px}
+  .dh .btn{position:absolute;left:6px;top:calc(6px + env(safe-area-inset-top));background:none;border:0;font-size:20px;min-height:40px;color:#222}
+  .dfq{border-top:1px solid var(--line)}
+  .dfq .btn:first-child{min-height:50px}
+  .card{border-radius:8px}
+  .menu{border:0!important}
+  .menu button{padding:18px 4px;font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -427,8 +504,8 @@ input[type=file]{max-width:100%}
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn" type="button" id="pubbtn" style="background:#b91c1c" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
-  <div class="df dfq"><button class="btn" type="button" id="qbtn" style="background:#b91c1c;flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
 
@@ -471,8 +548,8 @@ async function boot(){
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
 async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
-  const os=await allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
-  let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-(o.ship_actual_jpy??o.ship_est_jpy??0)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
+  const os=await allRows(()=>sb.from('orders').select('country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
+  let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
   hsales.textContent=yen(s); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
   hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
@@ -481,6 +558,11 @@ function thumb(u){ if(!u) return u;
   if(u.includes('i.ebayimg.com')) return u.replace('/$_57.','/$_35.').replace('/$_1.','/$_35.').replace(/\/s-l\d+\./,'/s-l300.');
   if(u.includes('/watch-photos/')&&!u.includes('_t.jpg')) return u.replace(/\.jpg$/,'_t.jpg');
   return u; }
+// 実送料：実額が入っていればそれ。無い注文は決めた額（2026-10-13 本人指定：アメリカ・イスラエル5,700円、ほか3,500円）
+const SHIP_RULE={US:5700,IL:5700,other:3500};
+const shipRule=o=>SHIP_RULE[(o.country||'').toUpperCase()]??SHIP_RULE.other;
+const hasShip=o=>o.ship_actual_jpy>0;   // 0円は「入っていない」と同じ扱い
+const shipOf=o=>hasShip(o)?o.ship_actual_jpy:shipRule(o);
 // 1回で1000件までしか返らないので、全部そろうまで続きを読む
 async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,error}=await build().range(i,i+999);
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
@@ -782,7 +864,7 @@ function loadCash(){
 }
 async function loadProfit(){
   const months=monthsBack(cm.value,+cn.value), from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
-  const {data:os}=await sb.from('orders').select('ordered_on,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
+  const {data:os}=await sb.from('orders').select('ordered_on,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
   const {data:it}=await sb.from('items').select('purchased_on,cost_jpy').gte('purchased_on',from);
   const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
   const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={}, g=k=>R[k]??=z();
@@ -793,7 +875,7 @@ async function loadProfit(){
   const add=(k,m,v)=>{ if(m in g(k)) R[k][m]+=v||0 };
   (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6);
     add('売上',m,(o.item_price_jpy||0)+(o.ship_charged_jpy||0)); add('売れた商品の原価',m,-(o.items?.cost_jpy||0));
-    add('実送料',m,-o.ship_actual_jpy); add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('実送料',m,-shipOf(o)); add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); });
   (it||[]).forEach(i=>add('仕入額',i.purchased_on.replace(/-/g,'').slice(0,6),i.cost_jpy));
   (mc||[]).forEach(c=>{ if(c.ym!=='定額') add(c.kind,c.ym,c.amount_jpy) });
@@ -1047,14 +1129,14 @@ async function loadPf(){
   const end=pfm.value, n=+pfn.value, months=[];
   for(let i=n-1;i>=0;i--){ const d=new Date(+end.slice(0,4),+end.slice(4)-1-i,1); months.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`) }
   const from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
-  const os=await allRows(()=>sb.from('orders').select('ordered_on,platform,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,listing_fee_jpy,other_fee_jpy,return_cost_jpy,items(cost_jpy)').gte('ordered_on',from).order('id'));
+  const os=await allRows(()=>sb.from('orders').select('ordered_on,platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,listing_fee_jpy,other_fee_jpy,return_cost_jpy,items(cost_jpy)').gte('ordered_on',from).order('id'));
   const it=await allRows(()=>sb.from('items').select('purchased_on,cost_jpy,status,sold_on').order('kno'));
   const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',months);
   const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={};
   const add=(k,m,v)=>{ if(!(m in (R[k]??=z()))) return; R[k][m]+=v||0 };
   (os||[]).forEach(o=>{ const m=o.ordered_on.replace(/-/g,'').slice(0,6); const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
     add('売上',m,s); add('うち商品の売上',m,o.item_price_jpy); add('うち送料の売上',m,o.ship_charged_jpy); add(o.platform==='eBay'?'売上(eBay)':'売上(その他)',m,s); add('仕入原価',m,-(o.items?.cost_jpy||0));
-    add('実送料',m,-(o.ship_actual_jpy??o.ship_est_jpy)); if(o.ship_actual_jpy==null){ add('うち見込みの送料',m,-o.ship_est_jpy); add('送料が未入力の件数',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
+    add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('うち決めた額の送料',m,-shipRule(o)); add('実額が無い件数',m,1); if(!o.country) add('うち国が分からない件数',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
     add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
   (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
@@ -1066,7 +1148,7 @@ async function loadPf(){
   months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
     R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
     R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
-  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち見込みの送料','送料が未入力の件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決めた額の送料','実額が無い件数','うち国が分からない件数','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
   const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
   pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
     rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
@@ -1247,7 +1329,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013203904';
+const BUILD='20261013205009';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
