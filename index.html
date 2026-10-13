@@ -99,7 +99,17 @@ fieldset{min-width:0}
 input[type=file]{max-width:100%}
 /* スマホ：下にタブ、登録画面は全画面、商品一覧はカード */
 @media (max-width:700px){
-  body{font-size:15px;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  body{font-size:16px;padding-bottom:calc(72px + env(safe-area-inset-bottom));-webkit-text-size-adjust:100%}
+  .sub{font-size:13px}
+  h3{font-size:18px}
+  .hl{font-size:14px}.hrow span{font-size:11px}.hrow b{font-size:14px}
+  /* 表の画面（実績・収支など）：左の見出しを固定して横に送れるようにする */
+  .tbl{border-radius:12px;background:var(--card)}
+  .tbl table{font-size:14px}
+  .tbl th,.tbl td{padding:10px 8px}
+  #pft th:first-child,#ct th:first-child{position:sticky;left:0;z-index:1;background:#f1f3f5;max-width:120px;white-space:normal;font-size:13px}
+  #v-items td:nth-child(6){font-size:13px!important}
+  nav button{font-size:12px!important}
   input,select,textarea{font-size:16px;padding:10px}
   .btn,.chip{min-height:42px;padding:9px 14px}
   header{padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top))}
@@ -1106,7 +1116,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013201716';
+const BUILD='20261013201807';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
