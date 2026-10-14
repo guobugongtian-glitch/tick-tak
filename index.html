@@ -87,6 +87,10 @@ td.ph .noph{display:block;width:56px;height:56px;border-radius:6px;background:#e
 .ptile b{position:absolute;left:4px;top:4px;background:#e5342a;color:#fff;font-size:11px;padding:1px 6px;border-radius:4px}
 .ptile i{position:absolute;left:4px;top:4px;background:#000a;color:#fff;font-size:11px;font-style:normal;padding:0 6px;border-radius:4px}
 .ptile{cursor:grab}
+.vbox{margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.vbox video{width:96px;height:96px;object-fit:cover;border-radius:8px;background:#000}
+.vbox .vinfo{flex:1;min-width:150px;font-size:13px;line-height:1.5}
+.vbox .vinfo .row{margin-top:6px;gap:6px;flex-wrap:wrap}
 .ptile div button{width:auto;min-width:22px;padding:0 3px;font-size:11px}
 .ptile div{display:flex;justify-content:space-between;margin-top:4px}
 .ptile div button{border:0;background:#e5e7eb;border-radius:6px;width:30px;height:28px;font-size:12px;cursor:pointer}
@@ -542,6 +546,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
       <div class="ptiles"><label class="ptile add" for="pfile"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>写真を追加</span></label><div id="iphotos"></div></div>
       <input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)" hidden><div id="pmsg" class="sub"></div>
       <div class="row"><button class="btn s hide" type="button" id="phbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="pushPhotos()">写真をeBayに反映</button></div>
+      <div id="vbox" class="vbox"></div><input type="file" id="vfile" accept="video/*" onchange="addVideo(this)" hidden><div id="vmsg" class="sub"></div>
     </fieldset>
     <fieldset class="fs-basic"><legend>商品</legend>
     <div id="stockpick" class="hide"><select id="stocksel" style="width:100%;font-size:16px;padding:10px" onchange="if(this.value)openItem(+this.value,true)"></select></div>
@@ -898,7 +903,7 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   // 同じ型で実際に速く売れたタイトルがあれば、それを優先して入れる
   const ideas=titleIdeas(); const best=ideas.find(x=>x.why.startsWith('同じ型で売れた')); if(best){ ifm.title.value=best.s; tlen.textContent=best.s.length } seoCheck(); }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
-  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); VID=null; drawVideo(); vmsg.textContent=''; vfile.value=''; pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
     ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
@@ -910,8 +915,8 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
     for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
     ifm.research_name.value=r.research?.name||'';
     renderSpecs(r.specs||{});
-    PH=[...(r.photos||[])]; drawPhotos(); const live=r.status==='listed'&&!!r.ebay_item_id;   // もうeBayに出ている商品：確認・出品のボタンは出さず、直す・取り下げるだけ出す
-    revbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); phbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live);
+    PH=[...(r.photos||[])]; drawPhotos(); VID=r.video||null; drawVideo(); const live=r.status==='listed'&&!!r.ebay_item_id;   // もうeBayに出ている商品：確認・出品のボタンは出さず、直す・取り下げるだけ出す
+    revbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); phbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live); drawVideo();
     stockpick.classList.add('hide'); const ln=(r.memo||'').split('\n').find(x=>x.startsWith('台帳：')); lgname.textContent=ln&&!r.title?ln+(r.supplier?`（${r.supplier}・${r.purchased_on||''}・${yen(r.cost_jpy)}円）`:''):'';
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
@@ -954,6 +959,37 @@ async function addPhotos(inp){ const kno=ifm.kno.value; if(!kno){ pmsg.textConte
       PH.push(sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl); n++; drawPhotos();
     }catch(e){ pmsg.textContent=`${f.name} を送れません：${e.message}`; return } }
   inp.value=''; pmsg.textContent=`${n}枚を追加しました。「保存」を押すと商品に残ります。`; }
+// 動画（1本）：いったん写真置き場に送り、そこからeBayに登録する。eBayで使えるようになったら置き場の分は消える
+let VID=null; const VMAX=50;
+const vlive=()=>!phbtn.classList.contains('hide');
+function vstate(v){ if(!v.ebay_id) return '未送信（出品のときにeBayへ送ります）';
+  if(v.status==='LIVE') return '<b style="color:#15803d">eBayに登録済み</b>';
+  if(v.status==='PROCESSING'||v.status==='PENDING_UPLOAD') return 'eBayで処理中（数分かかることがあります）';
+  return `<span class="neg">eBayが受け付けませんでした${v.message?'：'+String(v.message).replace(/[<>&]/g,''):''}</span>`; }
+function drawVideo(){ const v=VID, b=(t,f,red)=>`<button class="btn s" type="button" ${red?'style="border-color:#ff333f;color:#ff333f;font-weight:700"':''} onclick="${f}">${t}</button>`;
+  if(!v){ vbox.innerHTML=`<label class="btn s" for="vfile">動画を追加（1本・${VMAX}MBまで）</label>`; return }
+  const busy=v.status==='PROCESSING'||v.status==='PENDING_UPLOAD';
+  vbox.innerHTML=(v.url?`<video src="${v.url}" controls playsinline preload="metadata"></video>`:'')+`<div class="vinfo"><b>動画</b> ${String(v.name||'').replace(/[<>&]/g,'')} ${v.size?'（'+(v.size/1048576).toFixed(1)+'MB）':''}<br>${vstate(v)}
+    <div class="row">${v.url&&!v.ebay_id?b('eBayに送る','sendVideo()'):''}${v.ebay_id&&busy?b('状態を確かめる','checkVideo()'):''}${v.ebay_id&&v.status==='LIVE'&&vlive()?b('動画をeBayの出品に付ける','pushVideo()',1):''}${b('外す','dropVideo()')}</div></div>`; }
+async function addVideo(inp){ const kno=ifm.kno.value, f=inp.files[0]; inp.value=''; if(!f) return; if(!kno){ vmsg.textContent='先に品番を入れてください'; return }
+  if(f.size>VMAX*1048576){ vmsg.textContent=`この動画は ${(f.size/1048576).toFixed(0)}MB あります。${VMAX}MBまでです（スマホなら15〜20秒くらいが目安）。短く切ってから選んでください。`; return }
+  vmsg.textContent=`動画を送っています…（${(f.size/1048576).toFixed(1)}MB。そのまま待ってください）`;
+  const ext=(f.name.split('.').pop()||'mp4').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp4', path=`${kno}/video_${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from('watch-photos').upload(path,f,{contentType:f.type||'video/mp4'}); if(error){ vmsg.textContent='動画を送れません：'+error.message; return }
+  VID={url:sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl,name:f.name,size:f.size}; drawVideo();
+  vmsg.textContent='動画を追加しました。出品するときに一緒にeBayへ送ります。'; if(vlive()||ifm.title.value) await saveItem(true); }
+// 動画をeBayに登録する（出品はまだ変わらない）
+async function sendVideo(){ if(!VID||!VID.url) return; const f=await saveItem(true); if(!f) return; vmsg.textContent='動画をeBayに送っています…（1分ほどかかります）';
+  const r=await ebayCall('upload_video',{kno:+f.kno}); if(r.video){ VID=r.video; drawVideo() }
+  if(r.error||!r.ok){ vmsg.innerHTML=`<span class="neg">動画を送れません：${String(r.error||'').replace(/[<>&]/g,'')}</span>`; return false }
+  vmsg.textContent=VID.status==='LIVE'?'動画をeBayに登録しました。':'動画を送りました。eBayで処理中です。少し待ってから「状態を確かめる」を押してください。'; return true; }
+async function checkVideo(){ const kno=+ifm.kno.value; vmsg.textContent='確かめています…'; const r=await ebayCall('video_status',{kno}); if(r.video){ VID=r.video; drawVideo() }
+  vmsg.textContent=r.error?'確かめられません：'+r.error:(VID&&VID.status==='LIVE'?'eBayで使えるようになりました。':'まだ処理中です。'); }
+// いま出品中の商品に、登録済みの動画を付ける
+async function pushVideo(){ const kno=+ifm.kno.value; if(!window.confirm(`品番 ${kno} のeBayの出品に、この動画を付けます。よろしいですか？`)) return;
+  vmsg.textContent='eBayの出品に動画を付けています…'; const r=await ebayCall('revise_fields',{kno,video:true});
+  vmsg.innerHTML=r.error||!r.ok?`<span class="neg">付けられません：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`:'<b style="color:#15803d">eBayの出品に動画を付けました。</b>'; }
+function dropVideo(){ VID=null; drawVideo(); vmsg.textContent=vlive()?'動画をこの商品から外しました（「保存」で残ります）。eBayに出ている出品の動画はそのままです。':'動画を外しました。「保存」で残ります。'; }
 // 説明文：ひな形（取込/設定で直せる）に商品の中身を差し込む
 const DESC_DEFAULT=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;max-width:800px">
 <h2>{title}</h2>
@@ -1032,6 +1068,7 @@ function buildDesc(f){ const e=x=>String(x??'').replace(/&/g,'&amp;').replace(/<
     .replaceAll('{appearance}',e(f.appearance_note)||'-').replaceAll('{accessories}',e(f.accessories)||'Watch only').replaceAll('{specs}',`<table>${sp}</table>`).replaceAll('{size}',sizeTable(f.specs)||'-'); }
 // eBayに内容を見てもらう（出品はされない）。先に保存してから送る
 async function verifyItem(){ vout.innerHTML='保存しています…'; const f=await saveItem(true); if(!f){ vout.innerHTML=''; return }
+  if(VID&&VID.url&&!VID.ebay_id){ vout.innerHTML='動画をeBayに送っています…'; await sendVideo() }
   vout.innerHTML='eBayに確認しています…（出品はされません）'; const r=await ebayCall('verify_listing',{kno:+f.kno,description:await buildDescAsync(f)});
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>a.map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.error){ vout.innerHTML=`<b class=neg>確認できません：</b>${esc(r.error)}`; return false }
@@ -1061,7 +1098,7 @@ async function pushPhotos(){ const f=await saveItem(true); if(!f) return; if(!PH
   if(!window.confirm(`品番 ${f.kno} のeBayの写真を、いまの並び（${PH.length}枚）に入れ替えます。1枚目が表紙になります。よろしいですか？`)) return;
   pmsg.textContent='eBayの写真を入れ替えています…'; const r=await ebayCall('revise_fields',{kno:+f.kno,photos:true});
   pmsg.innerHTML=r.error||!r.ok?`<span class="neg">反映できません：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`:'<b style="color:#15803d">eBayの写真を、この順番に入れ替えました。</b>'; }
-let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null});
+let VERIFIED=null; const sig=f=>JSON.stringify({...f,updated_at:null,video:null});
 async function previewDesc(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
   const w=window.open('','_blank'); const html=await buildDescAsync(f); if(w){ w.document.write('<!doctype html><meta charset="utf-8"><title>説明文の見え方</title>'+html); w.document.close() } }
 // 本当にeBayへ出す。確認を通ったあと中身を変えていないときだけ押せる。押したら取り消しはeBay側での取り下げになる
@@ -1080,7 +1117,7 @@ async function saveItem(keepOpen){
   if(!f.kno){ dmsg.textContent='品番は必須'; return }
   if(rn){ if(!RES[rn]){ const {data,error}=await sb.from('research').insert({name:rn}).select('id').single(); if(error){dmsg.textContent=error.message;return} RES[rn]=data.id } f.research_id=RES[rn]; }
   f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
-  f.photos=PH; f.updated_at=new Date().toISOString();
+  f.photos=PH; f.video=VID; f.updated_at=new Date().toISOString();
   const {error}=await sb.from('items').upsert(f); if(error){ dmsg.textContent='保存できません：'+error.message; return null }
   if(keepOpen){ dmsg.textContent='保存しました'; initFilters(); loadItems(); return f }
   dlg.close(); initFilters(); loadItems(); return f;
@@ -1631,7 +1668,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261013214510';
+const BUILD='20261014100716';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
