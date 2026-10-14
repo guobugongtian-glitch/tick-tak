@@ -478,6 +478,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <p class="sub">eBayStockの「実績明細」「出品中一覧」、手持ちの「収支計算表」、Etsyの「注文した商品」（Shop Manager → 設定 → オプション → データをダウンロード → Order Items）のCSVを選ぶ（まとめて選んでよい）。同じ品番・同じ月は上書き。</p>
     <input type="file" id="csv" accept=".csv" multiple><button class="btn" onclick="importCsv()">取り込む</button>
     <p id="iomsg" class="sub"></p>
+    <div id="etmatch"></div>
   </div>
   <div class="card">
     <h3 style="margin-top:0">仕入れ台帳の自動連携</h3>
@@ -1630,15 +1631,16 @@ async function importEtsy(rows, ix){
   const day=s=>{ let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/); if(m) return `${m[3].length===2?'20'+m[3]:m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
     m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[0]:null };
   const fx=+getS().fx||150, rs=rows.filter(r=>r.length>3&&day(v(r,'Sale Date'))); iomsg.textContent=`Etsy ${rs.length}行を読んでいます…`;
-  const seen=new Set(), orders=[], unknown=[]; let other=0;
+  const seen=new Set(), orders=[], unknown=[], nosku=[]; let other=0; etmatch.innerHTML='';
   for(const r of rs){ const d=day(v(r,'Sale Date')), sku=v(r,'SKU'), oid=v(r,'Order ID'), cur=v(r,'Currency')||'USD';
-    if(!/^\d+$/.test(sku)){ unknown.push(`${d} ${v(r,'Item Name').slice(0,30)}（SKUなし）`); continue }
     const price=num(r,'Price')*(num(r,'Quantity')||1)-num(r,'Discount Amount'), ship=seen.has(oid)?0:num(r,'Order Shipping')-num(r,'Shipping Discount'); seen.add(oid);
     const rate=cur==='USD'?fx:cur==='JPY'?1:null; if(rate==null) other++;
     const cn=v(r,'Ship Country');
+    if(!/^\d+$/.test(sku)){ nosku.push({name:v(r,'Item Name'),order_no:oid||null,ordered_on:d,platform:'Etsy',item_price_jpy:rate?Math.round(price*rate):null,ship_charged_jpy:rate?Math.round(ship*rate):null,
+      sales_usd:cur==='USD'?Math.round((price+ship)*100)/100:null,fx_rate:cur==='USD'?fx:null,country:ETSY_CC[cn]||cn||null,processed:false}); continue }
     orders.push({kno:+sku,order_no:oid||null,ordered_on:d,platform:'Etsy',item_price_jpy:rate?Math.round(price*rate):null,ship_charged_jpy:rate?Math.round(ship*rate):null,
       sales_usd:cur==='USD'?Math.round((price+ship)*100)/100:null,fx_rate:cur==='USD'?fx:null,country:ETSY_CC[cn]||cn||null,processed:false}); }
-  if(!orders.length) return {ok:false,msg:`品番（SKU）の入った行がありません（${rs.length}行中）`+(unknown.length?'。Etsyの出品にSKUとして品番を入れておく必要があります':'')};
+  if(!orders.length&&!nosku.length) return {ok:false,msg:'Etsyの注文が1行もありません'};
   // 登録されている品番だけ。eBayで売れた記録がある品番は触らない
   const kn=[...new Set(orders.map(o=>o.kno))], have=new Set(), ebay=new Set();
   for(let i=0;i<kn.length;i+=500){ const {data}=await sb.from('items').select('kno').in('kno',kn.slice(i,i+500)); (data||[]).forEach(x=>have.add(x.kno));
@@ -1653,8 +1655,47 @@ async function importEtsy(rows, ix){
   for(let i=0;i<ds.length;i++){ iomsg.textContent=`Etsy ${ok.length}件：商品を「販売」にしています… ${i+1}/${ds.length}`;
     const {error}=await sb.from('items').update({status:'sold',location_status:null,sold_on:ds[i]}).in('kno',byDay[ds[i]]); if(error) return {ok:false,msg:'失敗：'+error.message} }
   const days=ok.map(o=>o.ordered_on).sort();
-  return {ok:true,msg:`Etsy ${ok.length}件（${days[0]||''}〜${days[days.length-1]||''}、為替${fx}円で計算）`+(other?`・ドル以外${other}件は円が空`:'')
+  if(nosku.length) await etsyMatch(nosku);
+  return {ok:true,msg:(nosku.length?`SKUなし${nosku.length}件は下で確認してください。`:'')+`Etsy ${ok.length}件（${days[0]||''}〜${days[days.length-1]||''}、為替${fx}円で計算）`+(other?`・ドル以外${other}件は円が空`:'')
     +(unknown.length?`。入らなかった${unknown.length}件：${unknown.slice(0,8).join('、')}${unknown.length>8?' ほか':''}`:'')};
+}
+
+// SKUの無いEtsyの注文を、商品名と日付で突き合わせる。候補は
+//   ① eBayStockで「その他」として入っている販売（前後4日以内）→ Etsyに直し、注文番号・国を入れる（金額はそのまま）
+//   ② まだ売れていない商品 → 注文を入れて「販売」にする
+// 型番など数字の入った語が合うと強く見る。本人が選んでから入れる
+let ETM=[];
+const etTok=s=>new Set(String(s||'').toLowerCase().replace(/[’']s\b/g,'').split(/[^a-z0-9.]+/).map(x=>x.replace(/^\.+|\.+$/g,''))
+  .filter(x=>x.length>1&&!'vintage watch watches womens women woman ladies lady mens men quartz qz from japan near mint exc box with dial the and for gift her him luxury ships automatic'.split(' ').includes(x)));
+async function etsyMatch(rows){
+  iomsg.textContent='SKUなしの注文の候補を探しています…';
+  const its=await allRows(()=>sb.from('items').select('kno,title,status').order('kno')), os=await allRows(()=>sb.from('orders').select('id,kno,platform,ordered_on,order_no').order('id'));
+  const done=new Set(os.filter(o=>o.platform==='Etsy'&&o.order_no).map(o=>o.order_no+'|'+o.ordered_on)); rows=rows.filter(r=>!done.has(r.order_no+'|'+r.ordered_on));   // 前に入れた分は出さない
+  if(!rows.length){ etmatch.innerHTML=''; return }
+  const T=Object.fromEntries(its.map(i=>[i.kno,i.title||''])), sold=new Set(os.map(o=>o.kno));
+  const misc=os.filter(o=>o.platform==='その他'), free=its.filter(i=>!sold.has(i.kno)&&i.status!=='sold');
+  const score=(a,t)=>{ const b=etTok(t); let s=0; a.forEach(x=>{ if(b.has(x)) s+=/\d/.test(x)?3:1 }); return s };
+  ETM=rows.map(r=>{ const a=etTok(r.name), d=new Date(r.ordered_on);
+    const c1=misc.map(o=>({kind:'misc',id:o.id,kno:o.kno,day:o.ordered_on,s:score(a,T[o.kno]),dd:Math.abs((new Date(o.ordered_on)-d)/864e5)})).filter(x=>x.dd<=4&&x.s>=2);
+    const c2=free.map(i=>({kind:'free',kno:i.kno,s:score(a,i.title),dd:99})).filter(x=>x.s>=4);
+    return {...r,cands:[...c1,...c2].sort((x,y)=>y.s-x.s||x.dd-y.dd).slice(0,4)} });
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const lab=c=>`${c.kno}${c.kind==='misc'?`（その他 ${c.day}）`:'（まだ売れていない）'} ${T[c.kno].slice(0,50)}`;
+  etmatch.innerHTML=`<h3>SKUの無いEtsyの注文 ${ETM.length}件</h3><p class="sub">商品名と日付で候補を出しました。合っていれば選んだまま、違えば「該当なし」にして、下のボタンを押してください。「その他」の販売はEtsyに直します（金額はそのまま）。</p>`
+    +ETM.map((r,i)=>`<div style="padding:8px 0;border-bottom:1px solid #eee"><div><b>${r.ordered_on}</b> ${esc(r.name.slice(0,80))}</div>
+      <select id="etm${i}" style="max-width:100%">${r.cands.map((c,j)=>`<option value="${j}">${esc(lab(c))}</option>`).join('')}<option value="-1"${r.cands.length?'':' selected'}>該当なし</option></select></div>`).join('')
+    +`<div class="row" style="margin-top:10px"><button class="btn" onclick="etsyMatchApply()">選んだ分を入れる</button></div><p id="etmmsg" class="sub"></p>`;
+}
+async function etsyMatchApply(){
+  const pick=ETM.map((r,i)=>({r,c:r.cands[+document.getElementById('etm'+i).value]})).filter(x=>x.c);
+  const dup=pick.map(x=>x.c.kno).filter((k,i,a)=>a.indexOf(k)!==i);
+  if(dup.length){ etmmsg.textContent=`同じ品番を2回選んでいます：${[...new Set(dup)].join('、')}。どちらかを直してください`; return }
+  let n1=0,n2=0; const bad=[];
+  for(const [i,{r,c}] of pick.entries()){ etmmsg.textContent=`入れています… ${i+1}/${pick.length}`;
+    if(c.kind==='misc'){ const {error}=await sb.from('orders').update({platform:'Etsy',order_no:r.order_no,country:r.country}).eq('id',c.id); if(error) bad.push(c.kno); else n1++ }
+    else { const {name,...o}=r; delete o.cands; const {error}=await sb.from('orders').insert({...o,kno:c.kno}); if(error){ bad.push(c.kno); continue }
+      await sb.from('items').update({status:'sold',location_status:null,sold_on:r.ordered_on}).eq('kno',c.kno); n2++ } }
+  etmatch.innerHTML=`<p class="sub">「その他」→Etsyに直した ${n1}件・新しく販売にした ${n2}件・入れなかった ${ETM.length-pick.length}件`+(bad.length?`・失敗 ${bad.join('、')}`:'')+'</p>'; ETM=[]; loadItems();
 }
 
 // eBayとの接続（鍵は裏方にあり、ここには無い）
@@ -1744,7 +1785,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014151610';
+const BUILD='20261014151855';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
