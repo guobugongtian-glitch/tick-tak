@@ -1518,7 +1518,7 @@ const d8 = s => s&&/^\d{8}$/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slic
 // 3種類を見分けて、items_full → 実績明細 → 出品中一覧 の順に取り込む（後のものが正しい状態で上書きする）
 async function importCsv(){
   if(!csv.files.length){ iomsg.textContent='ファイルを選んでください'; return }
-  const jobs=[];
+  iomsg.textContent='読み込んでいます…'; const jobs=[];
   for(const f of csv.files){ const rows=parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[k.trim(),i]));
     if('Sale Date' in ix&&'Number of Items' in ix){ iomsg.textContent=`${f.name}：これは注文ごとのCSVです。Etsyは「Order Items」（商品ごと）のほうを選んでください`; return }
     const kind='販売日' in ix?2:'品番' in ix?3:'kno' in ix?1:(h[0]||'').trim().startsWith('社名')?4:('Sale Date' in ix&&'Item Name' in ix)?5:0;
@@ -1629,7 +1629,7 @@ async function importEtsy(rows, ix){
   const v=(r,k)=>(r[ix[k]]??'').trim(); const num=(r,k)=>{ const x=v(r,k).replace(/[$,\s]/g,''); return x===''||isNaN(+x)?0:+x };
   const day=s=>{ let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/); if(m) return `${m[3].length===2?'20'+m[3]:m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
     m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[0]:null };
-  const fx=+getS().fx||150, rs=rows.filter(r=>r.length>3&&day(v(r,'Sale Date')));
+  const fx=+getS().fx||150, rs=rows.filter(r=>r.length>3&&day(v(r,'Sale Date'))); iomsg.textContent=`Etsy ${rs.length}行を読んでいます…`;
   const seen=new Set(), orders=[], unknown=[]; let other=0;
   for(const r of rs){ const d=day(v(r,'Sale Date')), sku=v(r,'SKU'), oid=v(r,'Order ID'), cur=v(r,'Currency')||'USD';
     if(!/^\d+$/.test(sku)){ unknown.push(`${d} ${v(r,'Item Name').slice(0,30)}（SKUなし）`); continue }
@@ -1648,7 +1648,10 @@ async function importEtsy(rows, ix){
   const ok_kn=[...new Set(ok.map(o=>o.kno))];
   for(let i=0;i<ok_kn.length;i+=500){ const {error}=await sb.from('orders').delete().in('kno',ok_kn.slice(i,i+500)).neq('platform','eBay'); if(error) return {ok:false,msg:'失敗：'+error.message} }
   for(let i=0;i<ok.length;i+=500){ const {error}=await sb.from('orders').insert(ok.slice(i,i+500)); if(error) return {ok:false,msg:'注文の取込失敗：'+error.message} }
-  for(const o of ok){ await sb.from('items').update({status:'sold',location_status:null,sold_on:o.ordered_on}).eq('kno',o.kno) }
+  // 商品を「販売」に（売れた日ごとにまとめて）
+  const byDay={}; ok.forEach(o=>{ (byDay[o.ordered_on]=byDay[o.ordered_on]||[]).push(o.kno) }); const ds=Object.keys(byDay);
+  for(let i=0;i<ds.length;i++){ iomsg.textContent=`Etsy ${ok.length}件：商品を「販売」にしています… ${i+1}/${ds.length}`;
+    const {error}=await sb.from('items').update({status:'sold',location_status:null,sold_on:ds[i]}).in('kno',byDay[ds[i]]); if(error) return {ok:false,msg:'失敗：'+error.message} }
   const days=ok.map(o=>o.ordered_on).sort();
   return {ok:true,msg:`Etsy ${ok.length}件（${days[0]||''}〜${days[days.length-1]||''}、為替${fx}円で計算）`+(other?`・ドル以外${other}件は円が空`:'')
     +(unknown.length?`。入らなかった${unknown.length}件：${unknown.slice(0,8).join('、')}${unknown.length>8?' ほか':''}`:'')};
@@ -1741,7 +1744,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014150555';
+const BUILD='20261014151610';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
