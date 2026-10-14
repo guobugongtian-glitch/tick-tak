@@ -358,8 +358,8 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     </div>
   </div>
   <div class="card" id="soldcard">
-    <div class="row" style="justify-content:space-between"><b>eBayで売れた分 <span id="soldmsg" class="sub"></span></b><button class="btn s" id="soldbtn" onclick="ebayOrders()">いま取り込む</button></div>
-    <div id="soldlist" class="note"></div>
+    <div class="row" style="justify-content:space-between"><b>売れた分 <span id="soldmsg" class="sub"></span></b><button class="btn s" id="soldbtn" onclick="ebayOrders();etsyOrders()">いま取り込む</button></div>
+    <div id="soldlist" class="note"></div><div id="etsold" class="note"></div>
   </div>
   <div class="card" id="rvcard">
     <div class="row" style="justify-content:space-between"><b>今日の再出品 <span id="rvcount" class="sub"></span></b><button class="btn" id="rvbtn" onclick="toggleReview()">はじめる</button></div>
@@ -526,6 +526,8 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <p id="ebmsg" class="sub">確認していません</p>
     <div class="row"><button class="btn" onclick="ebayConnect()">eBayと接続する</button><button class="btn s" onclick="ebayStatus()">接続を確認</button><button class="btn s" onclick="ebaySync()">出品中の写真を取り込む</button><button class="btn s" onclick="ebayOrders()">売れた分を取り込む</button></div>
     <div id="ebpol" class="sub"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="etsyConnect()">Etsyと接続する</button><button class="btn s" onclick="etsyStatus()">Etsyの接続を確認</button><button class="btn s" onclick="etsyOrders()">Etsyで売れた分を取り込む</button></div>
+    <div id="etmsg" class="sub"></div>
   </div>
   <div class="card">
     <h3 style="margin-top:0">計算の設定</h3>
@@ -646,7 +648,7 @@ async function boot(){
   if(!session){ $('login').classList.remove('hide'); return }
   $('login').classList.add('hide'); $('app').classList.remove('hide');
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero(); loadReviewCount(); ebayOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); desctpl.value=getDescTpl(); loadHero(); loadReviewCount(); ebayOrders(true); etsyOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
@@ -1646,11 +1648,30 @@ async function ebayOrders(silent){ const K='ws_orders_at';
   if(r.error){ soldmsg.textContent=silent&&/接続/.test(r.error)?'':'取り込めません：'+r.error; return }
   try{ localStorage.setItem(K,Date.now()) }catch(e){}
   const esc=x=>String(x??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), t=new Date().toTimeString().slice(0,5);
-  soldmsg.textContent=r.added.length?`新しく ${r.added.length}件 入れました（${t}）`:`新しい注文はありません（${t} 確認・直近14日の注文 ${r.total}件）`;
+  soldmsg.textContent=r.added.length?`eBay：新しく ${r.added.length}件 入れました（${t}）`:`eBay：新しい注文なし（${t} 確認・直近14日 ${r.total}件）`;
   soldlist.innerHTML=r.added.map(a=>`<div>${esc(a.day)}　品番 <a href="#" onclick="openItem(${+a.kno});return false">${+a.kno}</a>　${a.jpy==null?`${esc(a.orig||a.usd)} ${esc(a.cur||'')}（円は未計算）`:`$${esc(a.usd)}（約${yen(a.jpy)}円${a.cur&&a.cur!=='USD'?`・${esc(a.orig)} ${esc(a.cur)} を換算`:''}）`}　${esc(a.country)}　${esc(a.title)}</div>`).join('')
     +(r.added.length?`<div class="sub">円の金額は為替 ${esc(r.fx)}円で計算した仮の数字です。手数料や実送料は、実績明細CSVを取り込むと正しい数字に置き換わります。</div>`:'')
     +(r.unknown.length?`<div class="neg">商品が見つからなかった注文 ${r.unknown.length}件：${r.unknown.map(esc).join('、')}</div>`:'')
     +(r.other_currency?`<div class="sub">ドル以外の通貨の注文 ${+r.other_currency}件は、為替が取れず、円の金額を空にしています。</div>`:'');
+  if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
+// Etsy：つなぐ・確かめる・売れた分を読む（eBayと同じ流れ。まだつないでいない間は、自動のときは何も出さない）
+async function etsyCall(action,extra){ const {data,error}=await sb.functions.invoke('etsy',{body:{action,...(extra||{})}});
+  if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
+async function etsyConnect(){ etmsg.textContent='Etsyの許可画面を用意しています…'; const r=await etsyCall('auth_url');
+  if(r.error){ etmsg.textContent='接続できません：'+r.error; return }
+  window.open(r.url,'_blank'); etmsg.textContent='Etsyの画面で許可したら、「Etsyの接続を確認」を押してください。'; }
+async function etsyStatus(){ etmsg.textContent='確認中…'; const r=await etsyCall('status');
+  etmsg.textContent=r.error?'Etsy：確認できません：'+r.error:`Etsyとつながっています（お店：${r.shop_name||r.shop_id}）`; }
+async function etsyOrders(silent){ const K='ws_etsy_at';
+  if(silent){ try{ if(Date.now()-(+localStorage.getItem(K)||0)<6e5) return }catch(e){} }
+  const r=await etsyCall('sync_orders',{fx:getS().fx,days:14});
+  if(r.error){ if(!silent){ etsold.textContent='Etsy：取り込めません：'+r.error; etmsg.textContent=etsold.textContent } return }
+  try{ localStorage.setItem(K,Date.now()) }catch(e){}
+  const esc=x=>String(x??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), t=new Date().toTimeString().slice(0,5);
+  etsold.innerHTML=`<div>Etsy：${r.added.length?`新しく ${r.added.length}件 入れました`:'新しい注文なし'}（${t} 確認・直近14日 ${+r.total}件）</div>`
+    +r.added.map(a=>`<div>${esc(a.day)}　品番 <a href="#" onclick="openItem(${+a.kno});return false">${+a.kno}</a>　${a.jpy==null?`${esc(a.orig)} ${esc(a.cur)}（円は未計算）`:`$${esc(a.usd)}（約${yen(a.jpy)}円）`}　${esc(a.country)}　${esc(a.title)}</div>`).join('')
+    +(r.unknown.length?`<div class="neg">商品とつながらなかったEtsyの注文 ${r.unknown.length}件：${r.unknown.map(esc).join('、')}</div>`:'');
+  if(!silent) etmsg.textContent=etsold.innerText.split('\n')[0];
   if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
 async function ebaySync(){ ebmsg.textContent='eBayから出品中の一覧を読んでいます…（1分ほどかかることがあります）'; ebpol.innerHTML=''; const r=await ebayCall('sync_listings');
   if(r.error){ ebmsg.textContent='取り込めません：'+r.error; return }
@@ -1686,7 +1707,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014115705';
+const BUILD='20261014121528';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
