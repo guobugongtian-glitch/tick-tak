@@ -611,7 +611,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
@@ -910,7 +910,7 @@ function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condit
   // 同じ型で実際に速く売れたタイトルがあれば、それを優先して入れる
   const ideas=titleIdeas(); const best=ideas.find(x=>x.why.startsWith('同じ型で売れた')); if(best){ ifm.title.value=best.s; tlen.textContent=best.s.length } seoCheck(); }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
-  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); VID=null; drawVideo(); vmsg.textContent=''; vfile.value=''; pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); VID=null; drawVideo(); vmsg.textContent=''; vfile.value=''; pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); chkbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
     ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
@@ -923,7 +923,7 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
     ifm.research_name.value=r.research?.name||'';
     renderSpecs(r.specs||{});
     PH=[...(r.photos||[])]; drawPhotos(); VID=r.video||null; drawVideo(); const live=r.status==='listed'&&!!r.ebay_item_id;   // もうeBayに出ている商品：確認・出品のボタンは出さず、直す・取り下げるだけ出す
-    revbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); phbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live); drawVideo();
+    revbtn.classList.toggle('hide',!live); chkbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); phbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live); drawVideo();
     stockpick.classList.add('hide'); const ln=(r.memo||'').split('\n').find(x=>x.startsWith('台帳：')); lgname.textContent=ln&&!r.title?ln+(r.supplier?`（${r.supplier}・${r.purchased_on||''}・${yen(r.cost_jpy)}円）`:''):'';
   } else { dtitle.textContent='商品登録'; ifm.kno.readOnly=false;
     const {data:m} = await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1);
@@ -1098,8 +1098,20 @@ async function endListing(){ const kno=+ifm.kno.value; if(!kno) return;
   const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.error){ vout.innerHTML=`<b class=neg>取り下げられません：</b>${esc(r.error)}`; return }
   if(!r.ok){ vout.innerHTML=`<b class=neg>取り下げられませんでした。eBayからの指摘：</b><ul class=neg>${li(r.errors)}</ul>`; return }
-  ifm.status.value='stock'; ifm.location_status.value=''; ifm.listing_url.value=''; revbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); VERIFIED=null; pubbtn.disabled=true;
+  ifm.status.value='stock'; ifm.location_status.value=''; ifm.listing_url.value=''; revbtn.classList.add('hide'); chkbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); VERIFIED=null; pubbtn.disabled=true;
   vout.innerHTML='<b style="color:#15803d">出品を取り下げて「保管」に戻しました。</b> 直したら「eBayで確認（出品はしない）」→「eBayに出品する」で出し直せます。'; initFilters(); loadItems(); }
+// eBayにいま出ている内容を読んで見せる（読むだけ。eBay側は何も変わらない）
+async function checkEbay(){ const kno=+ifm.kno.value; if(!kno) return; vout.innerHTML='eBayの出品を読んでいます…'; const r=await ebayCall('get_item',{kno});
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  if(r.error){ vout.innerHTML=`<b class=neg>読めません：</b>${esc(r.error)}`; return }
+  const st={Active:'出品中',Completed:'終了（売れた／期限）',Ended:'終了'}[r.status]||r.status, vd=VID?.ebay_id, on=r.videos.length>0;
+  const vtxt=on?`<b style="color:#15803d">付いています</b>${vd&&!r.videos.includes(vd)?'（ただしWatch Stockの動画とは別のもの）':''}`:VID?.url||vd?'<b class=neg>まだ付いていません</b>（動画の「eBayに送る」→「動画をeBayの出品に付ける」）':'なし';
+  vout.innerHTML=`<div style="border:1px solid #e5e5e5;border-radius:8px;padding:10px">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>eBayの出品（${esc(r.item_id)}）</b><a class="btn s" style="text-decoration:none" href="${esc(r.url||'https://www.ebay.com/itm/'+r.item_id)}" target="_blank" rel="noopener">eBayで開く</a></div>
+    <div style="margin:6px 0">${esc(r.title)}</div>
+    <div class="rkv"><span>状態<b>${esc(st)}</b></span><span>値段<b>${r.price!=null?esc(r.currency)+' '+r.price:'—'}</b></span><span>閲覧<b>${r.views??'—'}</b></span><span>ウォッチ<b>${r.watchers??'—'}</b></span><span>写真<b>${r.photos.length}枚</b></span><span>動画<b>${on?'あり':'なし'}</b></span></div>
+    <div class="sub" style="margin:6px 0">動画：${vtxt}　SKU：${esc(r.sku||'なし')}　状態：${esc(r.condition)}　出品日：${esc((r.start||'').slice(0,10))}</div>
+    <div style="display:flex;gap:4px;overflow-x:auto">${r.photos.map(u=>`<img src="${esc(u)}" style="height:64px;border-radius:4px" loading="lazy">`).join('')}</div></div>`; }
 // いまの写真の並びを、eBayの出品に反映する（1枚目が表紙になる）
 async function pushPhotos(){ const f=await saveItem(true); if(!f) return; if(!PH.length){ pmsg.textContent='写真がありません。'; return }
   if(!window.confirm(`品番 ${f.kno} のeBayの写真を、いまの並び（${PH.length}枚）に入れ替えます。1枚目が表紙になります。よろしいですか？`)) return;
@@ -1799,7 +1811,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014154921';
+const BUILD='20261014160424';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
