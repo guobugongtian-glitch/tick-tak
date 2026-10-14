@@ -1647,10 +1647,10 @@ async function ebayOrders(silent){ const K='ws_orders_at';
   try{ localStorage.setItem(K,Date.now()) }catch(e){}
   const esc=x=>String(x??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])), t=new Date().toTimeString().slice(0,5);
   soldmsg.textContent=r.added.length?`新しく ${r.added.length}件 入れました（${t}）`:`新しい注文はありません（${t} 確認・直近14日の注文 ${r.total}件）`;
-  soldlist.innerHTML=r.added.map(a=>`<div>${esc(a.day)}　品番 <a href="#" onclick="openItem(${+a.kno});return false">${+a.kno}</a>　$${esc(a.usd)}（約${yen(a.jpy)}円）　${esc(a.country)}　${esc(a.title)}</div>`).join('')
+  soldlist.innerHTML=r.added.map(a=>`<div>${esc(a.day)}　品番 <a href="#" onclick="openItem(${+a.kno});return false">${+a.kno}</a>　${a.jpy==null?`${esc(a.orig||a.usd)} ${esc(a.cur||'')}（円は未計算）`:`$${esc(a.usd)}（約${yen(a.jpy)}円${a.cur&&a.cur!=='USD'?`・${esc(a.orig)} ${esc(a.cur)} を換算`:''}）`}　${esc(a.country)}　${esc(a.title)}</div>`).join('')
     +(r.added.length?`<div class="sub">円の金額は為替 ${esc(r.fx)}円で計算した仮の数字です。手数料や実送料は、実績明細CSVを取り込むと正しい数字に置き換わります。</div>`:'')
     +(r.unknown.length?`<div class="neg">商品が見つからなかった注文 ${r.unknown.length}件：${r.unknown.map(esc).join('、')}</div>`:'')
-    +(r.other_currency?`<div class="sub">ドル以外の注文 ${+r.other_currency}件は、円の金額を空にしています。</div>`:'');
+    +(r.other_currency?`<div class="sub">ドル以外の通貨の注文 ${+r.other_currency}件は、為替が取れず、円の金額を空にしています。</div>`:'');
   if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
 async function ebaySync(){ ebmsg.textContent='eBayから出品中の一覧を読んでいます…（1分ほどかかることがあります）'; ebpol.innerHTML=''; const r=await ebayCall('sync_listings');
   if(r.error){ ebmsg.textContent='取り込めません：'+r.error; return }
@@ -1686,7 +1686,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014115431';
+const BUILD='20261014115705';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
