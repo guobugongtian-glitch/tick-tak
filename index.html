@@ -1101,7 +1101,7 @@ async function endListing(){ const kno=+ifm.kno.value; if(!kno) return;
   ifm.status.value='stock'; ifm.location_status.value=''; ifm.listing_url.value=''; revbtn.classList.add('hide'); chkbtn.classList.add('hide'); endbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); VERIFIED=null; pubbtn.disabled=true;
   vout.innerHTML='<b style="color:#15803d">出品を取り下げて「保管」に戻しました。</b> 直したら「eBayで確認（出品はしない）」→「eBayに出品する」で出し直せます。'; initFilters(); loadItems(); }
 // 商品画面の下に出る結果（eBayの出品・確認・取り下げなど）は、出たらそこまでスクロールして見せる
-new MutationObserver(()=>{ if(vout.innerHTML.trim()) vout.scrollIntoView({behavior:'smooth',block:'nearest'}) }).observe(vout,{childList:true,subtree:true,characterData:true});
+new MutationObserver(()=>{ if(vout.innerHTML.trim()) vout.scrollIntoView({behavior:'smooth',block:'start'}) }).observe(vout,{childList:true,subtree:true,characterData:true});
 // eBayにいま出ている内容を読んで見せる（読むだけ。eBay側は何も変わらない）
 async function checkEbay(){ const kno=+ifm.kno.value; if(!kno) return; vout.innerHTML='eBayの出品を読んでいます…'; const r=await ebayCall('get_item',{kno});
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1813,7 +1813,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014160712';
+const BUILD='20261014160816';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
