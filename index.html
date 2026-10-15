@@ -1795,7 +1795,9 @@ async function etsyOrders(silent){ const K='ws_etsy_at';
     +r.added.map(a=>`<div>${esc(a.day)}　品番 <a href="#" onclick="openItem(${+a.kno});return false">${+a.kno}</a>　${a.jpy==null?`${esc(a.orig)} ${esc(a.cur)}（円は未計算）`:`$${esc(a.usd)}（約${yen(a.jpy)}円）`}　${esc(a.country)}　${esc(a.title)}</div>`).join('')
     +(r.unknown.length?`<div class="neg">商品とつながらなかったEtsyの注文 ${r.unknown.length}件：${r.unknown.map(esc).join('、')}</div>`:'');
   if(!silent) etmsg.textContent=etsold.innerText.split('\n')[0];
-  if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
+  if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() }
+  // Etsyの手数料（実額）を、まだ入っていない注文にだけ入れる。Etsyの明細から出す（2026-10-15）
+  etsyCall('sync_fees',{days:30}).then(f=>{ if(f?.rows?.length) loadHero() }); }
 // Shopee（越境のお店は国ごと。メインアカウントで許可すると全部つながる）。鍵が入るまでは自動の取り込みは黙って何もしない
 async function shopeeCall(action,extra){ const {data,error}=await sb.functions.invoke('shopee',{body:{action,...(extra||{})}});
   if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
@@ -1850,7 +1852,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261015121309';
+const BUILD='20261015122619';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
