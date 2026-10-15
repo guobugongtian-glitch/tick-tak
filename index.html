@@ -704,14 +704,17 @@ async function initFilters(){
 }
 let RES = {};
 async function loadItems(){
-  let q = sb.from('items').select('*,research(name)').eq('status',F.status).order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
+  let q = sb.from('items').select('*,research(name)').eq('status',F.status);
+  // 売れた分は売れた日の新しい順（品番順だと古い品番の売れた分が埋もれる）
+  if(F.status==='sold') q=q.order('sold_on',{ascending:false,nullsFirst:false});
+  q=q.order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     return `<tr class="st-${r.status}"><td class="ph" onclick="openItem(${r.kno},${r.status==='stock'})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
-    <td><span class=sub>(${r.research?.name||''})</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
+    <td><span class=sub>(${r.research?.name||''})${r.status==='sold'&&r.sold_on?'　売れた日 '+r.sold_on:''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td></tr>` }).join('');
 }
@@ -1835,7 +1838,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261014161649';
+const BUILD='20261015120725';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
