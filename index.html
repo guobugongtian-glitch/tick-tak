@@ -1769,7 +1769,8 @@ async function ebayOrders(silent){ const K='ws_orders_at';
     +(r.added.length?`<div class="sub">円の金額は為替 ${esc(r.fx)}円で計算した仮の数字です。手数料や実送料は、実績明細CSVを取り込むと正しい数字に置き換わります。</div>`:'')
     +(r.unknown.length?`<div class="neg">商品が見つからなかった注文 ${r.unknown.length}件：${r.unknown.map(esc).join('、')}</div>`:'')
     +(r.other_currency?`<div class="sub">ドル以外の通貨の注文 ${+r.other_currency}件は、為替が取れず、円の金額を空にしています。</div>`:'');
-  if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
+  if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() }
+  stopOtherListings(); }
 // Etsy：つなぐ・確かめる・売れた分を読む（eBayと同じ流れ。まだつないでいない間は、自動のときは何も出さない）
 async function etsyCall(action,extra){ const {data,error}=await sb.functions.invoke('etsy',{body:{action,...(extra||{})}});
   if(error){ let j={}; try{ j=await error.context.json() }catch(e){} return {...j,error:j.error||error.message} } return data; }
@@ -1802,7 +1803,22 @@ async function etsyOrders(silent){ const K='ws_etsy_at';
   // Etsyの手数料（実額）を、まだ入っていない注文にだけ入れる。Etsyの明細から出す（2026-10-15）
   etsyCall('sync_fees',{days:30}).then(f=>{ if(f?.rows?.length) loadHero() });
   // 広告・月額・出品料など注文に紐づかない費用も、今月と先月の分を入れ直す
-  etsyCall('sync_month_costs',{months:2,fx:getS().fx}).then(()=>loadHero()); }
+  etsyCall('sync_month_costs',{months:2,fx:getS().fx}).then(()=>loadHero());
+  stopOtherListings(); }
+// 片方で売れたら、もう片方の出品を止める（2026-10-15）。eBay以外で売れた→eBayを終了、Etsy以外で売れた→Etsyを非公開
+//   売れた分の取り込みのあとに毎回動く（同時に2回は動かない）。止めたものは「売れた分」の欄に出す
+let STOPPING=false;
+async function stopOtherListings(){ if(STOPPING) return; STOPPING=true;
+  try{ const esc=x=>String(x??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const [e,t]=await Promise.all([ebayCall('end_sold_elsewhere',{days:30}), etsyCall('deactivate_sold_elsewhere')]);
+    const lines=[];
+    (e?.ended||[]).forEach(x=>lines.push(`品番 ${+x.kno}：${esc(x.via)}で売れたので、eBayの出品を終了しました`));
+    (t?.done||[]).forEach(x=>lines.push(`品番 ${esc(x.sku)}：${esc(x.via)}で売れたので、Etsyの出品を非公開にしました`));
+    (e?.failed||[]).forEach(x=>lines.push(`<span class=neg>eBayを止められません ${esc(x)}</span>`));
+    (t?.failed||[]).forEach(x=>lines.push(`<span class=neg>Etsyを止められません ${esc(x)}</span>`));
+    (t?.check||[]).forEach(x=>lines.push(`<span class=sub>確認：${esc(x)}</span>`));
+    if(lines.length){ const d=document.createElement('div'); d.innerHTML=lines.map(x=>`<div>${x}</div>`).join(''); soldlist.prepend(d) }
+  } finally{ STOPPING=false } }
 // Shopee（越境のお店は国ごと。メインアカウントで許可すると全部つながる）。鍵が入るまでは自動の取り込みは黙って何もしない
 async function shopeeCall(action,extra){ const {data,error}=await sb.functions.invoke('shopee',{body:{action,...(extra||{})}});
   if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
@@ -1857,7 +1873,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261015123013';
+const BUILD='20261015142135';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
