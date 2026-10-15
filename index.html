@@ -660,6 +660,8 @@ function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(
 async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
+  // 注文に紐づかない今月の費用（Etsy広告・月額・出品料、eBayの諸費用）も引く
+  const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-','')); (mc||[]).forEach(c=>{ if(CASH_IN['eBay諸費用'].includes(c.kind)||CASH_IN['Etsy諸費用'].includes(c.kind)) p+=c.amount_jpy||0 });
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
   hsales.textContent=yen(s); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
   hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
@@ -1228,6 +1230,7 @@ function initPf(){ const d=new Date(); pfm.innerHTML=''; for(let i=0;i<24;i++){ 
 // 手入力の行（monthly_costs.kind）。符号：費用はマイナスで保存、還付・入金はプラス
 const CASH_IN = {
   'eBay諸費用':['出品関連手数料','その他eBay手数料','紛争・返金調整','消費税還付'],
+  'Etsy諸費用':['Etsy広告','Etsy月額プラン','Etsy出品・更新料','Etsy VAT・その他'],  // Etsyの明細から自動で入る（手で直しても次の取込で上書き）
   '固定費':['ワンロック利用料','eBayStock利用料','通信・ソフト','外注費','家賃','その他経費'],
   '現金':['借入返済','引き出し(生活費・役員報酬)','借入(入金)'],
 };
@@ -1258,12 +1261,12 @@ async function loadProfit(){
   const sum=(ks,m)=>ks.reduce((a,k)=>a+g(k)[m],0);
   months.forEach(m=>{
     g('粗利')[m]=sum(['売上','売れた商品の原価','実送料','販売手数料','Payoneer手数料','関税','広告費'],m);
-    g('事業利益')[m]=g('粗利')[m]+sum(CASH_IN['eBay諸費用'],m)+sum(CASH_IN['固定費'],m);
+    g('事業利益')[m]=g('粗利')[m]+sum(CASH_IN['eBay諸費用'],m)+sum(CASH_IN['Etsy諸費用'],m)+sum(CASH_IN['固定費'],m);
     g('在庫の増減')[m]=-(g('仕入額')[m]+g('売れた商品の原価')[m]);  // 仕入>原価なら現金が減る
     g('手元に残る現金')[m]=g('事業利益')[m]+g('在庫の増減')[m]+sum(CASH_IN['現金'],m);
   });
   const L=[ ['h','事業のもうけ'], ['a','売上'],['a','売れた商品の原価'],['a','実送料'],['a','販売手数料'],['a','Payoneer手数料'],['a','関税'],['a','広告費'],['t','粗利'],
-    ...CASH_IN['eBay諸費用'].map(k=>['i',k]), ...CASH_IN['固定費'].map(k=>['i',k]), ['t','事業利益'],
+    ...CASH_IN['eBay諸費用'].map(k=>['i',k]), ...CASH_IN['Etsy諸費用'].map(k=>['i',k]), ...CASH_IN['固定費'].map(k=>['i',k]), ['t','事業利益'],
     ['h','現金の動き'], ['a','仕入額'], ['t','在庫の増減'], ...CASH_IN['現金'].map(k=>['i',k]), ['t','手元に残る現金'] ];
   const tot=k=>months.reduce((a,m)=>a+g(k)[m],0);
   ct.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${+m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
@@ -1515,7 +1518,7 @@ async function loadPf(){
     add('実送料',m,-shipOf(o)); if(!hasShip(o)){ add('うち決まりの額で入れた送料',m,-shipRule(o)); add('決まりの額を使った件数',m,1); if(isEtsy(o)&&!o.country) add('うちEtsy（5,500円で計算）の件数',m,1); else if(!o.country) add('うち国が分からない件数（3,500円で計算）',m,1) } add('販売手数料',m,-o.sales_fee_jpy); add('Payoneer手数料',m,-o.payoneer_fee_jpy);
     add('関税',m,-o.duty_jpy); add('広告費',m,-o.promo_fee_jpy); add('販売数',m,1);
     add('出品・その他手数料',m,-((o.listing_fee_jpy||0)+(o.other_fee_jpy||0)+(o.return_cost_jpy||0))); });
-  (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
+  (mc||[]).filter(c=>CASH_IN['eBay諸費用'].includes(c.kind)||CASH_IN['Etsy諸費用'].includes(c.kind)).forEach(c=>add(c.kind,c.ym,c.amount_jpy));
   (it||[]).forEach(i=>{ if(!i.purchased_on) return; const m=i.purchased_on.replace(/-/g,'').slice(0,6); add('仕入数',m,1); add('仕入額',m,i.cost_jpy) });
   months.forEach(m=>{ const last=`${m.slice(0,4)}-${m.slice(4)}-31`;
     (it||[]).forEach(i=>{ if(i.purchased_on&&i.purchased_on<=last&&(!i.sold_on||i.sold_on>last)){ add('在庫数',m,1); add('在庫金額',m,i.cost_jpy) } }) });
@@ -1523,8 +1526,8 @@ async function loadPf(){
   R['利益']=z(); R['利益率']=z(); R['利益(諸費用控除後)']=z();
   months.forEach(m=>{ R['利益'][m]=['売上','仕入原価','実送料','販売手数料','Payoneer手数料','関税'].reduce((a,k)=>a+g(k)[m],0);
     R['利益率'][m]=g('売上')[m]?R['利益'][m]/g('売上')[m]*100:0;
-    R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整'].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
-  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決まりの額で入れた送料','決まりの額を使った件数','うちEtsy（5,500円で計算）の件数','うち国が分からない件数（3,500円で計算）','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
+    R['利益(諸費用控除後)'][m]=R['利益'][m]+g('広告費')[m]+g('出品・その他手数料')[m]+(mc||[]).filter(c=>c.ym===m&&['出品関連手数料','その他eBay手数料','紛争・返金調整',...CASH_IN['Etsy諸費用']].includes(c.kind)).reduce((a,c)=>a+c.amount_jpy,0); });
+  const rows=['売上','うち商品の売上','うち送料の売上','売上(eBay)','売上(その他)','仕入原価','実送料','うち決まりの額で入れた送料','決まりの額を使った件数','うちEtsy（5,500円で計算）の件数','うち国が分からない件数（3,500円で計算）','販売手数料','Payoneer手数料','関税','利益','利益率','販売数','広告費','出品・その他手数料','Etsy広告','Etsy月額プラン','Etsy出品・更新料','Etsy VAT・その他','利益(諸費用控除後)','仕入数','仕入額','在庫数','在庫金額'];
   const fmt=(k,v)=>k==='利益率'?v.toFixed(1)+'%':yen(v);  // 件数の行もそのまま数字で出る
   pft.innerHTML=`<thead><tr><th></th>${months.map(m=>`<th class=n>${m.slice(0,4)}年${m.slice(4)}月</th>`).join('')}<th class=n>合計</th></tr></thead><tbody>`+
     rows.map(k=>{ const v=g(k), tot=k.startsWith('在庫')?null:k==='利益率'?(Object.values(g('売上')).reduce((a,b)=>a+b,0)?Object.values(R['利益']).reduce((a,b)=>a+b,0)/Object.values(g('売上')).reduce((a,b)=>a+b,0)*100:0):Object.values(v).reduce((a,b)=>a+b,0);
@@ -1797,7 +1800,9 @@ async function etsyOrders(silent){ const K='ws_etsy_at';
   if(!silent) etmsg.textContent=etsold.innerText.split('\n')[0];
   if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() }
   // Etsyの手数料（実額）を、まだ入っていない注文にだけ入れる。Etsyの明細から出す（2026-10-15）
-  etsyCall('sync_fees',{days:30}).then(f=>{ if(f?.rows?.length) loadHero() }); }
+  etsyCall('sync_fees',{days:30}).then(f=>{ if(f?.rows?.length) loadHero() });
+  // 広告・月額・出品料など注文に紐づかない費用も、今月と先月の分を入れ直す
+  etsyCall('sync_month_costs',{months:2,fx:getS().fx}).then(()=>loadHero()); }
 // Shopee（越境のお店は国ごと。メインアカウントで許可すると全部つながる）。鍵が入るまでは自動の取り込みは黙って何もしない
 async function shopeeCall(action,extra){ const {data,error}=await sb.functions.invoke('shopee',{body:{action,...(extra||{})}});
   if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
@@ -1852,7 +1857,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261015122619';
+const BUILD='20261015123013';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
