@@ -614,7 +614,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
@@ -1769,10 +1769,20 @@ async function ebayOrders(silent){ const K='ws_orders_at';
   if(r.added.length){ initFilters(); loadItems(); loadHero(); loadReviewCount() } }
 // Etsy：つなぐ・確かめる・売れた分を読む（eBayと同じ流れ。まだつないでいない間は、自動のときは何も出さない）
 async function etsyCall(action,extra){ const {data,error}=await sb.functions.invoke('etsy',{body:{action,...(extra||{})}});
-  if(error){ let m=error.message; try{ m=(await error.context.json()).error||m }catch(e){} return {error:m} } return data; }
+  if(error){ let j={}; try{ j=await error.context.json() }catch(e){} return {...j,error:j.error||error.message} } return data; }
 async function etsyConnect(){ etmsg.textContent='Etsyの許可画面を用意しています…'; const r=await etsyCall('auth_url');
   if(r.error){ etmsg.textContent='接続できません：'+r.error; return }
   window.open(r.url,'_blank'); etmsg.textContent='Etsyの画面で許可したら、「Etsyの接続を確認」を押してください。'; }
+// Etsyに下書きを作る（公開はしない）。写真・タイトル・説明文はeBay用のものを使う。値段だけEtsy用に決められる
+async function etsyDraft(){ const f=await saveItem(true); if(!f) return;
+  const v=window.prompt(`品番 ${f.kno} をEtsyに「下書き」として送ります（公開はされません）。\n\nEtsyでの値段（ドル）：`, f.price_usd||''); if(v===null) return;
+  const price=+String(v).replace(/[^\d.]/g,''); if(!(price>0)){ dmsg.textContent='値段が正しくありません'; return }
+  etsybtn.disabled=true; dmsg.textContent='Etsyに下書きを作っています…（写真を送るので少しかかります）';
+  try{ let r=await etsyCall('draft_listing',{kno:+f.kno,price,title:f.title,description:await buildDescAsync(f)});
+    if(r.error&&r.url&&window.confirm(r.error+'\n\nもう1つ作りますか？（前の下書きはEtsyで消してください）')) r=await etsyCall('draft_listing',{kno:+f.kno,price,title:f.title,description:await buildDescAsync(f),again:true});
+    if(r.error){ dmsg.innerHTML=`<span class=neg>Etsy：${r.error}</span>${r.url?` <a href="${r.url}" target="_blank" rel="noopener">前の下書きを開く</a>`:''}`; return }
+    dmsg.innerHTML=`Etsyに下書きを作りました（写真${r.photos}枚）。<a href="${r.url}" target="_blank" rel="noopener">Etsyで開いて確認・公開する</a>`+(r.problems?.length?`<br><span class=neg>${r.problems.join('<br>')}</span>`:'');
+  } finally{ etsybtn.disabled=false } }
 async function etsyStatus(){ etmsg.textContent='確認中…'; const r=await etsyCall('status');
   etmsg.textContent=r.error?'Etsy：確認できません：'+r.error:`Etsyとつながっています（お店：${r.shop_name||r.shop_id}）`; }
 async function etsyOrders(silent){ const K='ws_etsy_at';
@@ -1840,7 +1850,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261015120841';
+const BUILD='20261015121309';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
