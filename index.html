@@ -481,10 +481,11 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 <section id="v-io" class="hide">
   <div class="card">
     <h3 style="margin-top:0">CSVを取り込む</h3>
-    <p class="sub">eBayStockの「実績明細」「出品中一覧」、手持ちの「収支計算表」、Etsyの「注文した商品」（Shop Manager → 設定 → オプション → データをダウンロード → Order Items）のCSVを選ぶ（まとめて選んでよい）。同じ品番・同じ月は上書き。</p>
-    <input type="file" id="csv" accept=".csv" multiple><button class="btn" onclick="importCsv()">取り込む</button>
+    <p class="sub">eBayStockの「実績明細」「出品中一覧」、手持ちの「収支計算表」、Etsyの「注文した商品」（Shop Manager → 設定 → オプション → データをダウンロード → Order Items）のCSV、SpeedPAK（CPaSS）の「送金の詳細」.xlsx を選ぶ（まとめて選んでよい）。同じ品番・同じ月は上書き。</p>
+    <input type="file" id="csv" accept=".csv,.xlsx" multiple><button class="btn" onclick="importCsv()">取り込む</button>
     <p id="iomsg" class="sub"></p>
     <div id="etmatch"></div>
+    <div id="spmatch"></div>
   </div>
   <div class="card">
     <h3 style="margin-top:0">仕入れ台帳の自動連携</h3>
@@ -1568,7 +1569,8 @@ const d8 = s => s&&/^\d{8}$/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slic
 async function importCsv(){
   if(!csv.files.length){ iomsg.textContent='ファイルを選んでください'; return }
   iomsg.textContent='読み込んでいます…'; const jobs=[];
-  for(const f of csv.files){ const rows=parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[k.trim(),i]));
+  for(const f of csv.files){ const rows=/\.xlsx$/i.test(f.name)?await readXlsx(f):parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[String(k).trim(),i]));
+    if('追跡番号' in ix&&'目的国' in ix&&'支払総額（円）' in ix){ jobs.push({kind:6,rows,ix,h,name:f.name}); continue }
     if('Sale Date' in ix&&'Number of Items' in ix){ iomsg.textContent=`${f.name}：これは注文ごとのCSVです。Etsyは「Order Items」（商品ごと）のほうを選んでください`; return }
     const kind='販売日' in ix?2:'品番' in ix?3:'kno' in ix?1:(h[0]||'').trim().startsWith('社名')?4:('Sale Date' in ix&&'Item Name' in ix)?5:0;
     if(kind===4) rows.unshift(h);
@@ -1576,10 +1578,51 @@ async function importCsv(){
     jobs.push({kind,rows,ix,name:f.name}); }
   jobs.sort((a,b)=>a.kind-b.kind||a.rows.length-b.rows.length);
   const done=[];
-  for(const j of jobs){ const r=await [null,importFull,importSales,importListed,importSheet,importEtsy][j.kind](j.rows,j.ix);
+  for(const j of jobs){ const r=await [null,importFull,importSales,importListed,importSheet,importEtsy,importSpeedpak][j.kind](j.rows,j.ix,j.h);
     if(!r.ok){ iomsg.textContent=[...done,`${j.name}：${r.msg}`].join(' ／ '); return } done.push(r.msg); iomsg.textContent=done.join(' ／ ')+' …'; }
   iomsg.textContent=done.join(' ／ '); initFilters(); loadItems();
 }
+
+// .xlsx は表計算の読み取り部品（SheetJS）を使うときだけ読み込む
+async function readXlsx(f){
+  if(!window.XLSX) await new Promise((ok,ng)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload=ok; sc.onerror=()=>ng(new Error('表計算の部品を読めません')); document.head.appendChild(sc) });
+  const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).map(r=>r.map(c=>String(c??'')));
+}
+// SpeedPAK（CPaSS）の「送金の詳細」：1行＝1発送。実送料と関税（eBayが買い手から集めて、こちらがCPaSSに払う分）を注文に入れる
+// 追跡番号でつながらないときは「eBayの注文・同じ国・発送の14日前〜当日に売れた・まだ入っていない」で探す。候補が1件なら自動、2件以上は下で選ぶ
+let SPM=[];
+async function importSpeedpak(rows,ix,h){
+  const n=x=>{ x=String(x||'').replace(/[,\s円]/g,''); return /^-?\d+(\.\d+)?$/.test(x)?Math.round(+x):0 };
+  const ships=rows.filter(r=>r[ix['追跡番号']]).map(r=>{ let duty=0, day='';
+    h.forEach((k,i)=>{ if(String(k).trim()!=='費用タイプ') return; const t=r[i]||'', amt=n(r[i+1]); if(/関税/.test(t)) duty+=amt; if(!day&&r[i+3]) day=String(r[i+3]).slice(0,10) });
+    const total=n(r[ix['支払総額（円）']]);
+    return {tr:String(r[ix['追跡番号']]).trim(),cc:String(r[ix['目的国']]).trim().toUpperCase(),total,duty,ship:total-duty,day,svc:r[ix['配送サービス']]||''} });
+  if(!ships.length) return {ok:false,msg:'SpeedPAKの明細に発送がありません'};
+  const days=ships.map(x=>x.day).filter(Boolean).sort(), from=new Date(new Date(days[0])-14*864e5).toISOString().slice(0,10);
+  const {data:os,error}=await sb.from('orders').select('id,kno,ordered_on,country,tracking_no,item_price_jpy,items(title)').eq('platform','eBay').gte('ordered_on',from).lte('ordered_on',days[days.length-1]);
+  if(error) return {ok:false,msg:'注文を読めません：'+error.message};
+  const used=new Set(), done=[], amb=[];
+  const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:x.tr}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
+  // 1回目：追跡番号が入っている注文（取り込み直し）
+  for(const x of ships){ const o=os.find(o=>o.tracking_no===x.tr); if(o){ await put(o,x); x.ok=1 } }
+  // 2回目：国と日付で1件に決まるもの（発送日の古い順に）
+  const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&(o.country||'').toUpperCase()===x.cc&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
+  for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1){ await put(c[0],x); x.ok=1 } }
+  for(const x of ships){ if(x.ok) continue; const c=cands(x); amb.push({...x,c}) }
+  SPM=amb; drawSpm();
+  return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')};
+}
+function drawSpm(){ if(!SPM.length){ spmatch.innerHTML=''; return } const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  spmatch.innerHTML=`<h3>SpeedPAK：どの注文の発送か選んでください（${SPM.length}件）</h3><p class="sub">同じ国で、発送日の14日前〜当日に売れた注文が候補です。分からなければ「入れない」のままで大丈夫です（送料は決まりの額で計算されます）。</p>`
+    +SPM.map((x,i)=>`<div class="row" style="align-items:center;gap:8px;margin:6px 0"><span style="min-width:230px">${esc(x.day)} ${esc(x.cc)}・送料${yen(x.ship)}円${x.duty?`＋関税${yen(x.duty)}円`:''}<br><span class="sub">追跡 ${esc(x.tr)}</span></span>
+      <select id="spm${i}" style="flex:1;min-width:0"><option value="">入れない</option>${x.c.map(o=>`<option value="${o.id}">品番${o.kno}・${o.ordered_on}・${esc((o.items?.title||'').slice(0,40))}</option>`).join('')}</select></div>`).join('')
+    +`<button class="btn" onclick="saveSpm()">選んだ注文に入れる</button>`; }
+async function saveSpm(){ const pick=new Set(); let n=0;
+  for(const [i,x] of SPM.entries()){ const id=$('spm'+i)?.value; if(!id) continue; if(pick.has(id)){ alert('同じ注文を2回選んでいます'); return } pick.add(id) }
+  for(const [i,x] of SPM.entries()){ const id=$('spm'+i)?.value; if(!id) continue;
+    const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:x.tr}).eq('id',Number(id)||id); if(error){ alert('失敗：'+error.message); return } n++ }
+  spmatch.innerHTML=`<p class="sub">SpeedPAK：${n}件を注文に入れました。</p>`; SPM=[]; loadItems(); }
 
 // 手持ちの「収支計算表」CSV（1行目が「社名　2026年, 1月, 2月…」）。現金収支の画面の行に読み替えて入れる
 const SHEET_MAP=[['ebay売上','eBay入金'],['Etsy売上','Etsy入金'],['消費税還付','消費税還付'],['利息','利息'],
@@ -1887,7 +1930,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016161338';
+const BUILD='20261016170243';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
