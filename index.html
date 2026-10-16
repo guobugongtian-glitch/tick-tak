@@ -202,6 +202,7 @@ input[type=file]{max-width:100%}
 .go{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;border:1px solid #cfcfcf;border-radius:6px;font-size:13px;font-weight:700;color:#222;text-decoration:none;line-height:1.4;padding:6px 4px;background:#fff}
 .go.y{background:#ff333f;border-color:#ff333f;color:#fff}
 .go.m{border-color:#ff333f;color:#ff333f}
+.go.e,.lk.e{border-color:#0064d2;color:#0064d2;font-weight:700}
 .rsub a{color:#06c}
 .rname{font-weight:700;font-size:16px;margin-bottom:8px}
 .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:2px;margin-right:6px;vertical-align:2px}
@@ -1166,7 +1167,8 @@ function searchLinks(q){ const e=encodeURIComponent, jp=jpQuery(q), en=String(q|
     +a('ヤフオク 出品中',`https://auctions.yahoo.co.jp/search/search?p=${e(jp)}&va=${e(jp)}&s1=end&o1=a`,'y')
     +a('メルカリ 出品中',`https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale&sort=price&order=asc`,'y')
     +a('メルカリ 売り切れ',`https://jp.mercari.com/search?keyword=${e(jp)}&status=sold_out`,'y')
-    +a('eBay 売れた',`https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1`)
+    +a('eBay 売れた相場',`https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120`,'e')
+    +a('eBay 出品中',`https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&_sop=15`)
     +a('Etsy',`https://www.etsy.com/search?q=${e(en+' watch')}`); }
 let RSTAT=[];
 // 型番マスタに無い商品は、商品名から「ブランド＋型番」を拾ってまとめる（拾えなければ「ブランド（型番不明）」）
@@ -1218,7 +1220,8 @@ function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.
       <div class="rgo"><a class="go y" href="https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(jp)}&va=${e(jp)}&b=1&n=50" target="_blank" rel="noopener">ヤフオク<br>落札相場 ›</a>
         <a class="go" href="https://auctions.yahoo.co.jp/search/search?p=${e(jp)}&va=${e(jp)}&s1=end&o1=a" target="_blank" rel="noopener">ヤフオク<br>出品中 ›</a>
         <a class="go m" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale&sort=price&order=asc${cap?'&price_max='+cap:''}" target="_blank" rel="noopener">メルカリ<br>${cap?'目安以下':'出品中'} ›</a>
-        <a class="go" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=sold_out" target="_blank" rel="noopener">メルカリ<br>売り切れ ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
+        <a class="go" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=sold_out" target="_blank" rel="noopener">メルカリ<br>売り切れ ›</a>
+        <a class="go e" href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120" target="_blank" rel="noopener">eBay<br>売れた相場 ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
   rnote.textContent=`全部の販売の集計です（${RSTAT.length}型。型番マスタに無い商品は商品名から型番を拾っています）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
 rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
@@ -1876,7 +1879,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016145845';
+const BUILD='20261016153410';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
