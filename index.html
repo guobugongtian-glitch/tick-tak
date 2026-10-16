@@ -202,6 +202,7 @@ input[type=file]{max-width:100%}
 .go{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;border:1px solid #cfcfcf;border-radius:6px;font-size:13px;font-weight:700;color:#222;text-decoration:none;line-height:1.4;padding:6px 4px;background:#fff}
 .go.y{background:#ff333f;border-color:#ff333f;color:#fff}
 .go.m{border-color:#ff333f;color:#ff333f}
+.rvprof{font-size:15px;margin:4px 0}.rvprof b{font-size:18px}
 .go.e,.lk.e{border-color:#0064d2;color:#0064d2;font-weight:700}
 .rsub a{color:#06c}
 .rname{font-weight:700;font-size:16px;margin-bottom:8px}
@@ -1886,7 +1887,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016154152';
+const BUILD='20261016161338';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2019,18 +2020,24 @@ async function drawReview(){ rvlist.innerHTML='<p class="sub">選んでいます
   rvlist.innerHTML=`<div class="row" style="margin:10px 0"><button class="btn" type="button" style="flex:1;min-height:48px;font-size:15px" onclick="rvAll()">この${picks.length}本をまとめて再出品する</button></div><p class="sub">値段やタイトルを直したい商品は、先に下で直してから押してください。直した内容で再出品されます。</p>`+picks.map(r=>{ const t=r.title||'', low=t.toLowerCase(), tips=[];
     if(t.length<65) tips.push(`タイトル${t.length}字（あと${80-t.length}字使える）`); if(!/watch/i.test(t)) tips.push('Watchが無い'); if(!/women|men|ladies|unisex/i.test(t)) tips.push('性別が無い'); if((r.photos||[]).length<8) tips.push(`写真${(r.photos||[]).length}枚`);
     const p=profit(r.price_usd,0,r.cost_jpy), ph=r.photos?.[0];
-    return `<div class="rv" data-kno="${r.kno}" data-price="${r.price_usd||''}">
+    return `<div class="rv" data-kno="${r.kno}" data-price="${r.price_usd||''}" data-cost="${r.cost_jpy||''}">
       ${ph?`<img src="${thumb(ph)}" loading="lazy" alt="" onerror="this.onerror=null;this.src='${ph}'">`:'<span class="noph"></span>'}
       <div><div class="rt">${esc(t)}</div>
         <div class="rm">品番${r.kno}・${esc(r.research?.name||'')}・初回出品から${dd(r.first_listed_on||r.listed_on)??'?'}日・最後の出品から${dd(r.listed_on)??'?'}日${r.reviewed_on?`・前回の見直し ${r.reviewed_on}`:''}</div>
-        <div class="rm">仕入値 ${yen(r.cost_jpy)}円・いまの値段での利益の見込み ${p?yen(p.p)+'円':'—'}${tips.length?`<br><span class="neg">気になる点：${tips.join('、')}</span>`:''}</div>
-        <div class="rp">$<input type="number" step="0.01" class="rvp" value="${r.price_usd||''}"><button class="chip" type="button" onclick="rvCut(this,0.95)">−5%</button><button class="chip" type="button" onclick="rvCut(this,0.9)">−10%</button><button class="chip" type="button" onclick="rvCut(this,1)">元に戻す</button></div>
+        <div class="rvprof">${rvProfHtml(r.price_usd,r.cost_jpy)}</div>
+        <div class="rm">${tips.length?`<br><span class="neg">気になる点：${tips.join('、')}</span>`:''}</div>
+        <div class="rp">$<input type="number" step="0.01" class="rvp" value="${r.price_usd||''}" oninput="rvProfUpd(this)"><button class="chip" type="button" onclick="rvCut(this,0.95)">−5%</button><button class="chip" type="button" onclick="rvCut(this,0.9)">−10%</button><button class="chip" type="button" onclick="rvCut(this,1)">元に戻す</button></div>
         <textarea class="rtitle" maxlength="80">${esc(t)}</textarea></div>
       ${adviceFor(r,SOLD[r.research_id])}
       <div class="ra"><button class="btn" type="button" onclick="rvDo(this,'relist')">再出品する</button><button class="btn s" type="button" onclick="rvDo(this,'revise_fields')">再出品せず、値段・タイトルだけ変える</button>
         <button class="btn s" type="button" onclick="rvSeen(this)">今日は飛ばす</button><button class="btn s" type="button" onclick="openItem(${r.kno})">くわしく開く</button>${r.listing_url?`<a class="btn s" style="text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(r.listing_url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}</div>
       <div class="rmsg sub"></div></div>` }).join(''); }
-function rvCut(b,k){ const box=b.closest('.rv'), inp=box.querySelector('.rvp'), base=+box.dataset.price; if(!base) return; const v=base*k; inp.value=k===1?base:(Math.round(v)-0.01).toFixed(2); }
+function rvCut(b,k){ const box=b.closest('.rv'), inp=box.querySelector('.rvp'), base=+box.dataset.price; if(!base) return; const v=base*k; inp.value=k===1?base:(Math.round(v)-0.01).toFixed(2); rvProfUpd(inp); }
+// 再出品の利益（値段を変えるとすぐ出し直す）。計算は商品画面と同じ（設定の為替・手数料・送料の目安）
+function rvProfHtml(usd,cost){ const p=profit(usd,0,cost);
+  if(!cost) return `<span class="sub">仕入値が未入力のため利益は出せません</span>`; if(!p) return '—';
+  return `利益 <b class="${p.p<0?'neg':''}">${yen(p.p)}円</b><span class="sub">（${p.r.toFixed(0)}%・仕入値 ${yen(cost)}円）</span>`; }
+function rvProfUpd(inp){ const box=inp.closest('.rv'); box.querySelector('.rvprof').innerHTML=rvProfHtml(inp.value,+box.dataset.cost||0); }
 // 並んでいる商品を、上から順にまとめて再出品する（確認は1回）。途中で失敗したものは、その商品の所に理由を出して次へ進む
 async function rvAll(){ const boxes=[...rvlist.querySelectorAll('.rv')]; if(!boxes.length) return;
   const list=boxes.map(box=>{ const base=+box.dataset.price, price=+box.querySelector('.rvp').value, title=box.querySelector('.rtitle').value.trim(), orig=box.querySelector('.rt').textContent, chg={};
