@@ -1595,12 +1595,19 @@ async function readXlsx(f){
 let SPM=[], SP_SYNCED=false;
 async function importSpeedpak(rows,ix,h){
   const n=x=>{ x=String(x||'').replace(/[,\s円]/g,''); return /^-?\d+(\.\d+)?$/.test(x)?Math.round(+x):0 };
-  const ships=rows.filter(r=>r[ix['追跡番号']]).map(r=>{ let duty=0, day='';
+  // 1) 行を台帳（speedpak_lines）に貯める。同じ発送が別の週に「追加請求」「関税の精算」として出てくるので、行のまま持つ
+  const cnt={}, lines=rows.filter(r=>r[ix['追跡番号']]||r[ix['注文番号']]).map(r=>{ let duty=0, day='';
     h.forEach((k,i)=>{ if(String(k).trim()!=='費用タイプ') return; const t=r[i]||'', amt=n(r[i+1]); if(/関税/.test(t)) duty+=amt; if(!day&&r[i+3]) day=String(r[i+3]).slice(0,10) });
-    const total=n(r[ix['支払総額（円）']]);
-    return {tr:String(r[ix['追跡番号']]).trim(),ono:String(r[ix['注文番号']]||'').trim(),cc:String(r[ix['目的国']]).trim().toUpperCase(),total,duty,ship:total-duty,day,svc:r[ix['配送サービス']]||''} });
-  if(!ships.length) return {ok:false,msg:'SpeedPAKの明細に発送がありません'};
-  // 先にeBayから追跡番号を読んで注文に入れておく（これで1件ずつ確実につながる）
+    const period=String(r[ix['請求期間']]||'').trim(), ono=String(r[ix['注文番号']]||'').trim(), k0=period+'|'+ono; cnt[k0]=(cnt[k0]||0)+1;
+    return {key:k0+'|'+cnt[k0],period,ono,tracking:String(r[ix['追跡番号']]||'').trim(),country:String(r[ix['目的国']]||'').trim().toUpperCase(),day:day||null,total_jpy:n(r[ix['支払総額（円）']]),duty_jpy:duty} });
+  if(!lines.length) return {ok:false,msg:'SpeedPAKの明細に発送がありません'};
+  { const {error}=await sb.from('speedpak_lines').upsert(lines); if(error) return {ok:false,msg:'SpeedPAKの明細を保存できません：'+error.message} }
+  // 2) この明細に出てくる発送ごとに、これまでの全部の週の行を足す
+  const onos=[...new Set(lines.map(x=>x.ono))], all=[];
+  for(let i=0;i<onos.length;i+=50){ const {data}=await sb.from('speedpak_lines').select('*').in('ono',onos.slice(i,i+50)); all.push(...(data||[])) }
+  const g={}; all.forEach(l=>{ const x=g[l.ono]??={ono:l.ono,tr:'',cc:l.country,day:l.day,total:0,duty:0,n:0}; x.total+=l.total_jpy||0; x.duty+=l.duty_jpy||0; x.n++; if(l.tracking) x.tr=l.tracking; if(l.day&&(!x.day||l.day<x.day)) x.day=l.day });
+  const ships=Object.values(g).map(x=>({...x,ship:x.total-x.duty}));
+  // 3) eBayから追跡番号を読んで注文に入れておく（1回の取り込みで1回だけ）
   let st={ok:true};
   if(!SP_SYNCED){ iomsg.textContent='eBayから追跡番号を読んでいます…（1分ほど）'; st=await ebayCall('sync_tracking',{days:90}).catch(e=>({error:e.message})); SP_SYNCED=!st?.error }
   const stMsg=st?.error?`（eBayの追跡番号は読めませんでした：${st.error}）`:'';
@@ -1613,26 +1620,27 @@ async function importSpeedpak(rows,ix,h){
   for(let i=0;i<keys.length;i+=20){ const {data:tk}=await sb.from('orders').select('id,kno,platform,ordered_on,country,tracking_no,item_price_jpy,items(title)').or(keys.slice(i,i+20).map(k=>`tracking_no.ilike.%${k}%`).join(','));
     (tk||[]).forEach(o=>{ if(!os.some(x=>x.id===o.id)) os.push(o) }) }
   const used=new Set(), done=[], amb=[];
-  const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:o.tracking_no||x.tr}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
-  // 1回目：追跡番号（DHL/FedExの番号、またはSpeedPAKの番号）が入っている注文
+  // 合計を入れる（足し込みではなく、台帳から出した合計で置き換えるので、同じ明細を何度入れても同じ結果になる）
+  const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:o.tracking_no||x.ono}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
   const trOf=o=>String(o.tracking_no||'').split(/\s+/).filter(Boolean);
   for(const x of ships){ const o=os.find(o=>!used.has(o.id)&&trOf(o).some(t=>t===x.tr||t===x.ono)); if(o){ await put(o,x); x.ok=1 } }
-  // 2回目：国と日付で1件に決まるもの（発送日の古い順に）
   const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&((o.country||'').toUpperCase()===x.cc||(o.platform==='その他'&&!o.country))&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
   for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1&&(c[0].country||'').toUpperCase()===x.cc){ await put(c[0],x); x.ok=1 } }
-  for(const x of ships){ if(x.ok) continue; const c=cands(x); amb.push({...x,c}) }
-  SPM.push(...amb); drawSpm();
-  return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')+stMsg};
+  for(const x of ships){ if(x.ok) continue; amb.push({...x,c:cands(x)}) }
+  amb.forEach(a=>{ const i=SPM.findIndex(y=>y.ono===a.ono); if(i>=0) SPM[i]=a; else SPM.push(a) });   // 複数の週で同じ発送が出ても1回だけ聞く
+  SPM=SPM.filter(y=>!ships.some(x=>x.ok&&x.ono===y.ono));   // 前の週で聞いた発送が、この週でつながったら外す
+  drawSpm();
+  return {ok:true,msg:`SpeedPAK ${lines.length}行（${ships.length}発送）：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')+stMsg};
 }
 function drawSpm(){ if(!SPM.length){ spmatch.innerHTML=''; return } const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   spmatch.innerHTML=`<h3>SpeedPAK：どの注文の発送か選んでください（${SPM.length}件）</h3><p class="sub">同じ国で、発送日の14日前〜当日に売れた注文が候補です。分からなければ「入れない」のままで大丈夫です（送料は決まりの額で計算されます）。</p>`
-    +SPM.map((x,i)=>`<div class="row" style="align-items:center;gap:8px;margin:6px 0"><span style="min-width:230px">${esc(x.day)} ${esc(x.cc)}・送料${yen(x.ship)}円${x.duty?`＋関税${yen(x.duty)}円`:''}<br><span class="sub">追跡 ${esc(x.tr)}</span></span>
+    +SPM.map((x,i)=>`<div class="row" style="align-items:center;gap:8px;margin:6px 0"><span style="min-width:230px">${esc(x.day)} ${esc(x.cc)}・送料${yen(x.ship)}円${x.duty?`＋関税${yen(x.duty)}円`:''}<br><span class="sub">追跡 ${esc(x.tr||x.ono)}${x.n>1?`（${x.n}回の請求の合計）`:''}</span></span>
       <select id="spm${i}" style="flex:1;min-width:0"><option value="">入れない</option>${x.c.map(o=>`<option value="${o.id}">品番${o.kno}・${o.ordered_on}${o.country?'':'（国なし）'}・${esc((o.items?.title||'').slice(0,40))}</option>`).join('')}</select></div>`).join('')
     +`<button class="btn" onclick="saveSpm()">選んだ注文に入れる</button>`; }
 async function saveSpm(){ const pick=new Set(); let n=0;
   for(const [i,x] of SPM.entries()){ const id=$('spm'+i)?.value; if(!id) continue; if(pick.has(id)){ alert('同じ注文を2回選んでいます'); return } pick.add(id) }
   for(const [i,x] of SPM.entries()){ const id=$('spm'+i)?.value; if(!id) continue;
-    const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:x.tr}).eq('id',Number(id)||id); if(error){ alert('失敗：'+error.message); return } n++ }
+    const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:x.ono||x.tr}).eq('id',Number(id)||id); if(error){ alert('失敗：'+error.message); return } n++ }
   spmatch.innerHTML=`<p class="sub">SpeedPAK：${n}件を注文に入れました。</p>`; SPM=[]; loadItems(); }
 
 // 手持ちの「収支計算表」CSV（1行目が「社名　2026年, 1月, 2月…」）。現金収支の画面の行に読み替えて入れる
@@ -1941,7 +1949,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016172438';
+const BUILD='20261016172935';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
