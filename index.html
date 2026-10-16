@@ -1604,16 +1604,21 @@ async function importSpeedpak(rows,ix,h){
   const st=await ebayCall('sync_tracking',{days:60}).catch(e=>({error:e.message}));
   const stMsg=st?.error?`（eBayの追跡番号は読めませんでした：${st.error}）`:'';
   const days=ships.map(x=>x.day).filter(Boolean).sort(), from=new Date(new Date(days[0])-14*864e5).toISOString().slice(0,10);
-  const {data:os,error}=await sb.from('orders').select('id,kno,ordered_on,country,tracking_no,item_price_jpy,items(title)').eq('platform','eBay').gte('ordered_on',from).lte('ordered_on',days[days.length-1]);
+  // 候補：eBayの注文と、eBayStockで「その他」になっている注文（国が空のことがある）。日付は発送の14日前〜当日
+  const {data:os,error}=await sb.from('orders').select('id,kno,platform,ordered_on,country,tracking_no,item_price_jpy,items(title)').in('platform',['eBay','その他']).gte('ordered_on',from).lte('ordered_on',days[days.length-1]);
   if(error) return {ok:false,msg:'注文を読めません：'+error.message};
+  // 追跡番号でつながる注文は、日付に関係なく読む（eBayStockの販売日が発送より後になっていることがある）
+  const keys=[...new Set(ships.flatMap(x=>[x.tr,x.ono]).filter(Boolean))];
+  for(let i=0;i<keys.length;i+=20){ const {data:tk}=await sb.from('orders').select('id,kno,platform,ordered_on,country,tracking_no,item_price_jpy,items(title)').or(keys.slice(i,i+20).map(k=>`tracking_no.ilike.%${k}%`).join(','));
+    (tk||[]).forEach(o=>{ if(!os.some(x=>x.id===o.id)) os.push(o) }) }
   const used=new Set(), done=[], amb=[];
   const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:o.tracking_no||x.tr}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
   // 1回目：追跡番号（DHL/FedExの番号、またはSpeedPAKの番号）が入っている注文
   const trOf=o=>String(o.tracking_no||'').split(/\s+/).filter(Boolean);
   for(const x of ships){ const o=os.find(o=>!used.has(o.id)&&trOf(o).some(t=>t===x.tr||t===x.ono)); if(o){ await put(o,x); x.ok=1 } }
   // 2回目：国と日付で1件に決まるもの（発送日の古い順に）
-  const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&(o.country||'').toUpperCase()===x.cc&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
-  for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1){ await put(c[0],x); x.ok=1 } }
+  const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&((o.country||'').toUpperCase()===x.cc||(o.platform==='その他'&&!o.country))&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
+  for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1&&(c[0].country||'').toUpperCase()===x.cc){ await put(c[0],x); x.ok=1 } }
   for(const x of ships){ if(x.ok) continue; const c=cands(x); amb.push({...x,c}) }
   SPM=amb; drawSpm();
   return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')+stMsg};
@@ -1621,7 +1626,7 @@ async function importSpeedpak(rows,ix,h){
 function drawSpm(){ if(!SPM.length){ spmatch.innerHTML=''; return } const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   spmatch.innerHTML=`<h3>SpeedPAK：どの注文の発送か選んでください（${SPM.length}件）</h3><p class="sub">同じ国で、発送日の14日前〜当日に売れた注文が候補です。分からなければ「入れない」のままで大丈夫です（送料は決まりの額で計算されます）。</p>`
     +SPM.map((x,i)=>`<div class="row" style="align-items:center;gap:8px;margin:6px 0"><span style="min-width:230px">${esc(x.day)} ${esc(x.cc)}・送料${yen(x.ship)}円${x.duty?`＋関税${yen(x.duty)}円`:''}<br><span class="sub">追跡 ${esc(x.tr)}</span></span>
-      <select id="spm${i}" style="flex:1;min-width:0"><option value="">入れない</option>${x.c.map(o=>`<option value="${o.id}">品番${o.kno}・${o.ordered_on}・${esc((o.items?.title||'').slice(0,40))}</option>`).join('')}</select></div>`).join('')
+      <select id="spm${i}" style="flex:1;min-width:0"><option value="">入れない</option>${x.c.map(o=>`<option value="${o.id}">品番${o.kno}・${o.ordered_on}${o.country?'':'（国なし）'}・${esc((o.items?.title||'').slice(0,40))}</option>`).join('')}</select></div>`).join('')
     +`<button class="btn" onclick="saveSpm()">選んだ注文に入れる</button>`; }
 async function saveSpm(){ const pick=new Set(); let n=0;
   for(const [i,x] of SPM.entries()){ const id=$('spm'+i)?.value; if(!id) continue; if(pick.has(id)){ alert('同じ注文を2回選んでいます'); return } pick.add(id) }
@@ -1935,7 +1940,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016170847';
+const BUILD='20261016171039';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
