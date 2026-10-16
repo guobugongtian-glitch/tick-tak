@@ -1576,7 +1576,8 @@ async function importCsv(){
     if(kind===4) rows.unshift(h);
     if(!kind){ iomsg.textContent=`${f.name}：見たことのない形のCSVです。取り込みを中止しました`; return }
     jobs.push({kind,rows,ix,name:f.name}); }
-  jobs.sort((a,b)=>a.kind-b.kind||a.rows.length-b.rows.length);
+  jobs.sort((a,b)=>a.kind-b.kind||(a.kind===6?String(a.rows[0]?.[0]).localeCompare(String(b.rows[0]?.[0])):a.rows.length-b.rows.length));   // SpeedPAKは古い週から
+  SPM=[]; SP_SYNCED=false;
   const done=[];
   for(const j of jobs){ const r=await [null,importFull,importSales,importListed,importSheet,importEtsy,importSpeedpak][j.kind](j.rows,j.ix,j.h);
     if(!r.ok){ iomsg.textContent=[...done,`${j.name}：${r.msg}`].join(' ／ '); return } done.push(r.msg); iomsg.textContent=done.join(' ／ ')+' …'; }
@@ -1591,7 +1592,7 @@ async function readXlsx(f){
 }
 // SpeedPAK（CPaSS）の「送金の詳細」：1行＝1発送。実送料と関税（eBayが買い手から集めて、こちらがCPaSSに払う分）を注文に入れる
 // 追跡番号でつながらないときは「eBayの注文・同じ国・発送の14日前〜当日に売れた・まだ入っていない」で探す。候補が1件なら自動、2件以上は下で選ぶ
-let SPM=[];
+let SPM=[], SP_SYNCED=false;
 async function importSpeedpak(rows,ix,h){
   const n=x=>{ x=String(x||'').replace(/[,\s円]/g,''); return /^-?\d+(\.\d+)?$/.test(x)?Math.round(+x):0 };
   const ships=rows.filter(r=>r[ix['追跡番号']]).map(r=>{ let duty=0, day='';
@@ -1600,8 +1601,8 @@ async function importSpeedpak(rows,ix,h){
     return {tr:String(r[ix['追跡番号']]).trim(),ono:String(r[ix['注文番号']]||'').trim(),cc:String(r[ix['目的国']]).trim().toUpperCase(),total,duty,ship:total-duty,day,svc:r[ix['配送サービス']]||''} });
   if(!ships.length) return {ok:false,msg:'SpeedPAKの明細に発送がありません'};
   // 先にeBayから追跡番号を読んで注文に入れておく（これで1件ずつ確実につながる）
-  iomsg.textContent='eBayから追跡番号を読んでいます…（1分ほど）';
-  const st=await ebayCall('sync_tracking',{days:60}).catch(e=>({error:e.message}));
+  let st={ok:true};
+  if(!SP_SYNCED){ iomsg.textContent='eBayから追跡番号を読んでいます…（1分ほど）'; st=await ebayCall('sync_tracking',{days:90}).catch(e=>({error:e.message})); SP_SYNCED=!st?.error }
   const stMsg=st?.error?`（eBayの追跡番号は読めませんでした：${st.error}）`:'';
   const days=ships.map(x=>x.day).filter(Boolean).sort(), from=new Date(new Date(days[0])-14*864e5).toISOString().slice(0,10);
   // 候補：eBayの注文と、eBayStockで「その他」になっている注文（国が空のことがある）。日付は発送の14日前〜当日
@@ -1620,7 +1621,7 @@ async function importSpeedpak(rows,ix,h){
   const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&((o.country||'').toUpperCase()===x.cc||(o.platform==='その他'&&!o.country))&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
   for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1&&(c[0].country||'').toUpperCase()===x.cc){ await put(c[0],x); x.ok=1 } }
   for(const x of ships){ if(x.ok) continue; const c=cands(x); amb.push({...x,c}) }
-  SPM=amb; drawSpm();
+  SPM.push(...amb); drawSpm();
   return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')+stMsg};
 }
 function drawSpm(){ if(!SPM.length){ spmatch.innerHTML=''; return } const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1940,7 +1941,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016171039';
+const BUILD='20261016172438';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
