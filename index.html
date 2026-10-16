@@ -1597,21 +1597,26 @@ async function importSpeedpak(rows,ix,h){
   const ships=rows.filter(r=>r[ix['追跡番号']]).map(r=>{ let duty=0, day='';
     h.forEach((k,i)=>{ if(String(k).trim()!=='費用タイプ') return; const t=r[i]||'', amt=n(r[i+1]); if(/関税/.test(t)) duty+=amt; if(!day&&r[i+3]) day=String(r[i+3]).slice(0,10) });
     const total=n(r[ix['支払総額（円）']]);
-    return {tr:String(r[ix['追跡番号']]).trim(),cc:String(r[ix['目的国']]).trim().toUpperCase(),total,duty,ship:total-duty,day,svc:r[ix['配送サービス']]||''} });
+    return {tr:String(r[ix['追跡番号']]).trim(),ono:String(r[ix['注文番号']]||'').trim(),cc:String(r[ix['目的国']]).trim().toUpperCase(),total,duty,ship:total-duty,day,svc:r[ix['配送サービス']]||''} });
   if(!ships.length) return {ok:false,msg:'SpeedPAKの明細に発送がありません'};
+  // 先にeBayから追跡番号を読んで注文に入れておく（これで1件ずつ確実につながる）
+  iomsg.textContent='eBayから追跡番号を読んでいます…（1分ほど）';
+  const st=await ebayCall('sync_tracking',{days:60}).catch(e=>({error:e.message}));
+  const stMsg=st?.error?`（eBayの追跡番号は読めませんでした：${st.error}）`:'';
   const days=ships.map(x=>x.day).filter(Boolean).sort(), from=new Date(new Date(days[0])-14*864e5).toISOString().slice(0,10);
   const {data:os,error}=await sb.from('orders').select('id,kno,ordered_on,country,tracking_no,item_price_jpy,items(title)').eq('platform','eBay').gte('ordered_on',from).lte('ordered_on',days[days.length-1]);
   if(error) return {ok:false,msg:'注文を読めません：'+error.message};
   const used=new Set(), done=[], amb=[];
-  const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:x.tr}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
-  // 1回目：追跡番号が入っている注文（取り込み直し）
-  for(const x of ships){ const o=os.find(o=>o.tracking_no===x.tr); if(o){ await put(o,x); x.ok=1 } }
+  const put=async(o,x)=>{ const {error}=await sb.from('orders').update({ship_actual_jpy:x.ship,duty_jpy:x.duty,tracking_no:o.tracking_no||x.tr}).eq('id',o.id); if(error) throw error; used.add(o.id); done.push(o.kno) };
+  // 1回目：追跡番号（DHL/FedExの番号、またはSpeedPAKの番号）が入っている注文
+  const trOf=o=>String(o.tracking_no||'').split(/\s+/).filter(Boolean);
+  for(const x of ships){ const o=os.find(o=>!used.has(o.id)&&trOf(o).some(t=>t===x.tr||t===x.ono)); if(o){ await put(o,x); x.ok=1 } }
   // 2回目：国と日付で1件に決まるもの（発送日の古い順に）
   const cands=x=>os.filter(o=>!used.has(o.id)&&!o.tracking_no&&(o.country||'').toUpperCase()===x.cc&&o.ordered_on<=x.day&&o.ordered_on>=new Date(new Date(x.day)-14*864e5).toISOString().slice(0,10));
   for(const x of [...ships].sort((a,b)=>a.day<b.day?-1:1)){ if(x.ok) continue; const c=cands(x); if(c.length===1){ await put(c[0],x); x.ok=1 } }
   for(const x of ships){ if(x.ok) continue; const c=cands(x); amb.push({...x,c}) }
   SPM=amb; drawSpm();
-  return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')};
+  return {ok:true,msg:`SpeedPAK ${ships.length}件：注文に入れた ${done.length}件`+(amb.length?`・どの注文か選んでほしいもの ${amb.length}件（下）`:'')+stMsg};
 }
 function drawSpm(){ if(!SPM.length){ spmatch.innerHTML=''; return } const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   spmatch.innerHTML=`<h3>SpeedPAK：どの注文の発送か選んでください（${SPM.length}件）</h3><p class="sub">同じ国で、発送日の14日前〜当日に売れた注文が候補です。分からなければ「入れない」のままで大丈夫です（送料は決まりの額で計算されます）。</p>`
@@ -1930,7 +1935,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016170243';
+const BUILD='20261016170847';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
