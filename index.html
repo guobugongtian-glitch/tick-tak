@@ -395,11 +395,13 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 <section id="v-research" class="hide">
   <div class="card">
     <h3 style="margin-top:0">売れる時計の一覧（仕入れリスト）</h3>
-    <p class="sub">自分の店で実際に速く売れて利益が出た型です。「買値の目安」より安く買えるものを探してください。ボタンでヤフオクの落札相場がすぐ開きます。</p>
-    <div class="seg" id="rtabs"><button class="chip on" data-r="rec">おすすめ</button><button class="chip" data-r="all">全部</button><button class="chip" data-r="ng">避けたい</button></div>
+    <p class="sub">自分の店で実際に速く売れて利益が出た型です。「買値の上限」より安く買えるものを探してください。ボタンでヤフオク・メルカリ・eBayの相場がすぐ開きます。</p>
+    <div class="seg" id="rtabs"><button class="chip on" data-r="buy">今月狙う</button><button class="chip" data-r="rec">おすすめ</button><button class="chip" data-r="all">全部</button><button class="chip" data-r="ng">避けたい</button></div>
     <div class="row" style="margin-top:8px"><input id="rkw" type="search" placeholder="型番・ブランドで絞る" style="flex:1;min-width:0" oninput="drawResearch()">
       <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
-    <div class="row sub">残したい利益 <input id="rtarget" type="number" value="10000" style="width:100px" oninput="drawResearch()"> 円</div>
+    <div class="row sub">残したい利益 <input id="rtarget" type="number" value="3000" style="width:90px" oninput="drawResearch()"> 円
+      買わないブランド <input id="rng" type="text" style="flex:1;min-width:140px" oninput="saveRng();drawResearch()"></div>
+    <p class="sub" style="margin:4px 0 0">買値の上限＝売れた値段（商品代のみ）×0.66 − 送料5,000 − ワンロック2,200 − 残したい利益（10月の仕入計画の式）。「今月狙う」＝おすすめの型のうち、同じ型の出品中が2本未満で、買わないブランドでないもの。</p>
     <div id="rcards"></div>
     <p class="sub" id="rnote"></p>
   </div>
@@ -1183,33 +1185,38 @@ function modelKey(t){ if(!t) return null; const T=String(t).toUpperCase().replac
 async function loadResearch(){ rcards.innerHTML='<p class="sub">集計しています…</p>';
   const its=await allRows(()=>sb.from('items').select('kno,status,title,cost_jpy,listed_on,first_listed_on,sold_on,research(name,brand,model),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,sales_usd)').order('kno'));
   const g={}, med=a=>{ if(!a.length) return null; a=[...a].sort((x,y)=>x-y); return a[Math.floor(a.length/2)] };
-  its.forEach(r=>{ const mk=r.research?.name?null:modelKey(r.title); const n=r.research?.name||mk?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research?.brand||mk?.brand||'',guess:!!mk,sold:0,listed:0,stock:0,old:0,sales:[],prof:[],days:[],costs:[],eb:0,et:0};
+  its.forEach(r=>{ const mk=r.research?.name?null:modelKey(r.title); const n=r.research?.name||mk?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research?.brand||mk?.brand||'',guess:!!mk,sold:0,listed:0,stock:0,old:0,sales:[],ips:[],prof:[],days:[],costs:[],eb:0,et:0};
     if(r.cost_jpy) x.costs.push(r.cost_jpy);
     if(r.status==='sold'){ const o=r.orders?.[0]; if(!o) return; x.sold++; const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
-      x.sales.push(s); x.prof.push(s-(r.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)); x.cut=(x.cut||0)+shipOf(o)+(o.sales_fee_jpy||0)+(o.payoneer_fee_jpy||0)+(o.duty_jpy||0);
+      x.sales.push(s); if(o.item_price_jpy) x.ips.push(o.item_price_jpy); x.prof.push(s-(r.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)); x.cut=(x.cut||0)+shipOf(o)+(o.sales_fee_jpy||0)+(o.payoneer_fee_jpy||0)+(o.duty_jpy||0);
       if(o.platform==='eBay') x.eb++; else x.et++;
       if(r.listed_on&&r.sold_on) x.days.push(Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5));
     } else if(r.status==='listed'){ x.listed++; const f=r.first_listed_on||r.listed_on; if(f&&(Date.now()-new Date(f))/864e5>90) x.old++ } else x.stock++; });
   RSTAT=Object.values(g).map(x=>{ const avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
-    return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null} });
+    return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),mip:med(x.ips),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null} });
   drawResearch(); }
-function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.value||0, esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RNG_DEF='SEIKO, ORIS, HAMILTON, BULOVA, BAUME';
+function getRng(){ try{ const v=localStorage.getItem('ws_rng'); return v==null?RNG_DEF:v }catch(e){ return RNG_DEF } }
+function saveRng(){ try{ localStorage.setItem('ws_rng',rng.value) }catch(e){} }
+function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.dataset.init!=='1'){ rng.value=getRng(); rng.dataset.init='1' } const k=(rkw.value||'').toLowerCase(), target=+rtarget.value||0, esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   // おすすめ＝3本以上売れて、利益1万円以上、90日以内に7割以上（日数が入っていない間は利益と本数だけで判定）。避けたい＝売れるまで120日超、または赤字
   const isRec=x=>x.sold>=3&&x.ap>=10000&&(x.w90==null||x.w90>=70), isNg=x=>x.sold>=3&&((x.md!=null&&x.md>120)||x.ap<3000);
-  const tab=document.querySelector('#rtabs .on')?.dataset.r||'rec';
-  let a=RSTAT.filter(x=>(!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k))&&(k||tab==='all'||(tab==='rec'?isRec(x):isNg(x))));
+  const ngb=getRng().split(/[,、\s]+/).map(b=>b.trim().toUpperCase()).filter(Boolean), isOff=x=>ngb.some(b=>(x.brand+' '+x.name).toUpperCase().includes(b));
+  const isBuy=x=>isRec(x)&&x.listed<2&&!isOff(x);
+  const tab=document.querySelector('#rtabs .on')?.dataset.r||'buy';
+  let a=RSTAT.filter(x=>(!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k))&&(k||tab==='all'||({buy:isBuy,rec:isRec,ng:isNg}[tab])(x)));
   const rec=x=>(isRec(x)?1e9:0)+(x.ap||0)*((x.w90??60)/100)*Math.min(1,x.sold/5);
   const few=x=>x.sold<3?1:0;   // 1〜2本しか売れていない型は、利益順・速さ順では後ろに回す
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>few(p)-few(q)||(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>few(p)-few(q)||(p.md??1e9)-(q.md??1e9)}[rsort.value]);
   rcards.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
-    const cap=x.ms!=null&&x.acut!=null?Math.max(0,Math.floor((x.ms-x.acut-target)/100)*100):null;
+    const cap=x.mip!=null?Math.max(0,Math.floor((x.mip*0.66-5000-2200-target)/100)*100):null;
     const e=encodeURIComponent, jp=jpQuery(x.name), en=x.name;
     return `<div class="rrow"><div class="rmain">
-        <div class="rname">${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
+        <div class="rname">${isOff(x)?'<span class="tag ng">買わない</span>':''}${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
         <div class="rkv">
           <span>相場（売れた値段）<b>${x.ms!=null?yen(x.ms)+'円':'—'}</b></span>
           <span>落札価格（自分の平均）<b>${x.ac!=null?yen(x.ac)+'円':'—'}</b></span>
-          <span class="cap">買値の目安<b>${cap!=null?yen(cap)+'円まで':'—'}</b></span>
+          <span class="cap">買値の上限<b>${cap!=null?yen(cap)+'円まで':'—'}</b></span>
           <span>利益/本<b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap)+'円':'—'}</b></span>
           <span>売れるまで<b>${x.md!=null?x.md+'日':'—'}${x.w90!=null?`（90日内 ${x.w90}%）`:''}</b></span>
           <span>売れた数<b>${x.sold}本</b></span>
@@ -1219,7 +1226,7 @@ function drawResearch(){ const k=(rkw.value||'').toLowerCase(), target=+rtarget.
       </div>
       <div class="rgo"><a class="go y" href="https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(jp)}&va=${e(jp)}&b=1&n=50" target="_blank" rel="noopener">ヤフオク<br>落札相場 ›</a>
         <a class="go" href="https://auctions.yahoo.co.jp/search/search?p=${e(jp)}&va=${e(jp)}&s1=end&o1=a" target="_blank" rel="noopener">ヤフオク<br>出品中 ›</a>
-        <a class="go m" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale&sort=price&order=asc${cap?'&price_max='+cap:''}" target="_blank" rel="noopener">メルカリ<br>${cap?'目安以下':'出品中'} ›</a>
+        <a class="go m" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale&sort=price&order=asc${cap?'&price_max='+cap:''}" target="_blank" rel="noopener">メルカリ<br>${cap?'上限以下':'出品中'} ›</a>
         <a class="go" href="https://jp.mercari.com/search?keyword=${e(jp)}&status=sold_out" target="_blank" rel="noopener">メルカリ<br>売り切れ ›</a>
         <a class="go e" href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120" target="_blank" rel="noopener">eBay<br>売れた相場 ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
@@ -1879,7 +1886,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016153410';
+const BUILD='20261016154152';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
