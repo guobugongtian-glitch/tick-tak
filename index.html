@@ -103,6 +103,8 @@ td.ph .noph{display:block;width:56px;height:56px;border-radius:6px;background:#e
 #edcrop i[data-h=nw]{left:0;top:0;cursor:nwse-resize}#edcrop i[data-h=ne]{right:0;top:0;cursor:nesw-resize}
 #edcrop i[data-h=sw]{left:0;bottom:0;cursor:nesw-resize}#edcrop i[data-h=se]{right:0;bottom:0;cursor:nwse-resize}
 #edlg .row{justify-content:center}
+.edbig .btn{font-size:15px;padding:10px 16px}
+.edmore{text-align:left;margin-top:8px}.edmore summary{cursor:pointer;color:var(--sub);font-size:13px;padding:6px 0}
 .edsl{display:flex;align-items:center;gap:10px;font-size:13px;margin:6px 0;text-align:left}
 .edsl span{flex:0 0 7em}.edsl input{flex:1}
 .ptile.add{height:96px;border:2px dashed #c9ced6;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#e5342a;font-size:12px;font-weight:700;cursor:pointer;background:#fff}
@@ -572,6 +574,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
     <fieldset class="fs-photo"><legend>写真（1枚目が表紙）</legend>
       <div class="ptiles"><label class="ptile add" for="pfile"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>写真を追加</span></label><div id="iphotos"></div></div>
       <input type="file" id="pfile" accept="image/*" multiple onchange="addPhotos(this)" hidden><div id="pmsg" class="sub"></div>
+      <div class="row"><button class="btn s" type="button" id="autobtn" onclick="autoAll()">写真をまとめておまかせで整える</button><label class="sub"><input type="checkbox" id="autobg"> 背景も白にする</label></div>
       <div class="row"><button class="btn s hide" type="button" id="phbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="pushPhotos()">写真をeBayに反映</button></div>
       <div id="vbox" class="vbox"></div><input type="file" id="vfile" accept="video/*" onchange="addVideo(this)" hidden><div id="vmsg" class="sub"></div>
     </fieldset>
@@ -637,12 +640,16 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 <dialog id="edlg"><div class="dh"><b>写真の編集</b><button class="btn s" type="button" onclick="edlg.close()">✕</button></div>
   <div class="db">
     <div id="edwrap"><canvas id="edcv" width="1" height="1"></canvas><div id="edcrop" class="hide"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
-    <div class="row"><button class="btn s" type="button" onclick="edRot(-90)">左に回す</button><button class="btn s" type="button" onclick="edRot(90)">右に回す</button><button class="btn s" type="button" onclick="edCrop('sq')">正方形に切る</button><button class="btn s" type="button" onclick="edCrop('free')">自由に切る</button><button class="btn s" type="button" onclick="edCrop(null)">切らない</button><button class="btn s" type="button" id="edbgbtn" onclick="edBg()">背景を白にする</button></div>
-    <label class="edsl"><span>傾き</span><input type="range" id="ed_tilt" min="-15" max="15" step="0.5" value="0" oninput="ED&&(ED.crop=null,ED.sq=false);edDraw()"></label>
-    <label class="edsl"><span>明るさ</span><input type="range" id="ed_br" min="50" max="160" value="100" oninput="edDraw()"></label>
-    <label class="edsl"><span>コントラスト</span><input type="range" id="ed_ct" min="50" max="160" value="100" oninput="edDraw()"></label>
-    <label class="edsl"><span>色（青↔黄）</span><input type="range" id="ed_wm" min="-40" max="40" value="0" oninput="edDraw()"></label>
-    <div id="edmsg" class="sub"></div><a id="edorig" class="sub" target="_blank" rel="noopener">元の写真を別の画面で開く</a>
+    <div class="row edbig"><button class="btn" type="button" style="background:#e5342a" onclick="edAuto()">おまかせで整える</button><button class="btn s" type="button" id="edbgbtn" onclick="edBg()">背景を白に</button><button class="btn s" type="button" onclick="edRot(90)">回す</button></div>
+    <div id="edmsg" class="sub"></div>
+    <details class="edmore"><summary>細かく調整</summary>
+      <div class="row"><button class="btn s" type="button" onclick="edRot(-90)">左に回す</button><button class="btn s" type="button" onclick="edCrop('sq')">正方形に切る</button><button class="btn s" type="button" onclick="edCrop('free')">自由に切る</button><button class="btn s" type="button" onclick="edCrop(null)">切らない</button></div>
+      <label class="edsl"><span>傾き</span><input type="range" id="ed_tilt" min="-15" max="15" step="0.5" value="0" oninput="ED&&(ED.crop=null,ED.sq=false);edDraw()"></label>
+      <label class="edsl"><span>明るさ</span><input type="range" id="ed_br" min="50" max="160" value="100" oninput="edDraw()"></label>
+      <label class="edsl"><span>コントラスト</span><input type="range" id="ed_ct" min="50" max="160" value="100" oninput="edDraw()"></label>
+      <label class="edsl"><span>色（青↔黄）</span><input type="range" id="ed_wm" min="-40" max="40" value="0" oninput="edDraw()"></label>
+      <a id="edorig" class="sub" target="_blank" rel="noopener">元の写真を別の画面で開く</a>
+    </details>
   </div>
   <div class="df"><button class="btn s" type="button" onclick="edReset()">元に戻す</button><button class="btn" type="button" id="edsave" onclick="edSave()">この写真にする</button></div></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
@@ -992,26 +999,62 @@ function photoChanged(){ if(!phbtn.classList.contains('hide')) pmsg.textContent=
 function movePhoto(i,d){ const j=i+d; if(j<0||j>=PH.length) return; [PH[i],PH[j]]=[PH[j],PH[i]]; drawPhotos(); photoChanged(); }
 function dropPhoto(i){ PH.splice(i,1); drawPhotos(); photoChanged(); }
 // 写真の編集：回す・傾き・切り抜き・明るさ/コントラスト/色・背景を白に。
-// 「この写真にする」で新しい写真として置き場に送り、同じ位置の写真と入れ替える（元の写真は置き場に残る）
+// 「おまかせ」は明るさ・色かぶり・正方形の切り抜き（時計が真ん中）を写真から自動で決める。
+// 直した写真は新しい写真として置き場に送り、同じ位置の写真と入れ替える（元の写真は置き場に残る）
 let ED=null, BGR=null;
+const tick=()=>new Promise(r=>setTimeout(r,30));   // 重い処理の前に、画面の文字を先に出す
 function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>rej(new Error('写真を開けません')); i.src=src }) }
-async function editPhoto(i){ if(!ifm.kno.value){ pmsg.textContent='先に品番を入れてください'; return }
-  ED={i,src:null,orig:null,rot:0,crop:null,sq:false}; edorig.href=PH[i]; edReset(true); edcv.width=edcv.height=1; edBox(); edmsg.textContent='写真を開いています…'; edlg.showModal();
-  try{ const img=await loadImg(PH[i].includes('i.ebayimg.com')?PH[i].replace(/\/s-l\d+\./,'/s-l1600.'):PH[i]), k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
-    c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    ED.orig=ED.src=c; edmsg.textContent=''; edDraw() }catch(e){ edmsg.textContent=e.message } }
-// 回す・傾き（傾けた分は隅が白くならないよう少し拡大）→ 切り抜き → 色。max は長い辺の上限（画面用は小さく、保存は1600px）
-function edRender(max,crop){ const s=ED.src, k=Math.min(1,max/Math.max(s.width,s.height)), w=s.width*k, h=s.height*k, q=ED.rot%180!==0, W=q?h:w, H=q?w:h;
-  const t=Math.abs(+ed_tilt.value)*Math.PI/180, z=Math.max((W*Math.cos(t)+H*Math.sin(t))/W,(W*Math.sin(t)+H*Math.cos(t))/H);
-  const r=crop&&ED.crop, cx=r?r.x*W:0, cy=r?r.y*H:0, c=document.createElement('canvas'); c.width=Math.round(r?r.w*W:W); c.height=Math.round(r?r.h*H:H);
-  const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.translate(W/2-cx,H/2-cy); x.rotate((ED.rot+ +ed_tilt.value)*Math.PI/180); x.scale(z,z); x.drawImage(s,-w/2,-h/2,w,h);
-  const b=+ed_br.value/100, ct=+ed_ct.value/100, wm=+ed_wm.value;
+async function openSrc(u){ const img=await loadImg(u.includes('i.ebayimg.com')?u.replace(/\/s-l\d+\./,'/s-l1600.'):u), k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
+  c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height); return c }
+// 絵を作る：回す・傾き（傾けた分は隅が白くならないよう少し拡大）→ 切り抜き → 色。max は長い辺の上限
+function render(s,o,max,crop){ const k=Math.min(1,max/Math.max(s.width,s.height)), w=s.width*k, h=s.height*k, q=o.rot%180!==0, W=q?h:w, H=q?w:h;
+  const t=Math.abs(o.tilt)*Math.PI/180, z=Math.max((W*Math.cos(t)+H*Math.sin(t))/W,(W*Math.sin(t)+H*Math.cos(t))/H);
+  const r=crop&&o.crop, cx=r?r.x*W:0, cy=r?r.y*H:0, c=document.createElement('canvas'); c.width=Math.max(1,Math.round(r?r.w*W:W)); c.height=Math.max(1,Math.round(r?r.h*H:H));
+  const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.translate(W/2-cx,H/2-cy); x.rotate((o.rot+o.tilt)*Math.PI/180); x.scale(z,z); x.drawImage(s,-w/2,-h/2,w,h);
+  const b=o.br/100, ct=o.ct/100, wm=o.wm;
   if(b!==1||ct!==1||wm){ const d=x.getImageData(0,0,c.width,c.height), p=d.data;
     for(let i=0;i<p.length;i+=4){ p[i]=(p[i]*b-128)*ct+128+wm; p[i+1]=(p[i+1]*b-128)*ct+128; p[i+2]=(p[i+2]*b-128)*ct+128-wm }
     x.putImageData(d,0,0) }
   return c }
-function edDraw(){ if(!ED?.src) return; const c=edRender(900,false); edcv.width=c.width; edcv.height=c.height; edcv.getContext('2d').drawImage(c,0,0); edBox() }
+// おまかせの値：いちばん暗い所を黒近く・明るい所を白近くに、色かぶりは半分だけ戻す（金の時計が青くならないよう控えめ）。
+// 切り抜きは、ふちの色（背景）と違う所＝時計を囲む正方形に1割余白をつける。見つからなければ真ん中の正方形
+function autoOpts(s,g){ const f=render(s,{...g,crop:null,br:100,ct:100,wm:0},240,false), W=f.width, H=f.height, p=f.getContext('2d').getImageData(0,0,W,H).data;
+  const L=new Uint32Array(256); let R=0,B=0,n=0,er=0,eg=0,eb=0,ne=0;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=(y*W+x)*4, l=Math.round(.299*p[i]+.587*p[i+1]+.114*p[i+2]); L[l]++;
+    if(l>40&&l<235){ R+=p[i]; B+=p[i+2]; n++ } if(x<2||y<2||x>=W-2||y>=H-2){ er+=p[i]; eg+=p[i+1]; eb+=p[i+2]; ne++ } }
+  const pct=q=>{ let a=0, m=W*H*q; for(let v=0;v<256;v++){ a+=L[v]; if(a>=m) return v } return 255 }, lo=pct(.02), hi=Math.max(pct(.98),lo+20);
+  const bx=Math.min(1.6,Math.max(.85,30080/(118*hi+117*lo))), cx=Math.min(1.4,Math.max(.9,117/Math.max(1,hi*bx-128)));
+  const wm=n?Math.round(Math.min(20,Math.max(-20,(B-R)/n/4))):0;
+  er/=ne; eg/=ne; eb/=ne; const cols=new Uint32Array(W), rows=new Uint32Array(H);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=(y*W+x)*4; if(Math.abs(p[i]-er)+Math.abs(p[i+1]-eg)+Math.abs(p[i+2]-eb)>60){ cols[x]++; rows[y]++ } }
+  const span=(a,len,lim)=>{ let i=0,j=len-1; while(i<len&&a[i]<=lim) i++; while(j>i&&a[j]<=lim) j--; return [i,j] };
+  const [x0,x1]=span(cols,W,H*.02), [y0,y1]=span(rows,H,W*.02), side0=Math.min(W,H);
+  let side=side0, ox=(W-side)/2, oy=(H-side)/2;
+  // 時計が小さく写っていても、切ったあと520px以上は残す（eBayは長い辺500px以上）
+  if(x1-x0>W*.1&&y1-y0>H*.1){ side=Math.max(Math.min(side0,Math.max(x1-x0,y1-y0)*1.2),Math.min(side0,side0*520/Math.min(s.width,s.height))); ox=Math.min(W-side,Math.max(0,(x0+x1)/2-side/2)); oy=Math.min(H-side,Math.max(0,(y0+y1)/2-side/2)) }
+  return {...g,br:Math.round(bx*100),ct:Math.round(cx*100),wm,crop:{x:ox/W,y:oy/H,w:side/W,h:side/H}} }
+// 背景を白に：ブラウザの中でAIが時計を切り抜く（写真は外に送らない）。初回だけAIの読み込みに時間がかかる
+async function whiteBg(s,say){ BGR=BGR||await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+  const blob=await new Promise((res,rej)=>s.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/png'));
+  const cut=await BGR.removeBackground(blob,{progress:(k,a,b)=>{ if(say&&String(k).startsWith('fetch')&&b) say(`AIを読み込んでいます… ${Math.round(a/b*100)}%`) }});
+  const u=URL.createObjectURL(cut), img=await loadImg(u), c=document.createElement('canvas'); URL.revokeObjectURL(u); c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0); return c }
+// 置き場へ送る（小さい版 _t も）。戻り値は写真のURL
+async function upPhoto(kno,c){ const path=`${kno}/${Date.now()}_e.jpg`, blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/jpeg',0.9));
+  const {error}=await sb.storage.from('watch-photos').upload(path,blob,{contentType:'image/jpeg'}); if(error) throw error;
+  const t=document.createElement('canvas'), k=Math.min(1,360/Math.max(c.width,c.height)); t.width=Math.round(c.width*k); t.height=Math.round(c.height*k); t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+  t.toBlob(tb=>tb&&sb.storage.from('watch-photos').upload(path.replace(/\.jpg$/,'_t.jpg'),tb,{contentType:'image/jpeg'}).catch(()=>{}),'image/jpeg',0.8);
+  return sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl }
+const doneMsg=()=>!phbtn.classList.contains('hide')?'「写真をeBayに反映」を押すと、eBayの出品も入れ替わります。':'「保存」で商品に残ります。';
+// 編集画面
+async function editPhoto(i){ if(!ifm.kno.value){ pmsg.textContent='先に品番を入れてください'; return }
+  ED={i,src:null,orig:null,rot:0,crop:null,sq:false}; edorig.href=PH[i]; edReset(true); edcv.width=edcv.height=1; edBox(); edmsg.textContent='写真を開いています…'; edlg.showModal();
+  try{ ED.orig=ED.src=await openSrc(PH[i]); edmsg.textContent='「おまかせで整える」で明るさと形がそろいます。'; edDraw() }catch(e){ edmsg.textContent=e.message } }
+const edOpts=()=>({rot:ED.rot,tilt:+ed_tilt.value,crop:ED.crop,br:+ed_br.value,ct:+ed_ct.value,wm:+ed_wm.value});
+function edDraw(){ if(!ED?.src) return; const c=render(ED.src,edOpts(),900,false); edcv.width=c.width; edcv.height=c.height; edcv.getContext('2d').drawImage(c,0,0); edBox() }
 function edBox(){ const r=ED?.crop; edcrop.classList.toggle('hide',!r); if(r) Object.assign(edcrop.style,{left:r.x*100+'%',top:r.y*100+'%',width:r.w*100+'%',height:r.h*100+'%'}) }
+function edAuto(quiet){ if(!ED?.src) return; const o=autoOpts(ED.src,{rot:ED.rot,tilt:+ed_tilt.value}); ed_br.value=o.br; ed_ct.value=o.ct; ed_wm.value=o.wm; ED.crop=o.crop; ED.sq=true; edDraw();
+  if(!quiet) edmsg.textContent='明るさと形を整えました。枠は動かせます。背景も消すなら「背景を白に」。' }
 function edRot(d){ if(!ED?.src) return; ED.rot=(ED.rot+d+360)%360; ED.crop=null; ED.sq=false; edDraw() }
 function edCrop(m){ if(!ED?.src) return; const A=edcv.width/edcv.height; ED.sq=m==='sq';
   ED.crop=!m?null:m==='sq'?(A>1?{x:(1-1/A)/2,y:0,w:1/A,h:1}:{x:0,y:(1-A)/2,w:1,h:A}):{x:.05,y:.05,w:.9,h:.9}; edBox() }
@@ -1026,25 +1069,24 @@ edcrop.onpointerdown=e=>{ if(!ED?.crop) return; e.preventDefault(); const g=e.ta
       if(g.includes('w')) x=x2-w; if(g.includes('n')) y=y2-h }
     ED.crop={x,y,w,h}; edBox() };
   edcrop.onpointerup=edcrop.onpointercancel=()=>{ edcrop.onpointermove=null } };
-// 背景を白に：ブラウザの中でAIが時計を切り抜く（写真は外に送らない）。初回だけAIの読み込みに時間がかかる
-async function edBg(){ if(!ED?.src) return; edbgbtn.disabled=true; edmsg.textContent='背景を外しています…（初回はAIの読み込みに30秒〜1分）';
-  try{ BGR=BGR||await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-    const blob=await new Promise((res,rej)=>ED.src.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/png'));
-    const cut=await BGR.removeBackground(blob,{progress:(k,a,b)=>{ if(String(k).startsWith('fetch')&&b) edmsg.textContent=`AIを読み込んでいます… ${Math.round(a/b*100)}%` }});
-    const u=URL.createObjectURL(cut), img=await loadImg(u), c=document.createElement('canvas'); URL.revokeObjectURL(u); c.width=img.width; c.height=img.height;
-    const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0);
-    ED.src=c; edmsg.textContent='背景を白にしました。おかしければ「元に戻す」。'; edDraw() }
+async function edBg(){ if(!ED?.src) return; edbgbtn.disabled=true; edmsg.textContent=`背景を外しています…${BGR?'':'（初回はAIの読み込みで1分ほど画面が止まります）'}`; await tick();
+  try{ ED.src=await whiteBg(ED.src,t=>edmsg.textContent=t); edAuto(true); edmsg.textContent='背景を白にして、明るさと形も整えました。おかしければ「元に戻す」。' }
   catch(e){ edmsg.textContent='背景を外せません：'+e.message; edbgbtn.disabled=false } }
-async function edSave(){ if(!ED?.src) return; const kno=ifm.kno.value, c=edRender(1600,true);
+async function edSave(){ if(!ED?.src) return; const c=render(ED.src,edOpts(),1600,true);
   if(Math.max(c.width,c.height)<500){ edmsg.textContent=`切り抜きが小さすぎます（${c.width}×${c.height}）。eBayは長い辺500px以上が必要です。`; return }
   edsave.disabled=true; edmsg.textContent='保存しています…';
-  try{ const path=`${kno}/${Date.now()}_e.jpg`, blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/jpeg',0.9));
-    const {error}=await sb.storage.from('watch-photos').upload(path,blob,{contentType:'image/jpeg'}); if(error) throw error;
-    const t=document.createElement('canvas'), k=Math.min(1,360/Math.max(c.width,c.height)); t.width=Math.round(c.width*k); t.height=Math.round(c.height*k); t.getContext('2d').drawImage(c,0,0,t.width,t.height);
-    t.toBlob(tb=>tb&&sb.storage.from('watch-photos').upload(path.replace(/\.jpg$/,'_t.jpg'),tb,{contentType:'image/jpeg'}).catch(()=>{}),'image/jpeg',0.8);
-    PH[ED.i]=sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl; drawPhotos(); edlg.close();
-    pmsg.textContent=!phbtn.classList.contains('hide')?'写真を直しました。「写真をeBayに反映」を押すと、eBayの出品も入れ替わります。':'写真を直しました。「保存」で商品に残ります。' }
+  try{ PH[ED.i]=await upPhoto(ifm.kno.value,c); drawPhotos(); edlg.close(); pmsg.textContent='写真を直しました。'+doneMsg() }
   catch(e){ edmsg.textContent='保存できません：'+e.message }finally{ edsave.disabled=false } }
+// まとめて：サイズ表以外の写真を全部おまかせで整える（背景も白にするかは選べる）
+async function autoAll(){ const kno=ifm.kno.value; if(!kno){ pmsg.textContent='先に品番を入れてください'; return }
+  const bg=autobg.checked, list=PH.map((u,i)=>i).filter(i=>!PH[i].includes('/size_')); if(!list.length){ pmsg.textContent='写真がありません。'; return }
+  if(!window.confirm(`写真${list.length}枚を${bg?'背景を白にして、':''}明るさと形（正方形）をおまかせで整えます。元の写真は残ります。よろしいですか？`)) return;
+  autobtn.disabled=true; let n=0;
+  try{ for(const i of list){ pmsg.textContent=`整えています… ${n+1}/${list.length}${bg&&!BGR?'（初回はAIの読み込みで1分ほど画面が止まります）':''}`; await tick();
+      let s=await openSrc(PH[i]); if(bg) s=await whiteBg(s,t=>pmsg.textContent=t);
+      PH[i]=await upPhoto(kno,render(s,autoOpts(s,{rot:0,tilt:0}),1600,true)); n++; drawPhotos() }
+    pmsg.textContent=`${n}枚を整えました。気になる写真はタップして直せます。`+doneMsg() }
+  catch(e){ pmsg.textContent=`${n+1}枚目で止まりました：${e.message}（${n}枚は整え済み）` }finally{ autobtn.disabled=false } }
 function shrink(file,max=1600){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,max/Math.max(img.width,img.height));
     const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(img.src); c.toBlob(b=>b?res(b):rej(new Error('画像を変換できません')),'image/jpeg',0.86) }; img.onerror=()=>rej(new Error('画像を開けません')); img.src=URL.createObjectURL(file) }); }
@@ -2025,7 +2067,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261019160957';
+const BUILD='20261019175636';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
