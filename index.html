@@ -94,6 +94,17 @@ td.ph .noph{display:block;width:56px;height:56px;border-radius:6px;background:#e
 .ptile div button{width:auto;min-width:22px;padding:0 3px;font-size:11px}
 .ptile div{display:flex;justify-content:space-between;margin-top:4px}
 .ptile div button{border:0;background:#e5e7eb;border-radius:6px;width:30px;height:28px;font-size:12px;cursor:pointer}
+.ptile em{position:absolute;right:4px;top:4px;background:#fffe;color:var(--ink);font-size:11px;font-style:normal;padding:0 5px;border-radius:4px;pointer-events:none}
+#edlg .db{text-align:center}
+#edwrap{position:relative;display:inline-block;line-height:0;overflow:hidden;max-width:100%}
+#edcv{display:block;max-width:100%;max-height:52vh;background:#f2f2f2}
+#edcrop{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px #0009;cursor:move;touch-action:none}
+#edcrop i{position:absolute;width:24px;height:24px;margin:-13px;background:#fff;border:2px solid #e5342a;border-radius:50%;touch-action:none}
+#edcrop i[data-h=nw]{left:0;top:0;cursor:nwse-resize}#edcrop i[data-h=ne]{right:0;top:0;cursor:nesw-resize}
+#edcrop i[data-h=sw]{left:0;bottom:0;cursor:nesw-resize}#edcrop i[data-h=se]{right:0;bottom:0;cursor:nwse-resize}
+#edlg .row{justify-content:center}
+.edsl{display:flex;align-items:center;gap:10px;font-size:13px;margin:6px 0;text-align:left}
+.edsl span{flex:0 0 7em}.edsl input{flex:1}
 .ptile.add{height:96px;border:2px dashed #c9ced6;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#e5342a;font-size:12px;font-weight:700;cursor:pointer;background:#fff}
 .profit{font-weight:400;font-size:14px}
 .pl{display:flex;justify-content:space-between;padding:3px 0}
@@ -623,6 +634,17 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
+<dialog id="edlg"><div class="dh"><b>写真の編集</b><button class="btn s" type="button" onclick="edlg.close()">✕</button></div>
+  <div class="db">
+    <div id="edwrap"><canvas id="edcv" width="1" height="1"></canvas><div id="edcrop" class="hide"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+    <div class="row"><button class="btn s" type="button" onclick="edRot(-90)">左に回す</button><button class="btn s" type="button" onclick="edRot(90)">右に回す</button><button class="btn s" type="button" onclick="edCrop('sq')">正方形に切る</button><button class="btn s" type="button" onclick="edCrop('free')">自由に切る</button><button class="btn s" type="button" onclick="edCrop(null)">切らない</button><button class="btn s" type="button" id="edbgbtn" onclick="edBg()">背景を白にする</button></div>
+    <label class="edsl"><span>傾き</span><input type="range" id="ed_tilt" min="-15" max="15" step="0.5" value="0" oninput="ED&&(ED.crop=null,ED.sq=false);edDraw()"></label>
+    <label class="edsl"><span>明るさ</span><input type="range" id="ed_br" min="50" max="160" value="100" oninput="edDraw()"></label>
+    <label class="edsl"><span>コントラスト</span><input type="range" id="ed_ct" min="50" max="160" value="100" oninput="edDraw()"></label>
+    <label class="edsl"><span>色（青↔黄）</span><input type="range" id="ed_wm" min="-40" max="40" value="0" oninput="edDraw()"></label>
+    <div id="edmsg" class="sub"></div><a id="edorig" class="sub" target="_blank" rel="noopener">元の写真を別の画面で開く</a>
+  </div>
+  <div class="df"><button class="btn s" type="button" onclick="edReset()">元に戻す</button><button class="btn" type="button" id="edsave" onclick="edSave()">この写真にする</button></div></dialog>
 <datalist id="rlist"></datalist><datalist id="plist"></datalist>
 
 <script>
@@ -959,7 +981,7 @@ function calcI(){ const s=getS(), pr=+ifm.price_usd.value, sh=+ifm.shipping_usd.
     <span class="pl tot ${p!=null&&p<0?'neg':''}"><span>利益の見込み</span><span>${p==null?'—':yen(p)+'円（'+(p/gross*100).toFixed(0)+'%）'}</span></span>`; }
 // 写真：並べ替え・外す・追加（追加はパソコンの写真を小さくしてから写真置き場へ送る）
 let PH=[];
-function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div class="ptile" draggable="true" data-i="${i}"><a href="${u}" target="_blank" rel="noopener" draggable="false"><img src="${thumb(u)}" loading="lazy" alt="" draggable="false" onerror="this.onerror=null;this.src='${u}'"></a>${i===0?'<b>表紙</b>':`<i>${i+1}</i>`}
+function drawPhotos(){ iphotos.innerHTML=PH.map((u,i)=>`<div class="ptile" draggable="true" data-i="${i}"><a href="#" onclick="editPhoto(${i});return false" title="写真を編集する" draggable="false"><img src="${thumb(u)}" loading="lazy" alt="" draggable="false" onerror="this.onerror=null;this.src='${u}'"><em>編集</em></a>${i===0?'<b>表紙</b>':`<i>${i+1}</i>`}
     <div><button type="button" onclick="movePhoto(${i},-1)" title="前へ">◀</button><button type="button" onclick="firstPhoto(${i})" title="表紙（1枚目）にする">表紙</button><button type="button" onclick="movePhoto(${i},1)" title="後ろへ">▶</button><button type="button" onclick="dropPhoto(${i})" title="この商品から外す">✕</button></div></div>`).join('');
   // パソコン：写真をつかんで、置きたい場所の写真の上で放すと、その位置に入る
   iphotos.querySelectorAll('.ptile').forEach(el=>{ el.ondragstart=e=>{ e.dataTransfer.setData('text/plain',el.dataset.i); e.dataTransfer.effectAllowed='move'; el.style.opacity='.4' };
@@ -969,6 +991,60 @@ function firstPhoto(i){ if(i<=0) return; const [x]=PH.splice(i,1); PH.unshift(x)
 function photoChanged(){ if(!phbtn.classList.contains('hide')) pmsg.textContent='並びを変えました。「写真をeBayに反映」を押すと、eBayの出品も同じ順番になります。'; else pmsg.textContent='並びを変えました。「保存」で残ります。'; }
 function movePhoto(i,d){ const j=i+d; if(j<0||j>=PH.length) return; [PH[i],PH[j]]=[PH[j],PH[i]]; drawPhotos(); photoChanged(); }
 function dropPhoto(i){ PH.splice(i,1); drawPhotos(); photoChanged(); }
+// 写真の編集：回す・傾き・切り抜き・明るさ/コントラスト/色・背景を白に。
+// 「この写真にする」で新しい写真として置き場に送り、同じ位置の写真と入れ替える（元の写真は置き場に残る）
+let ED=null, BGR=null;
+function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>rej(new Error('写真を開けません')); i.src=src }) }
+async function editPhoto(i){ if(!ifm.kno.value){ pmsg.textContent='先に品番を入れてください'; return }
+  ED={i,src:null,orig:null,rot:0,crop:null,sq:false}; edorig.href=PH[i]; edReset(true); edcv.width=edcv.height=1; edBox(); edmsg.textContent='写真を開いています…'; edlg.showModal();
+  try{ const img=await loadImg(PH[i].includes('i.ebayimg.com')?PH[i].replace(/\/s-l\d+\./,'/s-l1600.'):PH[i]), k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
+    c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    ED.orig=ED.src=c; edmsg.textContent=''; edDraw() }catch(e){ edmsg.textContent=e.message } }
+// 回す・傾き（傾けた分は隅が白くならないよう少し拡大）→ 切り抜き → 色。max は長い辺の上限（画面用は小さく、保存は1600px）
+function edRender(max,crop){ const s=ED.src, k=Math.min(1,max/Math.max(s.width,s.height)), w=s.width*k, h=s.height*k, q=ED.rot%180!==0, W=q?h:w, H=q?w:h;
+  const t=Math.abs(+ed_tilt.value)*Math.PI/180, z=Math.max((W*Math.cos(t)+H*Math.sin(t))/W,(W*Math.sin(t)+H*Math.cos(t))/H);
+  const r=crop&&ED.crop, cx=r?r.x*W:0, cy=r?r.y*H:0, c=document.createElement('canvas'); c.width=Math.round(r?r.w*W:W); c.height=Math.round(r?r.h*H:H);
+  const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.translate(W/2-cx,H/2-cy); x.rotate((ED.rot+ +ed_tilt.value)*Math.PI/180); x.scale(z,z); x.drawImage(s,-w/2,-h/2,w,h);
+  const b=+ed_br.value/100, ct=+ed_ct.value/100, wm=+ed_wm.value;
+  if(b!==1||ct!==1||wm){ const d=x.getImageData(0,0,c.width,c.height), p=d.data;
+    for(let i=0;i<p.length;i+=4){ p[i]=(p[i]*b-128)*ct+128+wm; p[i+1]=(p[i+1]*b-128)*ct+128; p[i+2]=(p[i+2]*b-128)*ct+128-wm }
+    x.putImageData(d,0,0) }
+  return c }
+function edDraw(){ if(!ED?.src) return; const c=edRender(900,false); edcv.width=c.width; edcv.height=c.height; edcv.getContext('2d').drawImage(c,0,0); edBox() }
+function edBox(){ const r=ED?.crop; edcrop.classList.toggle('hide',!r); if(r) Object.assign(edcrop.style,{left:r.x*100+'%',top:r.y*100+'%',width:r.w*100+'%',height:r.h*100+'%'}) }
+function edRot(d){ if(!ED?.src) return; ED.rot=(ED.rot+d+360)%360; ED.crop=null; ED.sq=false; edDraw() }
+function edCrop(m){ if(!ED?.src) return; const A=edcv.width/edcv.height; ED.sq=m==='sq';
+  ED.crop=!m?null:m==='sq'?(A>1?{x:(1-1/A)/2,y:0,w:1/A,h:1}:{x:0,y:(1-A)/2,w:1,h:A}):{x:.05,y:.05,w:.9,h:.9}; edBox() }
+function edReset(open){ ed_tilt.value=0; ed_br.value=ed_ct.value=100; ed_wm.value=0; edbgbtn.disabled=false;
+  if(ED){ ED.rot=0; ED.crop=null; ED.sq=false; if(!open){ ED.src=ED.orig; edmsg.textContent=''; edDraw() } } }
+// 切り抜きの枠：中をつかむと移動、四隅の丸で大きさ（正方形のときは縦横そろえる）
+edcrop.onpointerdown=e=>{ if(!ED?.crop) return; e.preventDefault(); const g=e.target.dataset.h||'m', R=edwrap.getBoundingClientRect(), o={...ED.crop}, sx=e.clientX, sy=e.clientY; edcrop.setPointerCapture(e.pointerId);
+  edcrop.onpointermove=m=>{ const dx=(m.clientX-sx)/R.width, dy=(m.clientY-sy)/R.height; let {x,y,w,h}=o;
+    if(g==='m'){ x=Math.min(Math.max(0,x+dx),1-w); y=Math.min(Math.max(0,y+dy),1-h) }
+    else{ let x2=x+w, y2=y+h; if(g.includes('w')) x=Math.max(0,x+dx); else x2=Math.min(1,x2+dx); if(g.includes('n')) y=Math.max(0,y+dy); else y2=Math.min(1,y2+dy);
+      w=Math.max(.05,x2-x); h=Math.max(.05,y2-y); if(ED.sq){ const A=R.width/R.height, s=Math.min(w*A,h); w=s/A; h=s }
+      if(g.includes('w')) x=x2-w; if(g.includes('n')) y=y2-h }
+    ED.crop={x,y,w,h}; edBox() };
+  edcrop.onpointerup=edcrop.onpointercancel=()=>{ edcrop.onpointermove=null } };
+// 背景を白に：ブラウザの中でAIが時計を切り抜く（写真は外に送らない）。初回だけAIの読み込みに時間がかかる
+async function edBg(){ if(!ED?.src) return; edbgbtn.disabled=true; edmsg.textContent='背景を外しています…（初回はAIの読み込みに30秒〜1分）';
+  try{ BGR=BGR||await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+    const blob=await new Promise((res,rej)=>ED.src.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/png'));
+    const cut=await BGR.removeBackground(blob,{progress:(k,a,b)=>{ if(String(k).startsWith('fetch')&&b) edmsg.textContent=`AIを読み込んでいます… ${Math.round(a/b*100)}%` }});
+    const u=URL.createObjectURL(cut), img=await loadImg(u), c=document.createElement('canvas'); URL.revokeObjectURL(u); c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0);
+    ED.src=c; edmsg.textContent='背景を白にしました。おかしければ「元に戻す」。'; edDraw() }
+  catch(e){ edmsg.textContent='背景を外せません：'+e.message; edbgbtn.disabled=false } }
+async function edSave(){ if(!ED?.src) return; const kno=ifm.kno.value, c=edRender(1600,true);
+  if(Math.max(c.width,c.height)<500){ edmsg.textContent=`切り抜きが小さすぎます（${c.width}×${c.height}）。eBayは長い辺500px以上が必要です。`; return }
+  edsave.disabled=true; edmsg.textContent='保存しています…';
+  try{ const path=`${kno}/${Date.now()}_e.jpg`, blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('画像にできません')),'image/jpeg',0.9));
+    const {error}=await sb.storage.from('watch-photos').upload(path,blob,{contentType:'image/jpeg'}); if(error) throw error;
+    const t=document.createElement('canvas'), k=Math.min(1,360/Math.max(c.width,c.height)); t.width=Math.round(c.width*k); t.height=Math.round(c.height*k); t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+    t.toBlob(tb=>tb&&sb.storage.from('watch-photos').upload(path.replace(/\.jpg$/,'_t.jpg'),tb,{contentType:'image/jpeg'}).catch(()=>{}),'image/jpeg',0.8);
+    PH[ED.i]=sb.storage.from('watch-photos').getPublicUrl(path).data.publicUrl; drawPhotos(); edlg.close();
+    pmsg.textContent=!phbtn.classList.contains('hide')?'写真を直しました。「写真をeBayに反映」を押すと、eBayの出品も入れ替わります。':'写真を直しました。「保存」で商品に残ります。' }
+  catch(e){ edmsg.textContent='保存できません：'+e.message }finally{ edsave.disabled=false } }
 function shrink(file,max=1600){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,max/Math.max(img.width,img.height));
     const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(img.src); c.toBlob(b=>b?res(b):rej(new Error('画像を変換できません')),'image/jpeg',0.86) }; img.onerror=()=>rej(new Error('画像を開けません')); img.src=URL.createObjectURL(file) }); }
@@ -1949,7 +2025,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261016172935';
+const BUILD='20261019160957';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
