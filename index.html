@@ -897,13 +897,12 @@ async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   // 先月の同じ日までの売上と比べる（上の紫のカードに ▲▼ で出す）
   { const pm=new Date(d.getFullYear(),d.getMonth()-1,1), pk=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,'0')}`, pd=Math.min(d.getDate(),new Date(d.getFullYear(),d.getMonth(),0).getDate());
-    sb.from('orders').select('item_price_jpy,ship_charged_jpy').gte('ordered_on',pk+'-01').lte('ordered_on',`${pk}-${String(pd).padStart(2,'0')}`).then(({data})=>{ const ps=(data||[]).reduce((a,o)=>a+(o.item_price_jpy||0)+(o.ship_charged_jpy||0),0), cs=+String(hsales.textContent).replace(/,/g,'');
-      if(ps&&cs) hdelta.innerHTML=`<span>${cs>=ps?'▲':'▼'} 先月の同じ日までより ${cs>=ps?'+':''}${Math.round((cs-ps)/ps*100)}%</span>`; }) }
+    window.__prevSales=sb.from('orders').select('item_price_jpy,ship_charged_jpy').gte('ordered_on',pk+'-01').lte('ordered_on',`${pk}-${String(pd).padStart(2,'0')}`).then(({data})=>(data||[]).reduce((a,o)=>a+(o.item_price_jpy||0)+(o.ship_charged_jpy||0),0)); }
   let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   // 注文に紐づかない今月の費用（Etsy広告・月額・出品料、eBayの諸費用）も引く
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-','')); (mc||[]).forEach(c=>{ if(CASH_IN['eBay諸費用'].includes(c.kind)||CASH_IN['Etsy諸費用'].includes(c.kind)) p+=c.amount_jpy||0 });
   const it=await allRows(()=>sb.from('items').select('status,cost_jpy').neq('status','sold').order('kno'));
-  hsales.textContent=yen(s); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
+  hsales.textContent=yen(s); window.__prevSales?.then(ps=>{ if(ps&&s) hdelta.innerHTML=`<span>${s>=ps?'▲':'▼'} 先月の同じ日までより ${s>=ps?'+':''}${Math.round((s-ps)/ps*100)}%</span>` }); hitem.textContent=yen(si); hship.textContent=yen(ss); hprofit.textContent=yen(p)+'円'; hsold.textContent=os.length+'本'; hlisted.textContent=it.filter(i=>i.status==='listed').length+'本';
   hstock.textContent=yen(it.reduce((a,i)=>a+(i.cost_jpy||0),0)/10000)+'万円'; }
 // 一覧用の小さい写真のURL（eBayの写真は300px版、自分で入れた写真は _t 付きの小さい版）。無ければ元の写真に戻す
 function thumb(u){ if(!u) return u;
@@ -2343,7 +2342,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020113642';
+const BUILD='20261020113655';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
