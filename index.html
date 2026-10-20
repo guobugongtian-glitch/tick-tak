@@ -499,6 +499,21 @@ main>section::before{background:var(--grad);-webkit-background-clip:text;backgro
   nav button.sell .ic{background:var(--grad);box-shadow:0 6px 16px rgba(108,76,245,.45)}
   #v-items tr{box-shadow:0 2px 8px rgba(0,0,0,.08)}
 }
+/* 商品一覧のラベル選択 */
+.lbtog{margin-left:8px;border:0;background:rgba(108,76,245,.1);color:var(--accent);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;cursor:pointer}
+#lbbar{position:sticky;bottom:12px;z-index:7;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px auto;max-width:640px;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:10px 12px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+#lbbar #lbcnt{font-weight:700;flex:1 1 auto}
+#lbbar select{padding:8px}
+#lbbar.hide{display:none!important}
+.lbmode td.ph{position:relative}
+.lbmode td.ph::after{content:"";position:absolute;left:6px;bottom:6px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25);box-shadow:0 1px 4px #0005}
+.lbmode tr.lbon td.ph::after{content:"✓";background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.lbmode tr.lbon td.ph img{outline:3px solid var(--accent);outline-offset:-3px}
+@media (max-width:700px){
+  #lbbar{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));margin:0}
+  .lbmode #v-items tr.lbon,#v-items.lbmode tr.lbon{outline:3px solid var(--accent);outline-offset:-3px}
+  #v-items.lbmode td.ph::after{left:auto;right:8px;bottom:auto;top:8px;width:26px;height:26px;z-index:2}
+}
 </style>
 </head>
 <body>
@@ -557,7 +572,8 @@ main>section::before{background:var(--grad);-webkit-background-clip:text;backgro
       <button class="btn g dk" onclick="openItem()">＋ 登録</button></div>
     <div class="seg" id="f1"></div>
   </div>
-  <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a></div>
+  <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a><button class="lbtog" onclick="labelMode(!LBSEL)">🏷 ラベル</button></div>
+  <div id="lbbar" class="hide"><span id="lbcnt">0本を選択中</span><select id="lbstart2" title="何枚目から"></select><button class="btn s" onclick="lbAll()">全部</button><button class="btn" onclick="printLabels([...LBSEL])">印刷</button><button class="btn s" onclick="labelMode(false)">やめる</button></div>
   <div class="tbl"><table>
     <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価</th><th class="n">仕入値</th><th class="n">想定利益</th><th class="n st">eBay<br><span class=sub>表示・閲覧（30日）<br>ウォッチ</span></th></tr></thead>
     <tbody id="itbody"></tbody>
@@ -959,7 +975,7 @@ async function loadItems(){
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     const sd=r.status==='sold'&&r.sold_on?`${+r.sold_on.slice(5,7)}/${+r.sold_on.slice(8,10)}${r.orders?.[0]?.platform?' '+r.orders[0].platform:''}`:'';
-    return `<tr class="st-${r.status}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="viewItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    return `<tr class="st-${r.status}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td><td class="n st">${statCell(r)}</td></tr>` }).join('');
@@ -2342,7 +2358,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020113655';
+const BUILD='20261020113904';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2372,10 +2388,18 @@ async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(),
   lgmsg.textContent=` ${add.length}件を「保管」に入れました`+(add.length?`（品番 ${add[0].kno}〜${add[add.length-1].kno}、仕入値の合計 ${yen(add.reduce((a,x)=>a+x.cost_jpy,0))}円）`:'')+(skip?`。読み込み済みの${skip}件は飛ばしました`:'')+(bad?`。読めなかった行 ${bad}行（見出しや合計の行など）`:'');
   if(add.length) lgtext.value=''; initFilters(); loadItems(); loadHero(); }
 
+// 商品一覧からラベルを選ぶ（「🏷 ラベル」で選ぶモード。写真をタップで選ぶ／外す）2026-10-20
+let LBSEL=null;
+function labelMode(on){ LBSEL=on?new Set():null; $('v-items').classList.toggle('lbmode',!!on); lbbar.classList.toggle('hide',!on);
+  if(on&&!lbstart2.options.length) lbstart2.innerHTML=Array.from({length:24},(_,i)=>`<option value="${i+1}">${i+1}枚目から</option>`).join('');
+  document.querySelectorAll('#itbody tr.lbon').forEach(t=>t.classList.remove('lbon')); lbCount(); }
+function lbCount(){ if(window.lbcnt) lbcnt.textContent=`${LBSEL?.size||0}本を選択中`; }
+function tapItem(kno,td){ if(!LBSEL) return viewItem(kno); const tr=td.closest('tr'); if(LBSEL.has(kno)){ LBSEL.delete(kno); tr.classList.remove('lbon') } else { LBSEL.add(kno); tr.classList.add('lbon') } lbCount(); }
+function lbAll(){ document.querySelectorAll('#itbody tr[data-kno]').forEach(t=>{ LBSEL.add(+t.dataset.kno); t.classList.add('lbon') }); lbCount(); }
 // ===== 在庫ラベル（A4・24面 70×33.9mm、3列×8段、上下の余白12.9mm） 2026-10-20 =====
 // 載せるもの：品番・ブランドと型番・仕入日と仕入値・売価（本人指定）。何枚目から＝途中まで使ったシートの続き
 async function printLabels(knos){ if(!knos.length){ (window.lbmsg||{}).textContent=' 印刷する商品を選んでください'; return }
-  const start=Math.max(1,+(window.lbstart?.value||1));
+  const start=Math.max(1,+((LBSEL&&window.lbstart2?.value)||window.lbstart?.value||1));
   const rows=await allRows(()=>sb.from('items').select('kno,title,memo,specs,purchased_on,cost_jpy,price_usd,research(name)').in('kno',knos).order('kno'));
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const lab=r=>{ const sp=r.specs||{}, brand=sp.Brand||'', model=r.research?.name||sp['Reference Number']||sp.Model||'';
