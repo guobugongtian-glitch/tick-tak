@@ -1619,10 +1619,10 @@ const BANK_RULES = [
   ['ワンロック',['ワンロツク','ワンロック']], ['送料',['フェデラル','fedex','dhl','elogi','イーロジ','ヤマト']],
   ['税金',['国税','都税','県税','市税','住民税','事業税','所得税','消費税']],
 ].map(([c,ks])=>[c,ks.map(cnorm)]);
-// 宮田果歩・宮田久雄との振込は借入（入ってくれば借入、出ていけば借入返済）。2026-10-20 本人指定
+// 宮田果歩・宮田久雄からの入金は借入（2026-10-20 本人指定）。出ていく分は返済と給与が混ざるので「要確認」で本人が選ぶ
 const LENDERS=['ミヤタカホ','ミヤタヒサオ'].map(cnorm);
 function bankCat(desc,amt){ const n=cnorm(desc); if(CARD_OVR['bank:'+n]) return CARD_OVR['bank:'+n];
-  if(LENDERS.some(k=>n.includes(k))) return amt<0?'借入返済':'借入';
+  if(LENDERS.some(k=>n.includes(k))) return amt<0?'要確認':'借入';
   for(const [c,ks] of BANK_RULES) if(ks.some(k=>n.includes(k))) return c; return '要確認'; }
 // 銀行の区分 → 収支表の行
 function BANK_TO_CF(cat,amt){
@@ -2131,7 +2131,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020093559';
+const BUILD='20261020093733';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
