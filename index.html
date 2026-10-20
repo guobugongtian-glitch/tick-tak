@@ -470,6 +470,35 @@ dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
 #vdlg .vbar .btn{flex:1;min-height:48px;font-size:16px}
 #vdlg .vmemo{white-space:pre-wrap;font-size:13px;color:#3c3c43;background:var(--bg);border-radius:12px;padding:10px 12px}
 @media (max-width:700px){ #vdlg{width:100vw;height:100dvh;border-radius:0;margin:0} }
+/* ===== 紫のグラデ（Klook風）2026-10-20 本人「地味」→ 派手に ===== */
+:root{--accent:#6c4cf5;--grad:linear-gradient(135deg,#8b5cf6 0%,#6c4cf5 45%,#3b82f6 100%)}
+.hero{background:var(--grad);color:#fff;box-shadow:0 12px 30px rgba(108,76,245,.35);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.25),transparent 70%);pointer-events:none}
+.hero .hl,.hero .hsplit{color:rgba(255,255,255,.85)}
+.hero .hsplit b{color:#fff}
+.hero .hbig::before{color:rgba(255,255,255,.75)}
+.hdelta span{display:inline-block;margin-top:8px;background:rgba(255,255,255,.2);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+.hero .hrow div,.hero .hrow div:first-child{background:rgba(255,255,255,.95);color:var(--ink);border-radius:16px;padding:12px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.hero .hrow i{font-style:normal;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;margin-bottom:4px}
+.hero .t1 i{background:#34c759}.hero .t2 i{background:#ff9500}.hero .t3 i{background:#3b82f6}.hero .t4 i{background:#8b5cf6}
+.hero .hrow span{color:var(--sub)}
+.btn{background:var(--grad);box-shadow:0 4px 12px rgba(108,76,245,.25)}
+.btn.s{background:rgba(108,76,245,.1);color:var(--accent);box-shadow:none}
+.btn.g{background:#1c1c1e;box-shadow:none}
+.chip.on{background:var(--accent)}
+nav button.on{background:rgba(108,76,245,.12);color:var(--accent)}
+nav button.sell{background:var(--grad)}
+main>section::before{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;width:max-content}
+.seg .chip.on{color:var(--accent)}
+#vdlg .vb{background:var(--grad)}
+#vdlg .vbt{color:var(--accent)}
+#v-items td.st:not(:empty){background:rgba(108,76,245,.85)}
+@media (max-width:700px){
+  nav button.on{color:var(--accent)!important}
+  nav button.sell{color:var(--accent)!important}
+  nav button.sell .ic{background:var(--grad);box-shadow:0 6px 16px rgba(108,76,245,.45)}
+  #v-items tr{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+}
 </style>
 </head>
 <body>
@@ -506,11 +535,12 @@ dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
     <div class="hl"><span id="hm">今月</span>の売上</div>
     <div class="hbig"><span id="hsales">—</span><small>円</small></div>
     <div class="hsplit">商品 <b id="hitem">—</b>円　／　送料 <b id="hship">—</b>円</div>
+    <div class="hdelta" id="hdelta"></div>
     <div class="hrow">
-      <div><b id="hprofit">—</b><span>利益の見込み</span></div>
-      <div><b id="hsold">—</b><span>売れた数</span></div>
-      <div><b id="hlisted">—</b><span>出品中</span></div>
-      <div><b id="hstock">—</b><span>在庫の金額</span></div>
+      <div class="t1"><i>¥</i><b id="hprofit">—</b><span>利益の見込み</span></div>
+      <div class="t2"><i>✓</i><b id="hsold">—</b><span>売れた数</span></div>
+      <div class="t3"><i>◷</i><b id="hlisted">—</b><span>出品中</span></div>
+      <div class="t4"><i>▣</i><b id="hstock">—</b><span>在庫の金額</span></div>
     </div>
   </div>
   <div class="card" id="soldcard">
@@ -865,6 +895,10 @@ function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
 async function loadHero(){ const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; hm.textContent=`${d.getMonth()+1}月`;
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
+  // 先月の同じ日までの売上と比べる（上の紫のカードに ▲▼ で出す）
+  { const pm=new Date(d.getFullYear(),d.getMonth()-1,1), pk=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,'0')}`, pd=Math.min(d.getDate(),new Date(d.getFullYear(),d.getMonth(),0).getDate());
+    sb.from('orders').select('item_price_jpy,ship_charged_jpy').gte('ordered_on',pk+'-01').lte('ordered_on',`${pk}-${String(pd).padStart(2,'0')}`).then(({data})=>{ const ps=(data||[]).reduce((a,o)=>a+(o.item_price_jpy||0)+(o.ship_charged_jpy||0),0), cs=+String(hsales.textContent).replace(/,/g,'');
+      if(ps&&cs) hdelta.innerHTML=`<span>${cs>=ps?'▲':'▼'} 先月の同じ日までより ${cs>=ps?'+':''}${Math.round((cs-ps)/ps*100)}%</span>`; }) }
   let s=0,p=0,si=0,ss=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; si+=o.item_price_jpy||0; ss+=o.ship_charged_jpy||0; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   // 注文に紐づかない今月の費用（Etsy広告・月額・出品料、eBayの諸費用）も引く
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-','')); (mc||[]).forEach(c=>{ if(CASH_IN['eBay諸費用'].includes(c.kind)||CASH_IN['Etsy諸費用'].includes(c.kind)) p+=c.amount_jpy||0 });
@@ -2309,7 +2343,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020112834';
+const BUILD='20261020113642';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
