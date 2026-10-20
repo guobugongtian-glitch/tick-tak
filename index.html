@@ -657,6 +657,13 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 <!-- リサーチ -->
 <section id="v-research" class="hide">
   <div class="card">
+    <h3 style="margin-top:0">他の店で売れた（Etsy・日本の時計の店）</h3>
+    <p class="sub" style="margin-top:0">毎週月曜の朝に、Etsyの腕時計×日本の店の出品を控え、前の週から消えた出品を確かめます。Etsyで「売り切れ」になっていたら売れた、と数えます（推定。期限切れ・取り下げは数えない）。1週目は控えるだけで、売れた分は2週目から出ます。</p>
+    <div class="row"><select id="mkweek" onchange="drawMarket()"></select><select id="mkbrand" onchange="drawMarket()"><option value="">ブランド：すべて</option></select>
+      <button class="btn s" onclick="runMarket()">いま調べる</button><span class="sub" id="mkmsg"></span></div>
+    <div id="mkout"></div>
+  </div>
+  <div class="card">
     <h3 style="margin-top:0">売れる時計の一覧（仕入れリスト）</h3>
     <p class="sub">自分の店で実際に速く売れて利益が出た型です。「買値の上限」より安く買えるものを探してください。ボタンでヤフオク・メルカリ・eBayの相場がすぐ開きます。</p>
     <div class="seg" id="rtabs"><button class="chip on" data-r="buy">今月狙う</button><button class="chip" data-r="rec">おすすめ</button><button class="chip" data-r="all">全部</button><button class="chip" data-r="ng">避けたい</button></div>
@@ -1614,7 +1621,46 @@ function modelKey(t){ if(!t) return null; const T=String(t).toUpperCase().replac
   const cap=s=>s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
   if(nm&&(['HERMES','RADO','OMEGA','Cartier','HAMILTON','FENDI'].includes(b)||!m)) return {name:b+' '+cap(nm),brand:b};
   return {name:b+' '+(m?m[1]:'（型番不明）'),brand:b}; }
-async function loadResearch(){ rcards.innerHTML='<p class="sub">集計しています…</p>';
+// 他の店でEtsyで売れた時計（etsy関数 market_scan が毎週月曜に集める）2026-10-20
+let MK=[], MKOWN={};
+const MKBR=["Grand Seiko","King Seiko","Credor","Seiko","Citizen","Orient","Casio","Rolex","Tudor","Omega","Cartier","Hermes","Gucci","Longines","Rado","Tissot","Christian Dior","Dior","Chanel","Bulova","Hamilton","Tag Heuer","Heuer","Baume","Movado","Burberry","Coach","Fendi","Celine","Louis Vuitton","Bvlgari","Bulgari","Chopard","Piaget","Jaeger","IWC","Zenith","Universal Geneve","Eterna","Oris","Raymond Weil","Frederique Constant","Andre Mouche","Swatch","Ebel","Concord","Corum","Breitling","Tiffany","Salvatore Ferragamo","Givenchy","Yves Saint Laurent","Nina Ricci","Courreges","Agnes b","Alba","Wakmann","Enicar","Favre-Leuba","Doxa","Mido","Certina"];
+const mkBrand=t=>{ const s=String(t||'').toLowerCase().replace(/è|é/g,'e'); const b=MKBR.find(x=>s.includes(x.toLowerCase())); return b==='Christian Dior'?'Dior':b==='Bulgari'?'Bvlgari':b||null };
+async function loadMarket(){
+  const {data:runs,error}=await sb.from('etsy_market_run').select('week,phase,scanned,sold,finished_at').order('week',{ascending:false}).limit(12);
+  if(error){ mkout.innerHTML='<p class="sub">まだ準備ができていません（保存先に表 etsy_market がありません）。</p>'; return }
+  if(!runs?.length){ mkweek.innerHTML=''; mkout.innerHTML='<p class="sub">まだ1回も調べていません。次の月曜の朝に自動で始まります（「いま調べる」でも始められます）。</p>'; return }
+  const cur=mkweek.value; mkweek.innerHTML=runs.map(r=>`<option value="${r.week}">${r.week.slice(5).replace('-','/')}の週（売れた${r.sold||0}本${r.phase==='done'?'':'・調べている途中'}）</option>`).join('');
+  if(cur&&runs.some(r=>r.week===cur)) mkweek.value=cur;
+  const its=await allRows(()=>sb.from('items').select('kno,status,title,research(brand)').neq('status','sold').order('kno'));
+  MKOWN={}; its.forEach(r=>{ const b=mkBrand(r.research?.brand||r.title); if(b) MKOWN[b]=(MKOWN[b]||0)+1 });
+  await drawMarket(true);
+}
+async function drawMarket(reload){
+  const w=mkweek.value; if(!w) return;
+  if(reload!==false||!MK.length||MK[0]?._w!==w){ const {data}=await sb.from('etsy_market').select('listing_id,shop_name,title,brand,price_usd,url,image,listed_on,sold_on').eq('sold_on',w).order('price_usd',{ascending:false}).limit(1000); MK=(data||[]).map(x=>({...x,_w:w})) }
+  const run=[...mkweek.options].find(o=>o.value===w);
+  const g={}; MK.forEach(x=>{ const b=x.brand||'（その他）'; (g[b]??=[]).push(Number(x.price_usd)||0) });
+  const med=a=>{ a=[...a].sort((x,y)=>x-y); return a.length?a[Math.floor(a.length/2)]:0 };
+  const rank=Object.entries(g).sort((a,b)=>b[1].length-a[1].length);
+  const sel=mkbrand.value; mkbrand.innerHTML='<option value="">ブランド：すべて</option>'+rank.map(([b,a])=>`<option ${b===sel?'selected':''}>${b}</option>`).join('');
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const days=x=>x.listed_on?Math.max(0,Math.round((new Date(x.sold_on)-new Date(x.listed_on))/864e5)):null;
+  const list=MK.filter(x=>!sel||(x.brand||'（その他）')===sel);
+  if(!MK.length){ mkout.innerHTML=`<p class="sub">${run?.text.includes('途中')?'この週はまだ調べている途中です。':'この週に売れた出品はありませんでした（1週目は控えるだけなので0本です）。'}</p>`; return }
+  mkout.innerHTML=`<div class="tbl" style="margin:8px 0"><table><tr><th>ブランド</th><th class="n">売れた</th><th class="n">値段の中央値</th><th class="n">自店の在庫</th></tr>`+
+    rank.slice(0,15).map(([b,a])=>`<tr><td><a class="k" onclick="mkbrand.value='${esc(b)}';drawMarket(false)">${esc(b)}</a></td><td class="n">${a.length}本</td><td class="n">$${Math.round(med(a))}</td><td class="n">${MKOWN[b]?MKOWN[b]+'本':'—'}</td></tr>`).join('')+`</table></div>`+
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">`+list.slice(0,200).map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+      ${x.image?`<img src="${esc(x.image)}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee">`:'<div style="aspect-ratio:1;border-radius:10px;background:#eee"></div>'}
+      <div style="font-weight:700">$${Math.round(x.price_usd||0)}</div><div class="sub" style="line-height:1.4;max-height:2.8em;overflow:hidden">${esc(x.title)}</div>
+      <div class="sub">${esc(x.shop_name||'')}${days(x)!=null?`・${days(x)}日で売れた`:''}</div></a>`).join('')+`</div>`+(list.length>200?`<p class="sub">ほか${list.length-200}本</p>`:'');
+}
+async function runMarket(){ mkmsg.textContent=' 調べています（数分かかります）…';
+  for(let i=0;i<20;i++){ const r=await etsyCall('market_scan'); if(r.error){ mkmsg.textContent=' 止まりました：'+r.error; return }
+    mkmsg.textContent=r.phase==='scan'?` 出品を控えています（${r.scanned}件）…`:r.phase==='check'?` 消えた出品を確かめています（売れた${r.sold}本）…`:` 終わりました（売れた${r.sold}本）`;
+    if(r.phase==='done') break }
+  loadMarket();
+}
+async function loadResearch(){ loadMarket(); rcards.innerHTML='<p class="sub">集計しています…</p>';
   const its=await allRows(()=>sb.from('items').select('kno,status,title,cost_jpy,listed_on,first_listed_on,sold_on,research(name,brand,model),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,sales_usd)').order('kno'));
   const g={}, med=a=>{ if(!a.length) return null; a=[...a].sort((x,y)=>x-y); return a[Math.floor(a.length/2)] };
   its.forEach(r=>{ const mk=r.research?.name?null:modelKey(r.title); const n=r.research?.name||mk?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research?.brand||mk?.brand||'',guess:!!mk,sold:0,listed:0,stock:0,old:0,sales:[],ips:[],prof:[],days:[],costs:[],eb:0,et:0};
@@ -2480,7 +2526,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020194702';
+const BUILD='20261020195456';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
