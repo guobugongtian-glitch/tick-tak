@@ -1442,7 +1442,7 @@ async function loadProfit(){
 }
 // ===== 現金収支（手持ちの収支計算表と同じ形） =====
 // 手入力の行は monthly_costs に 'CF:' を付けて保存（金額はプラスで持つ）
-const CF_IN  = ['Payoneer入金','eBay入金','Etsy入金','消費税還付','利息','その他収入'];
+const CF_IN  = ['Payoneer入金','eBay入金','Etsy入金','消費税還付','利息','借入','その他収入'];
 const CF_OUT = ['Amazon','ワンロック','税理士','税金','家族への振込','引き出し(生活費・役員報酬)','借入返済','その他支払'];
 const CARDS  = ['楽天','PayPay','三井住友','JCB','Epos'];
 async function loadCashFlow(){
@@ -1611,7 +1611,7 @@ async function setCardCat(shopEnc,cat){
 }
 
 // ===== 銀行明細（貼り付け） =====
-const BANK_CATS = ['Payoneer入金','利息','その他入金','カード:楽天','カード:PayPay','カード:三井住友','カード:JCB','カード:Epos','カード:Amazon','ワンロック','送料','税金','家族への振込','引き出し','借入返済','その他支払','要確認'];
+const BANK_CATS = ['Payoneer入金','利息','その他入金','カード:楽天','カード:PayPay','カード:三井住友','カード:JCB','カード:Epos','カード:Amazon','ワンロック','送料','税金','家族への振込','引き出し','借入','借入返済','その他支払','要確認'];
 const BANK_RULES = [
   ['Payoneer入金',['payoneer','ペイオニア']], ['利息',['利息']],
   ['カード:PayPay',['paypayカ']], ['カード:楽天',['楽天カード']], ['カード:Epos',['エポスカ']], ['カード:三井住友',['ミツイスミトモカ','三井住友カ']],
@@ -1619,13 +1619,16 @@ const BANK_RULES = [
   ['ワンロック',['ワンロツク','ワンロック']], ['送料',['フェデラル','fedex','dhl','elogi','イーロジ','ヤマト']],
   ['税金',['国税','都税','県税','市税','住民税','事業税','所得税','消費税']],
 ].map(([c,ks])=>[c,ks.map(cnorm)]);
-function bankCat(desc){ const n=cnorm(desc); if(CARD_OVR['bank:'+n]) return CARD_OVR['bank:'+n];
+// 宮田果歩・宮田久雄との振込は借入（入ってくれば借入、出ていけば借入返済）。2026-10-20 本人指定
+const LENDERS=['ミヤタカホ','ミヤタヒサオ'].map(cnorm);
+function bankCat(desc,amt){ const n=cnorm(desc); if(CARD_OVR['bank:'+n]) return CARD_OVR['bank:'+n];
+  if(LENDERS.some(k=>n.includes(k))) return amt<0?'借入返済':'借入';
   for(const [c,ks] of BANK_RULES) if(ks.some(k=>n.includes(k))) return c; return '要確認'; }
 // 銀行の区分 → 収支表の行
 function BANK_TO_CF(cat,amt){
   if(cat.startsWith('カード:')){ const c=cat.slice(4); return CARDS.includes(c)?{card:c}:{cf:c} }
   return {cf:({'Payoneer入金':'Payoneer入金','利息':'利息','その他入金':'その他収入','ワンロック':'ワンロック','送料':'その他支払','税金':'税金',
-    '家族への振込':'家族への振込','引き出し':'引き出し(生活費・役員報酬)','借入返済':'借入返済','その他支払':'その他支払'})[cat] ?? (amt>0?'その他収入':'その他支払')};
+    '家族への振込':'家族への振込','借入':'借入','引き出し':'引き出し(生活費・役員報酬)','借入返済':'借入返済','その他支払':'その他支払'})[cat] ?? (amt>0?'その他収入':'その他支払')};
 }
 function parseBank(text){
   const L=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), out=[];
@@ -1637,7 +1640,7 @@ function parseBank(text){
     const amt=num(L[j].replace('円','')); let bal=null;
     for(let k=j+1;k<Math.min(j+4,L.length);k++){ const m=L[k].match(/^([\d,]+)円$/); if(m){ bal=num(m[1]); break } }
     const date=`${dt[1]}-${dt[2].padStart(2,'0')}-${dt[3].padStart(2,'0')}`, at=`${date} ${dt[4]}`, d=desc.join(' ');
-    out.push({id:`${at}|${dir}|${amt}|${bal??''}`, at, date, ym:date.slice(0,7).replace('-',''), description:d, amount:dir==='入金'?amt:-amt, balance:bal, category:bankCat(d)});
+    out.push({id:`${at}|${dir}|${amt}|${bal??''}`, at, date, ym:date.slice(0,7).replace('-',''), description:d, amount:dir==='入金'?amt:-amt, balance:bal, category:bankCat(d,dir==='入金'?amt:-amt)});
     i=j;
   }
   return out;
@@ -1648,7 +1651,7 @@ function parseBankCsv(text){ const out=[];
     const p2=x=>String(x).padStart(2,'0'), date=`${c[0]}-${p2(c[1])}-${p2(c[2])}`, at=`${date} ${p2(c[3])}:${p2(c[4])}:${p2(c[5])}`;
     const pay=num(c[8]), dep=num(c[9]), dir=dep?'入金':'出金', amt=dep||pay, bal=c[10]!==''?num(c[10]):null, d=c[7].replace(/\s+/g,' ');
     if(!amt) continue;
-    out.push({id:`${at}|${dir}|${amt}|${bal??''}`, at, date, ym:date.slice(0,7).replace('-',''), description:d, amount:dir==='入金'?amt:-amt, balance:bal, category:bankCat(d)}) }
+    out.push({id:`${at}|${dir}|${amt}|${bal??''}`, at, date, ym:date.slice(0,7).replace('-',''), description:d, amount:dir==='入金'?amt:-amt, balance:bal, category:bankCat(d,dir==='入金'?amt:-amt)}) }
   return out.sort((a,b)=>b.at.localeCompare(a.at)); }
 async function bankFile(inp){ const f=inp.files[0]; inp.value=''; if(!f) return; const buf=await f.arrayBuffer();
   let t=new TextDecoder('utf-8').decode(buf); if(!t.includes('摘要')) t=new TextDecoder('shift_jis').decode(buf);
@@ -2128,7 +2131,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020092225';
+const BUILD='20261020092545';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
