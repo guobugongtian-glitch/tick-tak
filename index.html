@@ -1443,7 +1443,7 @@ async function loadProfit(){
 // ===== 現金収支（手持ちの収支計算表と同じ形） =====
 // 手入力の行は monthly_costs に 'CF:' を付けて保存（金額はプラスで持つ）
 const CF_IN  = ['Payoneer入金','eBay入金','Etsy入金','消費税還付','利息','借入','資本金','その他収入'];
-const CF_OUT = ['Amazon','ワンロック','税理士','税金','家族への振込','引き出し(生活費・役員報酬)','借入返済','その他支払'];
+const CF_OUT = ['Amazon','ワンロック','税理士','税金','給与','家族への振込','引き出し(生活費・役員報酬)','借入返済','その他支払'];
 const CARDS  = ['楽天','PayPay','三井住友','JCB','Epos'];
 async function loadCashFlow(){
   const months=monthsBack(cm.value,+cn.value);
@@ -1611,7 +1611,7 @@ async function setCardCat(shopEnc,cat){
 }
 
 // ===== 銀行明細（貼り付け） =====
-const BANK_CATS = ['Payoneer入金','利息','消費税還付','借入','資本金','その他入金','カード:楽天','カード:PayPay','カード:三井住友','カード:JCB','カード:Epos','カード:Amazon','ワンロック','送料','税金','家族への振込','引き出し','借入返済','その他支払','要確認'];
+const BANK_CATS = ['Payoneer入金','利息','消費税還付','借入','資本金','その他入金','カード:楽天','カード:PayPay','カード:三井住友','カード:JCB','カード:Epos','カード:Amazon','ワンロック','送料','税金','給与','家族への振込','引き出し','借入返済','その他支払','要確認'];
 const BANK_RULES = [
   ['Payoneer入金',['payoneer','ペイオニア']], ['利息',['利息']],
   ['カード:PayPay',['paypayカ']], ['カード:楽天',['楽天カード']], ['カード:Epos',['エポスカ']], ['カード:三井住友',['ミツイスミトモカ','三井住友カ']],
@@ -1628,7 +1628,7 @@ function bankCat(desc,amt){ const n=cnorm(desc); if(CARD_OVR['bank:'+n]) return 
 function BANK_TO_CF(cat,amt){
   if(cat.startsWith('カード:')){ const c=cat.slice(4); return CARDS.includes(c)?{card:c}:{cf:c} }
   return {cf:({'Payoneer入金':'Payoneer入金','利息':'利息','その他入金':'その他収入','ワンロック':'ワンロック','送料':'その他支払','税金':'税金',
-    '家族への振込':'家族への振込','借入':'借入','消費税還付':'消費税還付','資本金':'資本金','引き出し':'引き出し(生活費・役員報酬)','借入返済':'借入返済','その他支払':'その他支払'})[cat] ?? (amt>0?'その他収入':'その他支払')};
+    '家族への振込':'家族への振込','給与':'給与','借入':'借入','消費税還付':'消費税還付','資本金':'資本金','引き出し':'引き出し(生活費・役員報酬)','借入返済':'借入返済','その他支払':'その他支払'})[cat] ?? (amt>0?'その他収入':'その他支払')};
 }
 function parseBank(text){
   const L=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean), out=[];
@@ -2131,7 +2131,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020093421';
+const BUILD='20261020093559';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
