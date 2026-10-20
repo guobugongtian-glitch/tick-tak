@@ -1634,9 +1634,10 @@ async function bankFile(inp){ const f=inp.files[0]; inp.value=''; if(!f) return;
 async function importBank(text){
   await loadCardRules(); const t=Array.isArray(text)?text:parseBank(text);
   if(!t.length){ bankmsg.textContent='取引が読み取れません。「入金/出金」から始まる明細をそのまま貼ってください'; return }
-  const {data:ex}=await sb.from('bank_tx').select('id').in('id',t.map(x=>x.id)); const have=new Set((ex||[]).map(r=>r.id));
+  // 入っているかの確認は100件ずつ（一度に聞くと長すぎて空振りする）。入れるときも重なりは飛ばす
+  const have=new Set(); for(let i=0;i<t.length;i+=100){ const {data:ex,error}=await sb.from('bank_tx').select('id').in('id',t.slice(i,i+100).map(x=>x.id)); if(error){ bankmsg.textContent='失敗：'+error.message; return false } (ex||[]).forEach(r=>have.add(r.id)) }
   const add=t.filter(x=>!have.has(x.id));
-  if(add.length){ const {error}=await sb.from('bank_tx').insert(add); if(error){ bankmsg.textContent='失敗：'+error.message; return } }
+  for(let i=0;i<add.length;i+=200){ const {error}=await sb.from('bank_tx').upsert(add.slice(i,i+200),{onConflict:'id',ignoreDuplicates:true}); if(error){ bankmsg.textContent='失敗：'+error.message; return false } }
   bankmsg.textContent=`${t.length}件読み取り、新しく${add.length}件入れました（${t[t.length-1].date}〜${t[0].date}）`;
   bankp.value=''; await initBank(add[0]?.ym||t[0].ym); loadBank();
 }
@@ -1723,7 +1724,7 @@ async function importCsv(){
   for(const f of csv.files){
     // 銀行のCSV（Shift_JIS）はこちらでも受ける → 銀行明細に入れる
     if(/\.csv$/i.test(f.name)){ const buf=await f.arrayBuffer(); let t=new TextDecoder('utf-8').decode(buf); if(!t.includes('摘要')) t=new TextDecoder('shift_jis').decode(buf);
-      if(t.includes('操作日')&&t.includes('摘要')){ await loadCardRules(); await importBank(parseBankCsv(t)); iomsg.textContent=`${f.name}：銀行明細として取り込みました。${bankmsg.textContent}`; continue } }
+      if(t.includes('操作日')&&t.includes('摘要')){ await loadCardRules(); const ok=await importBank(parseBankCsv(t)); iomsg.textContent=`${f.name}：${ok===false?'銀行明細を取り込めませんでした。':'銀行明細として取り込みました。'}${bankmsg.textContent}`; continue } }
     const rows=/\.xlsx$/i.test(f.name)?await readXlsx(f):parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[String(k).trim(),i]));
     if('追跡番号' in ix&&'目的国' in ix&&'支払総額（円）' in ix){ jobs.push({kind:6,rows,ix,h,name:f.name}); continue }
     if('Sale Date' in ix&&'Number of Items' in ix){ iomsg.textContent=`${f.name}：これは注文ごとのCSVです。Etsyは「Order Items」（商品ごと）のほうを選んでください`; return }
@@ -2105,7 +2106,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020090849';
+const BUILD='20261020091319';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
