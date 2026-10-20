@@ -1720,13 +1720,18 @@ const d8 = s => s&&/^\d{8}$/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slic
 async function importCsv(){
   if(!csv.files.length){ iomsg.textContent='ファイルを選んでください'; return }
   iomsg.textContent='読み込んでいます…'; const jobs=[];
-  for(const f of csv.files){ const rows=/\.xlsx$/i.test(f.name)?await readXlsx(f):parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[String(k).trim(),i]));
+  for(const f of csv.files){
+    // 銀行のCSV（Shift_JIS）はこちらでも受ける → 銀行明細に入れる
+    if(/\.csv$/i.test(f.name)){ const buf=await f.arrayBuffer(); let t=new TextDecoder('utf-8').decode(buf); if(!t.includes('摘要')) t=new TextDecoder('shift_jis').decode(buf);
+      if(t.includes('操作日')&&t.includes('摘要')){ await loadCardRules(); await importBank(parseBankCsv(t)); iomsg.textContent=`${f.name}：銀行明細として取り込みました。${bankmsg.textContent}`; continue } }
+    const rows=/\.xlsx$/i.test(f.name)?await readXlsx(f):parseCsv((await f.text()).replace(/^\uFEFF/,'')); const h=rows.shift()||[]; const ix=Object.fromEntries(h.map((k,i)=>[String(k).trim(),i]));
     if('追跡番号' in ix&&'目的国' in ix&&'支払総額（円）' in ix){ jobs.push({kind:6,rows,ix,h,name:f.name}); continue }
     if('Sale Date' in ix&&'Number of Items' in ix){ iomsg.textContent=`${f.name}：これは注文ごとのCSVです。Etsyは「Order Items」（商品ごと）のほうを選んでください`; return }
     const kind='販売日' in ix?2:'品番' in ix?3:'kno' in ix?1:(h[0]||'').trim().startsWith('社名')?4:('Sale Date' in ix&&'Item Name' in ix)?5:0;
     if(kind===4) rows.unshift(h);
     if(!kind){ iomsg.textContent=`${f.name}：見たことのない形のCSVです。取り込みを中止しました`; return }
     jobs.push({kind,rows,ix,name:f.name}); }
+  if(!jobs.length) return;
   jobs.sort((a,b)=>a.kind-b.kind||(a.kind===6?String(a.rows[0]?.[0]).localeCompare(String(b.rows[0]?.[0])):a.rows.length-b.rows.length));   // SpeedPAKは古い週から
   SPM=[]; SP_SYNCED=false;
   const done=[];
@@ -2100,7 +2105,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020090452';
+const BUILD='20261020090849';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
