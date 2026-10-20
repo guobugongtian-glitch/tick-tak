@@ -1682,12 +1682,15 @@ async function loadBank(){
     <td><select onchange="setBankCat('${encodeURIComponent(x.description)}',this.value,'${encodeURIComponent(x.id)}')" ${x.category==='要確認'?'style="border-color:#dc2626"':''}>${BANK_CATS.map(c=>`<option ${c===x.category?'selected':''}>${c}</option>`).join('')}</select></td></tr>`).join('');
 }
 // 借入の残り（人ごと）。口座を通らない借入・返済は monthly_costs（ym='借入調整'、kind=名前、＋借りた／−返した）に手入力
-const LOAN_PEOPLE=[['宮田果歩','ミヤタカホ'],['宮田久雄','ミヤタヒサオ']];
+let LOAN_REST=0; const LOAN_PEOPLE=[['宮田果歩','ミヤタカホ'],['宮田久雄','ミヤタヒサオ']];
 async function loadLoans(){ const {data:t}=await sb.from('bank_tx').select('description,amount,category').in('category',['借入','借入返済']);
   const {data:adj}=await sb.from('monthly_costs').select('kind,amount_jpy,note').eq('ym','借入調整'); const A=Object.fromEntries((adj||[]).map(r=>[r.kind,r]));
   loans.innerHTML='<table><thead><tr><th>相手</th><th class=n>借りた</th><th class=n>返した</th><th class=n>口座を通らない分</th><th class=n>残り</th></tr></thead><tbody>'+LOAN_PEOPLE.map(([nm,kana])=>{
     const r=(t||[]).filter(x=>cnorm(x.description).includes(cnorm(kana))), b=r.filter(x=>x.category==='借入').reduce((a,x)=>a+x.amount,0), p=-r.filter(x=>x.category==='借入返済').reduce((a,x)=>a+x.amount,0), j=A[nm]?.amount_jpy||0;
-    return `<tr><td>${nm}</td><td class=n>${yen(b)}</td><td class=n>${yen(p)}</td><td class=n><input type=number style="width:110px;text-align:right" value="${j||''}" placeholder="0" title="＋借りた／−返した" onchange="saveLoanAdj('${nm}',this.value)"></td><td class=n><b>${yen(b-p+j)}円</b></td></tr>` }).join('')+'</tbody></table>'; }
+    if(nm==='宮田果歩') LOAN_REST=b-p+j;
+    return `<tr><td>${nm}</td><td class=n>${yen(b)}</td><td class=n>${yen(p)}</td><td class=n><input type=number style="width:110px;text-align:right" value="${j||''}" placeholder="0" title="＋借りた／−返した" onchange="saveLoanAdj('${nm}',this.value)"></td><td class=n><b>${yen(b-p+j)}円</b></td></tr>` }).join('')+'</tbody></table>'
+    // 反対向き：果歩さん個人の口座に入った消費税還付など、会社に渡すべきお金（2026-10-20 本人）。渡したら銀行の行を「消費税還付」にして、ここを減らす
+    +`<div class=row style="margin-top:6px">宮田果歩 → 会社に渡す分（個人の口座に入った消費税還付など）：<input type=number style="width:120px;text-align:right" value="${A['果歩→会社']?.amount_jpy||''}" placeholder="0" onchange="saveLoanAdj('果歩→会社',this.value)"> 円 <span class=sub>${A['果歩→会社']?.amount_jpy?'差し引きすると果歩さんへの返済の残りは '+yen(LOAN_REST-A['果歩→会社'].amount_jpy)+'円':''}</span></div>`; }
 async function saveLoanAdj(nm,v){ const {error}=v===''||+v===0?await sb.from('monthly_costs').delete().eq('ym','借入調整').eq('kind',nm)
     :await sb.from('monthly_costs').upsert({ym:'借入調整',kind:nm,amount_jpy:Math.round(+v),note:'口座を通らない借入・返済'});
   if(error) alert(error.message); loadLoans(); }
@@ -2144,7 +2147,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020094454';
+const BUILD='20261020100923';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
