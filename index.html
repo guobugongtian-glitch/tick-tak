@@ -500,6 +500,9 @@ main>section::before{background:var(--grad);-webkit-background-clip:text;backgro
   #v-items tr{box-shadow:0 2px 8px rgba(0,0,0,.08)}
 }
 /* 商品一覧のラベル選択 */
+#v-items:not(.stk) .lbtog{display:none}
+#v-items.stk .lbtog{font-size:14px;padding:8px 16px;background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(108,76,245,.3)}
+
 .lbtog{margin-left:8px;border:0;background:rgba(108,76,245,.1);color:var(--accent);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;cursor:pointer}
 #lbbar{position:sticky;bottom:12px;z-index:7;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px auto;max-width:640px;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:10px 12px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 #lbbar #lbcnt{font-weight:700;flex:1 1 auto}
@@ -576,7 +579,7 @@ main>section::before{background:var(--grad);-webkit-background-clip:text;backgro
       <button class="btn g dk" onclick="openItem()">＋ 登録</button></div>
     <div class="seg" id="f1"></div>
   </div>
-  <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a><button class="lbtog" onclick="labelMode(!LBSEL)">🏷 ラベル</button></div>
+  <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a><button class="lbtog" onclick="labelMode(!LBSEL)">🏷 ラベルを印刷</button></div>
   <div id="lbbar" class="hide"><span id="lbcnt">0本を選択中</span><select id="lbstart2" title="何枚目から"></select><button class="btn s" onclick="lbAll()">全部</button><button class="btn" onclick="printLabels([...LBSEL])">印刷</button><button class="btn s" onclick="labelMode(false)">やめる</button></div>
   <div class="tbl"><table>
     <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価</th><th class="n">仕入値</th><th class="n">想定利益</th><th class="n st">eBay<br><span class=sub>表示・閲覧（30日）<br>ウォッチ</span></th></tr></thead>
@@ -973,6 +976,8 @@ async function loadItems(){
   if(F.status==='sold') q=q.order('sold_on',{ascending:false,nullsFirst:false});
   q=q.order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
   $('v-items').classList.toggle('ls',F.status==='listed');
+  // ラベルは「保管」のタブにだけ出す（2026-10-20 本人）。ほかのタブに移ったら選ぶモードは終える
+  $('v-items').classList.toggle('stk',F.status==='stock'); if(F.status!=='stock'&&LBSEL) labelMode(false);
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
@@ -2362,7 +2367,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020114045';
+const BUILD='20261020114410';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
