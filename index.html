@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Watch Stock</title>
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#1d2330">
+<meta name="theme-color" content="#f2f2f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Watch Stock">
@@ -344,6 +344,91 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
 .radv .sug{background:#fff;border:1px solid #e5e0d3;border-radius:4px;padding:1px 6px}
 .radv .chip{background:#fff;color:#222;border:1px solid #cfcfcf;padding:2px 10px;min-height:0;font-size:12px;margin-left:6px}
 .tideas .kw{background:#fff;color:#222;border:1px solid #cfcfcf;padding:2px 10px;min-height:0;font-size:12px;margin:2px 0}
+/* ===== アプリ風（iPhone風）2026-10-20 本人の希望。上の「メルカリ寄せ」に上書きする ===== */
+:root{--bg:#f2f2f7;--card:#fff;--ink:#000;--sub:#8e8e93;--line:#e5e5ea;--accent:#007aff;--ok:#34c759;--bad:#ff3b30;--warn:#ff9500;--fill:rgba(118,118,128,.12);--sep:rgba(60,60,67,.18)}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Noto Sans JP",sans-serif;letter-spacing:-.01em}
+header{background:rgba(249,249,249,.82);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+header b{font-size:17px;font-weight:600;letter-spacing:-.02em}
+nav button{border-radius:10px;color:#3c3c43;font-weight:500}
+nav button.on{background:rgba(0,122,255,.1);color:var(--accent);box-shadow:none;border-radius:10px;font-weight:600}
+nav button.sell{background:var(--accent);color:#fff;border-radius:999px;font-weight:600}
+main>section::before{content:attr(data-title);display:block;font-size:28px;font-weight:700;letter-spacing:.2px;margin:4px 4px 12px}
+main>#v-items::before{content:none}
+.card{border:0;border-radius:14px;box-shadow:none;background:var(--card)}
+.hero{background:var(--card);color:var(--ink);border:0;border-radius:20px;box-shadow:none;padding:18px 20px}
+.hl{color:var(--sub);font-weight:600;font-size:13px}
+.hbig{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-size:40px;font-weight:700;letter-spacing:-.5px}
+.hbig::before{font-size:24px;font-weight:600;color:var(--sub)}
+.hsplit b{font-weight:600}
+.hrow{border-top:0;padding-top:0;gap:8px;margin-top:14px}
+.hrow div,.hrow div:first-child{background:var(--bg);border:0;border-radius:14px;padding:10px 6px}
+.hrow b{font-family:ui-rounded,-apple-system,sans-serif;font-size:17px;font-weight:700}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:12px;font-weight:600;padding:9px 16px;transition:transform .12s,opacity .12s}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn.g{background:#1c1c1e;color:#fff}
+.btn.s{background:var(--fill);color:var(--accent);border:0;font-weight:600}
+.chip{border-radius:10px;background:var(--fill);color:var(--ink)}
+.chip.on{background:var(--accent);color:#fff}
+input,select,textarea{border:0;background:var(--fill);border-radius:10px;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(0,122,255,.45);outline-offset:0}
+#kw{background:var(--fill);border-radius:10px;padding:9px 14px}
+.filt .btn{border-radius:10px;background:var(--accent)}
+.seg{background:var(--fill);border-radius:9px;padding:2px;border-bottom:0;margin-top:10px}
+.seg .chip{border:0;border-radius:7px;margin:0;padding:7px 4px;color:var(--ink);font-weight:500;background:none}
+.seg .chip.on{background:#fff;color:var(--ink);font-weight:600;border:0;box-shadow:0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04)}
+.pills .chip{border:0;background:var(--fill);border-radius:999px}
+.pills .chip.on{background:var(--ink);color:#fff}
+.tbl{background:var(--card);border-radius:14px;overflow:auto}
+table{background:none}
+th{background:none;color:var(--sub);font-weight:600;font-size:12px;border-bottom:.5px solid var(--sep)}
+th,td{border-bottom:.5px solid var(--sep)}
+tr:last-child td{border-bottom:0}
+a,a.k,.rsub a{color:var(--accent)}
+#ct tr>th:first-child{background:var(--card)}
+fieldset{border:0;background:var(--card);border-radius:14px}
+dialog{border-radius:16px;background:var(--bg)}
+.dh,.df{background:rgba(249,249,249,.9);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-color:var(--sep)}
+.note{background:rgba(0,122,255,.07);color:#1c1c1e;border-radius:12px}
+.menu{padding:0;overflow:hidden}
+.menu button{border-bottom:.5px solid var(--sep);padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.menu button::after{content:"›";color:#c7c7cc;font-size:22px;line-height:1}
+.lk,.go,.tidea{border-color:var(--line);border-radius:10px}
+.lk.y,.go.m{border-color:var(--accent);color:var(--accent)}
+.go.y{background:var(--accent);border-color:var(--accent)}
+.tag.ok{background:var(--accent);border-radius:6px}
+.ptile b{background:var(--accent);border-radius:6px}
+.ptile.add{background:var(--fill);color:var(--accent);border-radius:12px}
+dialog.quick legend{background:var(--bg);color:var(--sub);text-transform:none;font-weight:600}
+dialog.quick label.big input{color:var(--ink)}
+dialog.quick .db{background:var(--bg)}
+dialog.quick fieldset{background:var(--card);border-radius:14px;margin:10px 12px 0;padding:0 16px 6px}
+dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
+@media (max-width:700px){
+  body{background:var(--bg)}
+  header{justify-content:center}
+  main>section{padding:8px 16px 16px}
+  main>section::before{font-size:34px;letter-spacing:.37px;margin:6px 0 10px}
+  main>#v-items{padding:0}
+  .hero{margin:12px 16px;border-radius:20px;border:0}
+  #v-items .filt{background:rgba(242,242,247,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);padding:10px 16px 8px}
+  #v-items .row.sub{padding:6px 16px}
+  #v-items tbody{gap:10px;padding:0 16px 16px}
+  #v-items tr{border-radius:16px;background:#e5e5ea}
+  #v-items td:nth-child(6){bottom:8px;left:8px;border-radius:999px;padding:3px 10px;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font-size:14px!important}
+  #v-items tr.st-sold::after{background:var(--bad)}
+  #v-items tr.st-stock::after{border-radius:999px;background:rgba(0,0,0,.55)}
+  #v-items td.st:not(:empty){border-radius:999px;background:rgba(0,0,0,.55);left:8px;top:8px;padding:2px 8px}
+  .card{border-radius:14px}
+  .tbl{border-radius:14px}
+  nav{background:rgba(249,249,249,.94);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep)}
+  nav button{color:#8e8e93!important;font-size:10px!important;font-weight:500}
+  nav button.on{color:var(--accent)!important;background:none!important;font-weight:600}
+  nav button.sell{color:var(--accent)!important}
+  nav button.sell .ic{background:var(--accent);box-shadow:0 4px 14px rgba(0,122,255,.35)}
+  dialog{border-radius:0}
+  .dh .btn{color:var(--accent)}
+  .menu button{padding:16px}
+}
 </style>
 </head>
 <body>
@@ -762,6 +847,8 @@ async function allRows(build){ const out=[]; for(let i=0;;i+=1000){ const {data,
   if(error||!data?.length) break; out.push(...data); if(data.length<1000) break } return out; }
 
 // 画面切替
+// 画面ごとの大きな見出し（iPhone風）。タブの名前を使う
+document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=document.querySelector(`nav button[data-v="${sec.id.slice(2)}"] span`); if(t) sec.dataset.title=t.textContent });
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
@@ -2176,7 +2263,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020104931';
+const BUILD='20261020111609';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
