@@ -2178,7 +2178,7 @@ async function saveCost(kno,el){ const v=el.value.trim(); const {error}=await sb
 //   電話＝数字だけ（アメリカの先頭の1は外す）、無ければ発送元 08026725538／アメリカは原産国・EORIは空欄、州は2文字／EUはIOSS（EtsyのIM3720000224）と原産国JP
 const ELTEL={}; // メッセージで来た電話番号（この画面を開いているあいだ覚えておく）
 // 一番上のあいさつ（空なら出さない）。友達用は build_friend.py が「みつ」にする
-const GREET_NAME='';
+const GREET_NAME='かほ';
 if(GREET_NAME){ greet.textContent=`${GREET_NAME}さん、お疲れ様です`; greet.classList.remove('hide') }
 const SHIP_TEL='08026725538'; // 発送元の電話（電話が無い注文に入れる）
 const EU=['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
@@ -2670,7 +2670,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020204017';
+const BUILD='20261020204137';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
