@@ -558,7 +558,11 @@ dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
       <label class="sub">出品者の名前<input id="by_seller"></label><label class="sub">住所<input id="by_addr"></label>
       <label class="sub">支払い（カード）<select id="by_pay"><option>PayPay</option><option>楽天</option><option>三井住友</option><option>JCB</option><option>Amazon</option><option>Epos</option><option>現金・振込</option></select></label>
     </div><div class="row"><button class="btn" onclick="addBuy()">足す</button><span id="bymsg2" class="sub"></span></div></details>
-  <div class="tbl"><table><thead><tr><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th>仕入れ先</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th></tr></thead><tbody id="bybody"></tbody></table></div>
+  <div class="card row"><b>在庫ラベル</b><span class="sub">A4・24面（70×33.9mm）のシールに印刷</span>
+    <label class="sub">何枚目から <select id="lbstart"></select></label>
+    <button class="btn s" onclick="document.querySelectorAll('.lbk').forEach(c=>c.checked=true)">全部選ぶ</button>
+    <button class="btn" onclick="printLabels([...document.querySelectorAll('.lbk:checked')].map(c=>+c.value))">選んだ分を印刷</button><span id="lbmsg" class="sub"></span></div>
+  <div class="tbl"><table><thead><tr><th></th><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th>仕入れ先</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th></tr></thead><tbody id="bybody"></tbody></table></div>
   <div class="card">
     <h3 style="margin-top:0">ヤフオクの購入メールから自動で入れる</h3>
     <p class="sub">Gmailに届く「【Yahoo!オークション】ご購入の確認」を5分おきに読み、ここに1行ずつ入れます（店名・購入日・商品名・金額・送料・URL）。同じ商品は二度入りません。最初に1回だけ、Gmailのアカウントでプログラムを貼る作業が要ります。</p>
@@ -2305,7 +2309,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020112714';
+const BUILD='20261020112834';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2335,6 +2339,28 @@ async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(),
   lgmsg.textContent=` ${add.length}件を「保管」に入れました`+(add.length?`（品番 ${add[0].kno}〜${add[add.length-1].kno}、仕入値の合計 ${yen(add.reduce((a,x)=>a+x.cost_jpy,0))}円）`:'')+(skip?`。読み込み済みの${skip}件は飛ばしました`:'')+(bad?`。読めなかった行 ${bad}行（見出しや合計の行など）`:'');
   if(add.length) lgtext.value=''; initFilters(); loadItems(); loadHero(); }
 
+// ===== 在庫ラベル（A4・24面 70×33.9mm、3列×8段、上下の余白12.9mm） 2026-10-20 =====
+// 載せるもの：品番・ブランドと型番・仕入日と仕入値・売価（本人指定）。何枚目から＝途中まで使ったシートの続き
+async function printLabels(knos){ if(!knos.length){ (window.lbmsg||{}).textContent=' 印刷する商品を選んでください'; return }
+  const start=Math.max(1,+(window.lbstart?.value||1));
+  const rows=await allRows(()=>sb.from('items').select('kno,title,memo,specs,purchased_on,cost_jpy,price_usd,research(name)').in('kno',knos).order('kno'));
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const lab=r=>{ const sp=r.specs||{}, brand=sp.Brand||'', model=r.research?.name||sp['Reference Number']||sp.Model||'';
+    const bm=[brand,model&&model!==brand?model:''].filter(Boolean).join(' ')||String(r.title||memoLine(r.memo,'台帳')).slice(0,30);
+    return `<div class="l"><div class="k">${r.kno}</div><div class="b">${esc(bm)}</div><div class="d">仕入 ${esc((r.purchased_on||'').replace(/-/g,'/'))}　¥${yen(r.cost_jpy)}</div><div class="p">${r.price_usd?'$'+esc(r.price_usd):'売価 未定'}</div></div>` };
+  const cells=[...Array(start-1).fill('<div class="l e"></div>'),...knos.map(k=>rows.find(r=>r.kno===k)).filter(Boolean).map(lab)];
+  const pages=[]; for(let i=0;i<cells.length;i+=24) pages.push(cells.slice(i,i+24).join(''));
+  const w=window.open('','_blank'); if(!w){ alert('ポップアップが止められました。許可してからもう一度押してください'); return }
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>在庫ラベル</title><style>
+@page{size:A4;margin:0}body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-print-color-adjust:exact}
+.pg{width:210mm;height:297mm;padding:12.9mm 0;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,70mm);grid-template-rows:repeat(8,33.9mm);page-break-after:always}
+.l{box-sizing:border-box;padding:2.5mm 4mm;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:.6mm}
+.k{font-size:15pt;font-weight:800;letter-spacing:.5px;line-height:1}.b{font-size:10pt;font-weight:700;line-height:1.15;max-height:2.3em;overflow:hidden}
+.d{font-size:8pt;color:#333}.p{font-size:11pt;font-weight:700}
+@media screen{body{background:#eee}.pg{background:#fff;margin:10px auto;box-shadow:0 2px 10px #0003}.l:not(.e){outline:1px dashed #bbb;outline-offset:-1px}.bar{position:sticky;top:0;background:#fff;padding:10px;text-align:center;font-size:14px;box-shadow:0 1px 6px #0002}}
+@media print{.bar{display:none}}
+</style><div class="bar">${knos.length}枚（${start}枚目から）。プリンターの設定で「倍率100%（実際のサイズ）」「余白なし」にして印刷してください。 <button onclick="print()">印刷する</button></div>${pages.map(p=>`<div class="pg">${p}</div>`).join('')}`);
+  w.document.close(); }
 // ===== 商品を見る画面（見るだけ。「編集する」で今までの入力画面） 2026-10-20 =====
 const VIC={brand:'<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',move:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',size:'<path d="M4 12h16M4 12l3-3M4 12l3 3M20 12l-3-3M20 12l-3 3"/>',dial:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',band:'<rect x="8" y="2" width="8" height="20" rx="2"/>',cond:'<path d="M5 12l4 4 10-10"/>',shop:'<path d="M4 7h16l-1.5 11h-13z"/><path d="M9 7a3 3 0 0 1 6 0"/>',cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',card:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>',yen:'<path d="M7 4l5 7 5-7M12 11v9M8 13h8M8 16h8"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'};
 const vic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${VIC[k]||VIC.tag}</svg>`;
@@ -2367,7 +2393,7 @@ async function viewItem(kno){ const {data:r,error}=await sb.from('items').select
         ${item('eye','閲覧（30日）',st.views!=null?kfmt(st.views):'—')}${item('heart','ウォッチ',st.watch!=null?String(st.watch):'—')}</div></div>
       ${r.memo?`<div class="vsec"><h4>メモ</h4><div class="vmemo">${esc(String(r.memo).replace(/\[台帳:.*?\]/g,'').trim())}</div></div>`:''}
     </div>
-    <div class="vbar">${url?`<a class="btn s" style="text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}<button class="btn" onclick="vdlg.close();openItem(${r.kno},${r.status==='stock'})">編集する</button></div>`;
+    <div class="vbar">${url?`<a class="btn s" style="text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}<button class="btn s" onclick="printLabels([${r.kno}])">ラベル</button><button class="btn" onclick="vdlg.close();openItem(${r.kno},${r.status==='stock'})">編集する</button></div>`;
   const pics=$('vpics'), cnt=$('vcount'); if(pics&&cnt) pics.onscroll=()=>{ cnt.textContent=`${Math.round(pics.scrollLeft/pics.clientWidth)+1}/${ph.length}` };
   vwrap.scrollTop=0; vdlg.showModal(); }
 vdlg?.addEventListener('click',e=>{ if(e.target===vdlg) vdlg.close() });
@@ -2409,7 +2435,8 @@ async function loadBuy(){ if(!bym.value) bym.value=new Date(Date.now()+9*3600e3)
   const due={}; rows.forEach(r=>{ const c=cardOf(r), d=payDay(c,r.purchased_on); const k=d?`${d.slice(5).replace('-','/')} ${c}`:(c||'カード不明'); due[k]=(due[k]||0)+(r.cost_jpy||0) });
   bymsg.innerHTML=' 支払い予定：'+Object.entries(due).sort().map(([k,v])=>`<b>${k}</b> ${yen(v)}円`).join('　');
   bybody.innerHTML=rows.map(r=>{ const nm=r.title||memoLine(r.memo,'台帳')||'';
-    return `<tr><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${/mercari/.test(r.supplier_url)?'メルカリで開く':/yahoo/.test(r.supplier_url)?'ヤフオクで開く':'開く'}</a>${/auctions\.yahoo/.test(r.supplier_url)?` ・ <a href="https://buy.auctions.yahoo.co.jp/order/status?auctionId=${esc(r.supplier_url.split('/').pop())}" target="_blank" rel="noopener">取引ナビ</a>`:''}`:'<span class=sub>なし</span>'}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=11 class=sub>この月の仕入れはまだありません</td></tr>';
+    return `<tr><td><input type=checkbox class=lbk value="${r.kno}"></td><td><a class=k onclick="viewItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${/mercari/.test(r.supplier_url)?'メルカリで開く':/yahoo/.test(r.supplier_url)?'ヤフオクで開く':'開く'}</a>${/auctions\.yahoo/.test(r.supplier_url)?` ・ <a href="https://buy.auctions.yahoo.co.jp/order/status?auctionId=${esc(r.supplier_url.split('/').pop())}" target="_blank" rel="noopener">取引ナビ</a>`:''}`:'<span class=sub>なし</span>'}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=12 class=sub>この月の仕入れはまだありません</td></tr>';
+  if(!lbstart.options.length) lbstart.innerHTML=Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join('');
   if(!mlstart.value) mlstart.value=new Date(Date.now()+9*3600e3).toISOString().slice(0,10); }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
