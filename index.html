@@ -1445,6 +1445,7 @@ async function loadCashFlow(){
   const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
   const val={}, est=new Set(), def={};
   (mc||[]).forEach(c=>{ if(c.ym!=='定額') val[c.kind+'|'+c.ym]=c.amount_jpy });
+  const pyo={}; (mc||[]).forEach(c=>{ if(c.kind==='Payoneer残高') pyo[c.ym]=c });
   (mc||[]).filter(c=>c.ym==='定額').forEach(c=>{ def[c.kind]=c; months.forEach(m=>{ const k=c.kind+'|'+m; if(!(k in val)){ val[k]=c.amount_jpy; est.add(k) } }) });
   // 「引き出し」は事業のもうけ側の定額（マイナス保存）を共用
   const cfk=k=>k==='引き出し(生活費・役員報酬)'?k:'CF:'+k;
@@ -1483,8 +1484,16 @@ async function loadCashFlow(){
         return `<td class=n>${v?yen(v):'<span class=sub>明細なし</span>'}${sub?`<div class=sub style="line-height:1.4">${sub}</div>`:''}${bv&&b['銀行の引き落とし']==null?`<div class="sub ${diff?'neg':''}">銀行 ${yen(bv)}${diff?'（差 '+yen(bv-v)+'）':' ✓'}</div>`:''}</td>` }).join('')}<td class=n><b>${yen(months.reduce((a,m)=>a+(card[c+'|'+m]||0),0))}</b></td></tr>`).join('')
     + head('その他の支払') + CF_OUT.map(k=>`<tr><th>${k}${defIn(k)}${def[cfk(k)]?.note?`<br><span class=sub>${def[cfk(k)].note}</span>`:''}</th>${months.map(m=>inp(k,m)).join('')}<td class=n><b>${yen(tot(k))}</b></td></tr>`).join('')
     + sumRow('支払合計',outTot,true) + sumRow('総収支（収入−支払）',m=>inTot(m)-outTot(m),true)
-    + `<tr><th>月末の銀行残高 <span class=sub>(銀行明細の最後の残高)</span></th>${months.map(m=>`<td class=n>${bal[m]?yen(bal[m].v):'<span class=sub>—</span>'}</td>`).join('')}<td></td></tr>` + '</tbody>';
+    + `<tr><th>月末の銀行残高 <span class=sub>(銀行明細の最後の残高)</span></th>${months.map(m=>`<td class=n>${bal[m]?yen(bal[m].v):'<span class=sub>—</span>'}</td>`).join('')}<td></td></tr>`
+    // Payoneerの残高（まだ銀行に入っていないお金）。ドルで入れ、入れた時の為替で円にして残す（note にドル）
+    + `<tr><th>Payoneerの残高 <span class=sub>(まだ銀行に来ていない・ドルで入力)</span></th>${months.map(m=>{ const c=pyo[m];
+        return `<td class=n><input type=number step=0.01 style="width:110px;text-align:right" value="${c?parseFloat(c.note):''}" placeholder="USD" onchange="savePyo('${m}',this.value)">${c?`<div class=sub>約${yen(c.amount_jpy)}円</div>`:''}</td>` }).join('')}<td></td></tr>`
+    + `<tr style="background:#f8fafc"><th>手元のお金 <span class=sub>(銀行＋Payoneer)</span></th>${months.map(m=>`<td class=n>${bal[m]||pyo[m]?'<b>'+yen((bal[m]?.v||0)+(pyo[m]?.amount_jpy||0))+'</b>':'<span class=sub>—</span>'}</td>`).join('')}<td></td></tr>` + '</tbody>';
 }
+async function savePyo(ym,v){ const usd=Math.round((+v||0)*100)/100;
+  const {error}=v===''?await sb.from('monthly_costs').delete().eq('ym',ym).eq('kind','Payoneer残高')
+    :await sb.from('monthly_costs').upsert({ym,kind:'Payoneer残高',amount_jpy:Math.round(usd*getS().fx),note:`${usd} USD（${getS().fx}円/ドルで換算）`});
+  if(error) alert(error.message); else loadCashFlow(); }
 async function saveCF(ym,k,v){
   if(k==='引き出し(生活費・役員報酬)') return saveCost(ym,k,v);
   const {error} = v===''
@@ -2106,7 +2115,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020091319';
+const BUILD='20261020091938';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
