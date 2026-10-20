@@ -2174,7 +2174,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020101801';
+const BUILD='20261020102046';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2239,13 +2239,13 @@ function syncMail() {
   GmailApp.search('from:auction-master@mail.yahoo.co.jp subject:ご購入の確認 newer_than:7d').forEach(function (th) {
     th.getMessages().forEach(function (msg) {
       var b = msg.getPlainBody();
-      var d = b.match(/購入日時：(\d{4})年(\d{1,2})月(\d{1,2})日/); if (!d) return;
+      var d = b.match(/購入日時：(\\d{4})年(\\d{1,2})月(\\d{1,2})日/); if (!d) return;
       var date = d[1] + '-' + pad(d[2]) + '-' + pad(d[3]); if (date < WS_START) return;
-      var store = ((b.match(/ストア名：([^\n]+)/) || [])[1] || '').replace(/注文ID.*$/, '').trim();
-      var ship = (b.match(/送料：([\d,]+)円/) || [])[1] || '';
+      var store = ((b.match(/ストア名：([^\\n]+)/) || [])[1] || '').replace(/注文ID.*$/, '').trim();
+      var ship = (b.match(/送料：([\\d,]+)円/) || [])[1] || '';
       b.split('オークションID：').slice(1).forEach(function (blk, i) {
-        var id = (blk.match(/^\s*([a-z]?\d+)/) || [])[1], name = ((blk.match(/商品情報：([^\n]+)/) || [])[1] || '').trim();
-        var pr = blk.match(/([\d,]+)円×(\d+)＝([\d,]+)円/);
+        var id = (blk.match(/^\\s*([a-z]?\\d+)/) || [])[1], name = ((blk.match(/商品情報：([^\\n]+)/) || [])[1] || '').trim();
+        var pr = blk.match(/([\\d,]+)円×(\\d+)＝([\\d,]+)円/);
         if (!id || !name || !pr) return;
         rows.push({ name: name, date: date, shop: 'ヤフオク', amount: +pr[3].replace(/,/g, ''), url: 'https://auctions.yahoo.co.jp/jp/auction/' + id,
           seller: store, ship: i === 0 && ship ? ship + '円' : '', via: 'Gmail（ご購入の確認）' });
