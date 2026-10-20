@@ -432,7 +432,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
       <label class="sub">出品者の名前<input id="by_seller"></label><label class="sub">住所<input id="by_addr"></label>
       <label class="sub">支払い（カード）<select id="by_pay"><option>PayPay</option><option>楽天</option><option>三井住友</option><option>JCB</option><option>Amazon</option><option>Epos</option><option>現金・振込</option></select></label>
     </div><div class="row"><button class="btn" onclick="addBuy()">足す</button><span id="bymsg2" class="sub"></span></div></details>
-  <div class="tbl"><table><thead><tr><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th></tr></thead><tbody id="bybody"></tbody></table></div>
+  <div class="tbl"><table><thead><tr><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th>仕入れ先</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th></tr></thead><tbody id="bybody"></tbody></table></div>
   <div class="card">
     <h3 style="margin-top:0">ヤフオクの購入メールから自動で入れる</h3>
     <p class="sub">Gmailに届く「【Yahoo!オークション】ご購入の確認」を5分おきに読み、ここに1行ずつ入れます（店名・購入日・商品名・金額・送料・URL）。同じ商品は二度入りません。最初に1回だけ、Gmailのアカウントでプログラムを貼る作業が要ります。</p>
@@ -2176,7 +2176,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020103327';
+const BUILD='20261020104931';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2244,7 +2244,7 @@ async function loadBuy(){ if(!bym.value) bym.value=new Date(Date.now()+9*3600e3)
   const due={}; rows.forEach(r=>{ const c=cardOf(r), d=payDay(c,r.purchased_on); const k=d?`${d.slice(5).replace('-','/')} ${c}`:(c||'カード不明'); due[k]=(due[k]||0)+(r.cost_jpy||0) });
   bymsg.innerHTML=' 支払い予定：'+Object.entries(due).sort().map(([k,v])=>`<b>${k}</b> ${yen(v)}円`).join('　');
   bybody.innerHTML=rows.map(r=>{ const nm=r.title||memoLine(r.memo,'台帳')||'';
-    return `<tr><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=10 class=sub>この月の仕入れはまだありません</td></tr>';
+    return `<tr><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${/mercari/.test(r.supplier_url)?'メルカリで開く':/yahoo/.test(r.supplier_url)?'ヤフオクで開く':'開く'}</a>${/auctions\.yahoo/.test(r.supplier_url)?` ・ <a href="https://buy.auctions.yahoo.co.jp/order/status?auctionId=${esc(r.supplier_url.split('/').pop())}" target="_blank" rel="noopener">取引ナビ</a>`:''}`:'<span class=sub>なし</span>'}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=11 class=sub>この月の仕入れはまだありません</td></tr>';
   if(!mlstart.value) mlstart.value=new Date(Date.now()+9*3600e3).toISOString().slice(0,10); }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
