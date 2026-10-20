@@ -2174,7 +2174,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020102940';
+const BUILD='20261020103109';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2208,7 +2208,7 @@ async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(),
 // カードの締め日と支払日（収支計算表の決まり：楽天・PayPay＝月末締め翌27日、三井住友・JCB＝15日締め翌10日、Amazon＝月末締め翌25日）。土日祝のずれは見ていない
 const CARD_RULE={PayPay:[31,27],楽天:[31,27],三井住友:[15,10],JCB:[15,10],Amazon:[31,25]};
 function cardOf(r){ const p=memoLine(r.memo,'支払').toLowerCase().replace(/\s/g,'');
-  if(!p) return ['ヤフオク','メルカリ'].includes(r.supplier)?'PayPay':'';   // 台帳ではヤフオク・メルカリはPayPayカード
+  if(!p) return ['ヤフオク','メルカリ'].includes(r.supplier)?'PayPay':'';   // ヤフオク・メルカリはPayPayカード（2026-10-20 本人）
   return /paypay/.test(p)?'PayPay':/楽天|rakuten/.test(p)?'楽天':/三井|smbc/.test(p)?'三井住友':/jcb/.test(p)?'JCB':/amazon|アマゾン/.test(p)?'Amazon':/epos|エポス/.test(p)?'Epos':memoLine(r.memo,'支払'); }
 function payDay(card,d){ const rule=CARD_RULE[card]; if(!rule||!d) return null; const [y,m,dd]=d.split('-').map(Number);
   const close=rule[0]; let k=dd>close?2:1; const t=new Date(y,m-1+k,rule[1]); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
@@ -2226,7 +2226,7 @@ async function loadBuy(){ if(!bym.value) bym.value=new Date(Date.now()+9*3600e3)
   const due={}; rows.forEach(r=>{ const c=cardOf(r), d=payDay(c,r.purchased_on); const k=d?`${d.slice(5).replace('-','/')} ${c}`:(c||'カード不明'); due[k]=(due[k]||0)+(r.cost_jpy||0) });
   bymsg.innerHTML=' 支払い予定：'+Object.entries(due).sort().map(([k,v])=>`<b>${k}</b> ${yen(v)}円`).join('　');
   bybody.innerHTML=rows.map(r=>{ const nm=r.title||memoLine(r.memo,'台帳')||'';
-    return `<tr><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${esc(cardOf(r))}${memoLine(r.memo,'支払')?'':'<span class=sub>（推定）</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=10 class=sub>この月の仕入れはまだありません</td></tr>';
+    return `<tr><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（推定）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=10 class=sub>この月の仕入れはまだありません</td></tr>';
   if(!mlstart.value) mlstart.value=new Date(Date.now()+9*3600e3).toISOString().slice(0,10); }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
