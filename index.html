@@ -78,6 +78,10 @@ nav .ic{display:none}
 nav button.mo{display:none}
 nav button.sell{background:#e5342a;color:#fff;font-weight:700;padding:6px 16px}
 td.ph{cursor:pointer;width:64px}
+/* 収支表：12ヶ月以上は横に長いので、左の項目名を固定し、マスを細くする */
+#ct tr>th:first-child{position:sticky;left:0;z-index:1;background:#fff;min-width:150px}
+#ct.wide input[type=number]{width:92px!important}
+#ct.wide{font-size:13px}
 td.st{white-space:nowrap;font-size:12px;line-height:1.5}
 td.st .sv{display:block;color:var(--sub)}
 td.st .sv.w.on{color:var(--ink);font-weight:700}
@@ -455,7 +459,7 @@ dialog.quick .profit{background:#fafafa;border:1px solid var(--line);border-radi
   <div class="card row">
     <button class="chip on" id="cmode-cf" onclick="CMODE='cf';loadCash()">現金収支（引き落とし基準）</button>
     <button class="chip" id="cmode-pl" onclick="CMODE='pl';loadCash()">事業のもうけ</button>
-    <span style="width:12px"></span>表示：<select id="cm"></select> から <select id="cn"><option>3</option><option selected>6</option><option>12</option></select> ヶ月
+    <span style="width:12px"></span>表示：<select id="cm"></select> から <select id="cn" onchange="try{localStorage.setItem('ws_cn',this.value)}catch(e){};loadCash()"><option>3</option><option>6</option><option selected>12</option><option>24</option></select> ヶ月
     <button class="btn" onclick="loadCash()">表示</button>
     <span class="sub">白いマスは入力できます（自動保存）。灰色の斜体は「毎月の定額」を当てている月。</span></div>
   <div class="tbl"><table id="ct"></table></div>
@@ -1393,6 +1397,8 @@ const PLUS_KINDS = ['消費税還付','借入(入金)'];
 function monthsBack(end,n){ const a=[]; for(let i=n-1;i>=0;i--){ const d=new Date(+end.slice(0,4),+end.slice(4)-1-i,1); a.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`) } return a }
 let CMODE='cf';
 function loadCash(){
+  if(!loadCash.init){ loadCash.init=1; try{ const v=localStorage.getItem('ws_cn'); if(v&&[...cn.options].some(o=>o.value===v)) cn.value=v }catch(e){} }
+  ct.classList.toggle('wide',+cn.value>=12);
   ['cf','pl'].forEach(m=>{ $('cmode-'+m).classList.toggle('on',CMODE===m); $('cnote-'+m).classList.toggle('hide',CMODE!==m) });
   return CMODE==='cf' ? loadCashFlow() : loadProfit();
 }
@@ -2122,7 +2128,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020092122';
+const BUILD='20261020092225';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
