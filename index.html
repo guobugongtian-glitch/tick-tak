@@ -989,8 +989,8 @@ async function initFilters(){
   chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`})), 'status', ()=>{F.location=null;F.location_status=null});
 }
 let RES = {};
-// 長期在庫：出品した日（なければ仕入日）から何日たったか。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
-const ageDays=r=>{ const d=r.listed_on||r.purchased_on; return r.status==='sold'||!d?0:Math.floor((Date.now()-new Date(d))/864e5) };
+// 長期在庫：仕入日（なければ最初に出品した日）から何日たったか。listed_onは出し直しで新しくなるので使わない。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
+const ageDays=r=>{ const d=r.purchased_on||r.first_listed_on||r.listed_on; return r.status==='sold'||!d?0:Math.floor((Date.now()-new Date(d))/864e5) };
 async function loadItems(){
   let q = sb.from('items').select(F.status==='sold'?'*,research(name),orders(platform)':'*,research(name)').eq('status',F.status);
   // 売れた分は売れた日の新しい順（品番順だと古い品番の売れた分が埋もれる）
@@ -2393,7 +2393,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020132040';
+const BUILD='20261020132159';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
