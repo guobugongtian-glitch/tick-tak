@@ -529,6 +529,17 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   .lbmode #v-items tr.lbon,#v-items.lbmode tr.lbon{outline:3px solid var(--accent);outline-offset:-3px}
   #v-items.lbmode td.ph::after{left:auto;right:8px;bottom:auto;top:8px;width:26px;height:26px;z-index:2}
 }
+/* 長期在庫を目立たせる */
+#v-items td.ph{position:relative}
+#v-items .age{position:absolute;right:4px;bottom:4px;z-index:1;background:#f5a623;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;pointer-events:none}
+#v-items tr.old180 .age{background:#e5342a}
+#v-items tr.old180 td{background:#fff1f0}
+#v-items tr.old90 td{background:#fff8e6}
+@media (max-width:700px){
+  #v-items tr.old180{outline:3px solid #e5342a;outline-offset:-3px}
+  #v-items tr.old90{outline:3px solid #f5a623;outline-offset:-3px}
+  #v-items tr.old180 td,#v-items tr.old90 td{background:none}
+}
 </style>
 </head>
 <body>
@@ -978,6 +989,8 @@ async function initFilters(){
   chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`})), 'status', ()=>{F.location=null;F.location_status=null});
 }
 let RES = {};
+// 長期在庫：出品した日（なければ仕入日）から何日たったか。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
+const ageDays=r=>{ const d=r.listed_on||r.purchased_on; return r.status==='sold'||!d?0:Math.floor((Date.now()-new Date(d))/864e5) };
 async function loadItems(){
   let q = sb.from('items').select(F.status==='sold'?'*,research(name),orders(platform)':'*,research(name)').eq('status',F.status);
   // 売れた分は売れた日の新しい順（品番順だと古い品番の売れた分が埋もれる）
@@ -989,10 +1002,11 @@ async function loadItems(){
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
-  itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
+  const nOld=data.filter(r=>ageDays(r)>=180).length; if(nOld) cnt.textContent+=` うち半年以上の長期在庫 ${nOld}件（赤）`;
+  itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy), ad=ageDays(r), ac=ad>=180?' old180':ad>=90?' old90':'';
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     const sd=r.status==='sold'&&r.sold_on?`${+r.sold_on.slice(5,7)}/${+r.sold_on.slice(8,10)}${r.orders?.[0]?.platform?' '+r.orders[0].platform:''}`:'';
-    return `<tr class="st-${r.status}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    return `<tr class="st-${r.status}${ac}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}${ac?`<span class="age">${ad}日</span>`:''}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td><td class="n st">${statCell(r)}</td></tr>` }).join('');
@@ -2379,7 +2393,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020115648';
+const BUILD='20261020132040';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
