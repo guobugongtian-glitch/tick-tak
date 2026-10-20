@@ -492,12 +492,12 @@ main>section::before{background:var(--grad);-webkit-background-clip:text;backgro
 .seg .chip.on{color:var(--accent)}
 #vdlg .vb{background:var(--grad)}
 #vdlg .vbt{color:var(--accent)}
-#v-items td.st:not(:empty){background:rgba(108,76,245,.85)}
 @media (max-width:700px){
   nav button.on{color:var(--accent)!important}
   nav button.sell{color:var(--accent)!important}
   nav button.sell .ic{background:var(--grad);box-shadow:0 6px 16px rgba(108,76,245,.45)}
   #v-items tr{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  #v-items td.st:not(:empty){background:rgba(108,76,245,.85)}
 }
 /* eBayの反応（一覧の右端）：バッジで見やすく */
 td.st{vertical-align:middle;white-space:nowrap}
@@ -2379,7 +2379,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020115608';
+const BUILD='20261020115648';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
