@@ -435,6 +435,41 @@ dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
   .dh .btn{color:var(--accent)}
   .menu button{padding:16px}
 }
+/* ===== 商品を見る画面（Klookのホテル詳細を手本に）2026-10-20 ===== */
+#vdlg{padding:0;border:0;width:min(480px,100vw);max-width:100vw;height:min(920px,100dvh);max-height:100dvh;background:var(--bg);border-radius:20px;overflow:hidden}
+#vdlg::backdrop{background:#0008}
+#vdlg .vwrap{height:100%;overflow-y:auto;position:relative;padding-bottom:90px}
+#vdlg .vpics{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;height:380px;background:#d1d1d6;scrollbar-width:none}
+#vdlg .vpics::-webkit-scrollbar{display:none}
+#vdlg .vpics img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:start}
+#vdlg .vnoph{flex:0 0 100%;display:flex;align-items:center;justify-content:center;color:#8e8e93}
+#vdlg .vtop{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 14px 0;pointer-events:none}
+#vdlg .vtop>div{display:flex;gap:10px}
+#vdlg .vround{pointer-events:auto;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.38);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;text-decoration:none;gap:3px}
+#vdlg .vround.w{width:auto;padding:0 12px;border-radius:20px;font-size:14px;font-weight:600}
+#vdlg .vcount{position:absolute;top:330px;right:14px;background:rgba(0,0,0,.5);color:#fff;font-size:12px;padding:3px 10px;border-radius:8px}
+#vdlg .vsheet{position:relative;margin-top:-22px;background:var(--card);border-radius:22px 22px 0 0;padding:22px 20px 8px}
+#vdlg h2{font-size:22px;line-height:1.35;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+#vdlg .vmeta{color:var(--sub);font-size:13px}
+#vdlg .vbadges{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px;align-items:center}
+#vdlg .vb{background:#5e5ce6;color:#fff;font-weight:700;font-size:13px;padding:3px 9px;border-radius:7px}
+#vdlg .vb.g{background:#34c759}#vdlg .vb.k{background:#8e8e93}#vdlg .vb.r{background:#ff3b30}
+#vdlg .vbt{color:#5e5ce6;font-weight:600;font-size:14px}
+#vdlg .vsec{border-top:.5px solid var(--sep);padding:16px 0 6px}
+#vdlg .vsec h4{margin:0 0 10px;font-size:17px;font-weight:700;display:flex;align-items:center;gap:6px}
+#vdlg .vsec h4 span{color:#c7c7cc;font-weight:400}
+#vdlg .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+#vdlg .vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;font-size:15px}
+#vdlg .vrow b{font-weight:600;text-align:right}
+#vdlg .vi{display:flex;align-items:center;gap:9px;font-size:14px;min-width:0}
+#vdlg .vi svg{flex:0 0 22px;width:22px;height:22px;color:#3c3c43}
+#vdlg .vi span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+#vdlg .vi small{display:block;color:var(--sub);font-size:11px;line-height:1.2}
+#vdlg .vbig{font-family:ui-rounded,-apple-system,sans-serif;font-size:30px;font-weight:700}
+#vdlg .vbar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(249,249,249,.94);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:.5px solid var(--sep)}
+#vdlg .vbar .btn{flex:1;min-height:48px;font-size:16px}
+#vdlg .vmemo{white-space:pre-wrap;font-size:13px;color:#3c3c43;background:var(--bg);border-radius:12px;padding:10px 12px}
+@media (max-width:700px){ #vdlg{width:100vw;height:100dvh;border-radius:0;margin:0} }
 </style>
 </head>
 <body>
@@ -697,6 +732,7 @@ dialog.quick fieldset legend{margin:0 -16px 4px;border-radius:14px 14px 0 0}
 </section>
 
 </main>
+<dialog id="vdlg"><div class="vwrap" id="vwrap"></div></dialog>
 </div>
 
 <dialog id="dlg"><form method="dialog" id="ifm" onsubmit="return false">
@@ -886,7 +922,7 @@ async function loadItems(){
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy);
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     const sd=r.status==='sold'&&r.sold_on?`${+r.sold_on.slice(5,7)}/${+r.sold_on.slice(8,10)}${r.orders?.[0]?.platform?' '+r.orders[0].platform:''}`:'';
-    return `<tr class="st-${r.status}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="openItem(${r.kno},${r.status==='stock'})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    return `<tr class="st-${r.status}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="viewItem(${r.kno})">${img}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${yen(r.cost_jpy)}円</td><td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td><td class="n st">${statCell(r)}</td></tr>` }).join('');
@@ -2269,7 +2305,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261020112002';
+const BUILD='20261020112535';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -2299,6 +2335,42 @@ async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(),
   lgmsg.textContent=` ${add.length}件を「保管」に入れました`+(add.length?`（品番 ${add[0].kno}〜${add[add.length-1].kno}、仕入値の合計 ${yen(add.reduce((a,x)=>a+x.cost_jpy,0))}円）`:'')+(skip?`。読み込み済みの${skip}件は飛ばしました`:'')+(bad?`。読めなかった行 ${bad}行（見出しや合計の行など）`:'');
   if(add.length) lgtext.value=''; initFilters(); loadItems(); loadHero(); }
 
+// ===== 商品を見る画面（見るだけ。「編集する」で今までの入力画面） 2026-10-20 =====
+const VIC={brand:'<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',move:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',size:'<path d="M4 12h16M4 12l3-3M4 12l3 3M20 12l-3-3M20 12l-3 3"/>',dial:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',band:'<rect x="8" y="2" width="8" height="20" rx="2"/>',cond:'<path d="M5 12l4 4 10-10"/>',shop:'<path d="M4 7h16l-1.5 11h-13z"/><path d="M9 7a3 3 0 0 1 6 0"/>',cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',card:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>',yen:'<path d="M7 4l5 7 5-7M12 11v9M8 13h8M8 16h8"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'};
+const vic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${VIC[k]||VIC.tag}</svg>`;
+async function viewItem(kno){ const {data:r,error}=await sb.from('items').select('*,research(name)').eq('kno',kno).maybeSingle(); if(error||!r){ openItem(kno); return }
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const ph=(r.photos||[]).filter(u=>!/\/size_/.test(u)), url=r.listing_url||(r.ebay_item_id?`https://www.ebay.com/itm/${r.ebay_item_id}`:''), st=r.ebay_stats||{};
+  const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy), sp=r.specs||{}, ml=k=>memoLine(r.memo,k);
+  const name=r.title||ml('台帳')||'（タイトルなし）', card=cardOf(r), pd=payDay(card,r.purchased_on);
+  const stB={listed:['出品中',''],stock:['保管','k'],sold:['売れた','r']}[r.status]||[r.status,''];
+  const item=(ic,label,val)=>val?`<div class="vi">${vic(ic)}<span><small>${esc(label)}</small>${val}</span></div>`:'';
+  const row=(l,v)=>v!=null&&v!==''?`<div class="vrow"><span>${esc(l)}</span><b>${v}</b></div>`:'';
+  const specs=[['brand','Brand'],['move','Movement'],['size','Case Size'],['dial','Dial Color'],['band','Band Material'],['tag','Model'],['tag','Reference Number'],['tag','Department']].filter(([,k])=>sp[k]);
+  vwrap.innerHTML=`<div class="vpics" id="vpics">${ph.length?ph.map(u=>`<img src="${esc(u)}" loading="lazy" alt="">`).join(''):'<div class="vnoph">写真なし</div>'}</div>
+    <div class="vtop"><button class="vround" onclick="vdlg.close()" title="閉じる">✕</button><div>${url?`<a class="vround w" href="${esc(url)}" target="_blank" rel="noopener">eBay ↗</a>`:''}${st.watch!=null?`<span class="vround w">♡ ${st.watch}</span>`:''}</div></div>
+    ${ph.length>1?`<div class="vcount" id="vcount">1/${ph.length}</div>`:''}
+    <div class="vsheet">
+      <h2>${esc(name)}</h2>
+      <div class="vmeta">品番 ${r.kno}${r.research?.name?' ・ '+esc(r.research.name):''}${r.condition?' ・ '+esc(r.condition):''}</div>
+      <div class="vbadges"><span class="vb ${stB[1]}">${stB[0]}</span>${r.price_usd?`<span class="vbt">$${esc(r.price_usd)}</span>`:''}${st.views!=null?`<span class="vmeta">閲覧 ${kfmt(st.views)}・表示 ${kfmt(st.imp)}（30日）</span>`:''}${r.status==='sold'&&r.sold_on?`<span class="vmeta">${esc(r.sold_on)} 売れた</span>`:''}</div>
+      <div class="vsec"><h4>お金 <span>›</span></h4>
+        <div class="vrow"><span>想定利益</span><b class="vbig" style="color:${p&&p.p<0?'var(--bad)':'var(--ink)'}">${p?yen(p.p)+'円':'—'}</b></div>
+        ${row('売価',r.price_usd?'$'+esc(r.price_usd)+(r.shipping_usd?` ＋ 送料 $${esc(r.shipping_usd)}`:''):'')}${row('仕入値',r.cost_jpy?yen(r.cost_jpy)+'円':'')}${row('利益率',p?p.r.toFixed(0)+'%':'')}</div>
+      ${specs.length||r.condition?`<div class="vsec"><h4>時計のこと <span>›</span></h4><div class="vgrid">${item('cond','状態',esc(r.condition))}${specs.map(([ic,k])=>item(ic,k,esc(sp[k]))).join('')}</div></div>`:''}
+      <div class="vsec"><h4>仕入れ <span>›</span></h4><div class="vgrid">
+        ${item('shop','お店',r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(r.supplier||'開く')} ↗</a>`:esc(r.supplier||'—'))}
+        ${item('cal','購入日',esc(r.purchased_on||'—'))}${item('card','カード',esc(card||'—'))}${item('yen','支払日',pd?esc(pd):'—')}
+        ${item('user','出品者',esc(ml('出品者')))}${item('tag','仕入れた時の名前',esc(ml('台帳').slice(0,40)))}</div></div>
+      <div class="vsec"><h4>出品 <span>›</span></h4><div class="vgrid">
+        ${item('cal','出品日',esc(r.listed_on||r.first_listed_on||'—'))}${item('cal','見直した日',esc(r.reviewed_on||'—'))}
+        ${item('eye','閲覧（30日）',st.views!=null?kfmt(st.views):'—')}${item('heart','ウォッチ',st.watch!=null?String(st.watch):'—')}</div></div>
+      ${r.memo?`<div class="vsec"><h4>メモ</h4><div class="vmemo">${esc(String(r.memo).replace(/\[台帳:.*?\]/g,'').trim())}</div></div>`:''}
+    </div>
+    <div class="vbar">${url?`<a class="btn s" style="text-decoration:none;display:flex;align-items:center;justify-content:center" href="${esc(url)}" target="_blank" rel="noopener">eBayで見る</a>`:''}<button class="btn" onclick="vdlg.close();openItem(${r.kno},${r.status==='stock'})">編集する</button></div>`;
+  const pics=$('vpics'), cnt=$('vcount'); if(pics&&cnt) pics.onscroll=()=>{ cnt.textContent=`${Math.round(pics.scrollLeft/pics.clientWidth)+1}/${ph.length}` };
+  vwrap.scrollTop=0; vdlg.showModal(); }
+vdlg?.addEventListener('click',e=>{ if(e.target===vdlg) vdlg.close() });
 // ===== 仕入れ（台帳） =====
 // カードの締め日と支払日（収支計算表の決まり：楽天・PayPay＝月末締め翌27日、三井住友・JCB＝15日締め翌10日、Amazon＝月末締め翌25日）。土日祝のずれは見ていない
 const CARD_RULE={PayPay:[31,27],楽天:[31,27],三井住友:[15,10],JCB:[15,10],Amazon:[31,25]};
