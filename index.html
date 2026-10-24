@@ -912,7 +912,8 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
       <label class="big">売価 ($)<input name="price_usd" inputmode="decimal" placeholder="0.00" type="number" step="0.01" oninput="calcI();pickPolicy()"></label>
       <label class="qh">配送料 ($)<input name="shipping_usd" type="number" step="0.01" value="0" oninput="calcI()"></label>
       <label>仕入値 (円)<input name="cost_jpy" type="number" inputmode="numeric" placeholder="0" oninput="calcI()"></label>
-    </div><p class="profit" id="iprofit">—</p></fieldset>
+    </div><p class="profit" id="iprofit">—</p>
+    <div class="row"><button class="btn s" type="button" style="border-color:#0064d2;color:#0064d2;font-weight:700" onclick="openEbayMarket(1)">eBayで売れた値段を見る ›</button><button class="btn s" type="button" onclick="openEbayMarket(0)">eBayの出品中を見る ›</button></div><div id="mkmsg" class="sub"></div></fieldset>
     <fieldset class="fs-buy qh"><legend>仕入情報</legend><div class="g2">
       <label>仕入日<input name="purchased_on" type="date"></label>
       <label>仕入先<select name="supplier"><option></option><option>ヤフオク</option><option>メルカリ</option><option>ラクマ</option><option>キタムラ</option><option>ハードオフ</option><option>仕入れツアー</option><option>その他</option></select></label>
@@ -1291,6 +1292,9 @@ function boostTitle(){ let t=ifm.title.value.trim(); const tail=/\s*(From\s+JAPA
 // 同じ型を出している、ほかのセラーのタイトルを見る。eBayの検索で上のほうに出ている順（＝eBayが売れやすいと見ている順）
 // 押すとそのタイトルが入る（状態は自分のものに差し替え）。みんなが使っていて自分のタイトルに無い語も出す
 // Etsyで同じ型番を検索する（新しいタブ。ほかのセラーのタイトルと値段がすぐ見られる）
+// 値段決め用：型番（なければタイトル）でeBayの売れた一覧（新しい順）／出品中（安い順）を別タブで開く
+function openEbayMarket(sold){ const q=specQuery(); if(q.length<3){ mkmsg.textContent='先にタイトルか型番を入れてください。'; return } mkmsg.textContent='';
+  window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(q)+'&_sacat=31387'+(sold?'&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120':'&_sop=15'),'_blank','noopener') }
 function openEtsySearch(){ const q=specQuery(); if(q.length<3){ tideas.innerHTML='<span class="sub">先にタイトルか型番を入れてください。</span>'; return }
   window.open('https://www.etsy.com/search?q='+encodeURIComponent(q+' watch'),'_blank','noopener') }
 async function otherTitles(){ const q=specQuery();
@@ -2837,7 +2841,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261021112612';
+const BUILD='20261025083545';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
