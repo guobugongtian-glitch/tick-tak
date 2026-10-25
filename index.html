@@ -542,11 +542,24 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   #v-items tr.old180 td,#v-items tr.old90 td{background:none}
 }
 /* 商品の「出品中・保管・売れた」：eBayStockっぽい灰色の箱をやめ、下線のタブ＋件数の丸（2026-10-25 本人） */
-#f1{background:none;border-radius:0;padding:0;border-bottom:1px solid var(--line);gap:0;margin-top:4px}
-#f1 .chip{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:0;border-radius:0;box-shadow:none;border-bottom:3px solid transparent;margin:0 0 -1px;padding:12px 4px 10px;color:var(--sub);font-weight:600;font-size:15px}
-#f1 .chip .cnt{font-size:12px;font-weight:700;background:var(--fill);color:var(--sub);border-radius:999px;padding:1px 9px;min-width:28px;text-align:center}
-#f1 .chip.on{background:none;box-shadow:none;color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
-#f1 .chip.on .cnt{background:var(--accent);color:#fff}
+#f1,#tnf{background:none;border-radius:0;padding:0;border-bottom:1px solid var(--line);gap:0;margin-top:4px}
+#f1 .chip,#tnf .chip{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:0;border-radius:0;box-shadow:none;border-bottom:3px solid transparent;margin:0 0 -1px;padding:12px 4px 10px;color:var(--sub);font-weight:600;font-size:15px}
+#f1 .chip .cnt,#tnf .chip .cnt{font-size:12px;font-weight:700;background:var(--fill);color:var(--sub);border-radius:999px;padding:1px 9px;min-width:28px;text-align:center}
+#f1 .chip.on,#tnf .chip.on{background:none;box-shadow:none;color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+#f1 .chip.on .cnt,#tnf .chip.on .cnt{background:var(--accent);color:#fff}
+/* 棚卸し（2026-10-25） */
+.tngrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.tn{background:var(--card);border-radius:14px;overflow:hidden;border:3px solid transparent}
+.tn.ok{border-color:#34c759}.tn.ng{border-color:#ff3b30}
+.tnph{aspect-ratio:1;background:#f2f2f7}.tnph img{width:100%;height:100%;object-fit:cover;display:block}
+.tnb{padding:10px}
+.tnk{font-weight:700;font-size:17px}.tnk span{font-weight:500;color:var(--sub);font-size:12px;margin-left:6px}
+.tnt{font-size:12px;color:var(--sub);line-height:1.4;height:2.8em;overflow:hidden;margin:4px 0 8px}
+.tna{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tna .btn{min-height:42px;font-size:15px;font-weight:700;margin:0}
+.tn.ok .tok{background:#34c759;color:#fff}.tn.ng .tng{background:#ff3b30;color:#fff}
+.tnng{padding-left:18px;line-height:1.9}
+@media (max-width:700px){ .tngrid{grid-template-columns:1fr 1fr;gap:8px} }
 /* ===== パソコンは左の縦メニュー（メルカリShopsの管理画面風）2026-10-25 本人の希望。スマホの下タブはそのまま ===== */
 @media (min-width:701px){
   #app{padding-left:232px}
@@ -561,7 +574,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   nav button.sell{order:0;justify-content:center;background:var(--grad,var(--accent));color:#fff;font-weight:700;margin-bottom:14px;padding:12px}
   nav button.sell:hover{background:var(--grad,var(--accent));opacity:.9}
   nav button[data-v=items]{order:1} nav button[data-v=orders]{order:2} nav button[data-v=etsyrv]{order:3}
-  nav button[data-v=research]{order:4} nav button[data-v=buy]{order:5}
+  nav button[data-v=tana]{order:3} nav button[data-v=research]{order:4} nav button[data-v=buy]{order:5}
   nav button[data-v=pf]{order:6} nav button[data-v=cash]{order:7} nav button[data-v=card]{order:8} nav button[data-v=bank]{order:9}
   nav button[data-v=io]{order:10;margin-top:10px;position:relative}
   nav button[data-v=io]::before{content:"";position:absolute;left:14px;right:14px;top:-6px;border-top:1px solid var(--line)}
@@ -599,6 +612,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button data-v="bank" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg><span>銀行明細</span></button>
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
+    <button data-v="tana" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 13l2 2 4-4"/></svg><span>棚卸し</span></button>
     <button data-v="io" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>取込/設定</span></button>
     <button data-v="more" class="mo"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
   </nav>
@@ -648,6 +662,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button onclick="go('research')">リサーチ・利益計算</button>
     <button onclick="go('orders')">販売情報</button>
     <button onclick="go('etsyrv')">Etsyの出品の見直し</button>
+    <button onclick="go('tana')">棚卸し（手元にあるか確かめる）</button>
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
     <button onclick="go('io')">取込・eBay接続・設定</button>
@@ -789,6 +804,17 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 </section>
 
 <!-- Etsyの出品の見直し（2026-10-21 本人の希望）：在庫の売り切りに向けて、Etsyの出品を値下げ・点検する -->
+<section id="v-tana" class="hide">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><b id="tnsum">—</b><button class="btn s" onclick="tanaReset()">最初からやり直す</button></div>
+    <p class="sub" style="margin:6px 0 0">手元にある時計は「ある」、見つからない時計は「無い」を押してください。スマホとパソコンで同じ結果が見えます。</p>
+    <div class="seg" id="tnf"></div>
+    <div class="row"><input id="tnq" type="search" placeholder="品番・ブランドでさがす" style="flex:1;min-width:0" oninput="renderTana()"><label class="sub"><input type="checkbox" id="tnold" onchange="renderTana()"> 90日以上だけ</label></div>
+  </div>
+  <div class="card hide" id="tnend"></div>
+  <div id="tngrid" class="tngrid"></div>
+</section>
+
 <section id="v-etsyrv" class="hide">
   <div class="card">
     <div class="row"><button class="btn" onclick="loadEtsyRv()">Etsyから読み直す</button><span class="sub" id="ermsg"></span></div>
@@ -1078,7 +1104,7 @@ document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=docum
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
-  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() }})[b.dataset.v]?.();
+  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana})[b.dataset.v]?.();
 });
 
 // 商品管理：3段の絞り込み
@@ -1794,6 +1820,47 @@ function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.datase
         <a class="go e" href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120" target="_blank" rel="noopener">eBay<br>売れた相場 ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
   rnote.textContent=`全部の販売の集計です（${RSTAT.length}型。型番マスタに無い商品は商品名から型番を拾っています）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
+// 棚卸し：在庫（出品中・保管）を1本ずつ「ある／無い」。結果は items.tana {on,ok}（2026-10-25 本人。400・569が無いのに出品中だった）
+// 「無い」にした品は、売れる前にeBayを取り下げ（end_listing＝保管に戻る）、Etsyは編集画面へのリンクを出す
+let TN=[], TNF='todo';
+const tnState=r=>r.tana?(r.tana.ok?'ok':'ng'):'todo';
+const tnEsc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function loadTana(){ tnsum.textContent='読んでいます…';
+  TN=await allRows(()=>sb.from('items').select('kno,status,title,memo,photos,purchased_on,first_listed_on,listed_on,ebay_item_id,listing_url,tana').in('status',['listed','stock']).order('kno'));
+  renderTana() }
+function renderTana(){ const n={all:TN.length,todo:0,ok:0,ng:0}; TN.forEach(r=>n[tnState(r)]++);
+  tnsum.textContent=`在庫 ${n.all}本：ある ${n.ok}／無い ${n.ng}／まだ ${n.todo}`;
+  tnf.innerHTML=[['todo','まだ'],['ng','無い'],['ok','ある'],['all','全部']].map(([v,t])=>`<button class="chip${TNF===v?' on':''}" onclick="TNF='${v}';renderTana()">${t}<b class="cnt">${n[v]}</b></button>`).join('');
+  const q=tnq.value.trim().toLowerCase(), old=tnold.checked;
+  const a=TN.filter(r=>(TNF==='all'||TNF===tnState(r))&&(!q||(r.kno+' '+(r.title||'')).toLowerCase().includes(q))&&(!old||ageDays(r)>=90));
+  tngrid.innerHTML=a.map(r=>{ const ph=r.photos?.[0];
+    return `<div class="tn ${tnState(r)}"><div class="tnph">${ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:''}</div>
+      <div class="tnb"><div class="tnk">${r.kno}<span>${r.status==='listed'?'出品中':'保管'}・${ageDays(r)}日</span></div><div class="tnt">${tnEsc(r.title||r.memo)}</div>
+      <div class="tna"><button class="btn s tok" onclick="setTana(${r.kno},true)">ある</button><button class="btn s tng" onclick="setTana(${r.kno},false)">無い</button></div></div></div>` }).join('')||'<p class="sub">ここに出る在庫はありません。</p>';
+  renderTanaNg() }
+async function setTana(kno,ok){ const r=TN.find(x=>x.kno===kno), v={on:new Date().toISOString().slice(0,10),ok};
+  const {error}=await sb.from('items').update({tana:v}).eq('kno',kno); if(error){ alert('保存できません：'+error.message); return }
+  r.tana=v; renderTana() }
+function renderTanaNg(){ const ng=TN.filter(r=>tnState(r)==='ng'); tnend.classList.toggle('hide',!ng.length); if(!ng.length) return;
+  const eb=ng.filter(r=>r.ebay_item_id);
+  tnend.innerHTML=`<h3 style="margin-top:0">「無い」にした ${ng.length}本</h3>
+    <p class="sub">売れてしまう前に、eBayとEtsyの出品を止めてください。物が無いのに売れると取り消しになり、評価が下がります。</p>
+    <div class="row"><button class="btn" id="tnebay" ${eb.length?'':'disabled'} onclick="tanaEndEbay()">eBayの出品をまとめて取り下げる（${eb.length}本）</button><button class="btn s" onclick="tanaEtsy()">Etsyに出ているか調べる</button></div>
+    <div id="tnmsg" class="note"></div>
+    <ul class="tnng">${ng.map(r=>`<li><b>${r.kno}</b> ${tnEsc((r.title||r.memo||'').slice(0,60))}　${r.ebay_item_id?`<a href="${tnEsc(r.listing_url||'')}" target="_blank" rel="noopener">eBay ›</a>`:'<span class="sub">eBayには出ていない</span>'} <span id="tne${r.kno}"></span></li>`).join('')}</ul>` }
+async function tanaEndEbay(){ const eb=TN.filter(r=>tnState(r)==='ng'&&r.ebay_item_id); if(!eb.length) return;
+  if(!window.confirm(`「無い」にした ${eb.length}本のeBayの出品を取り下げます（終了）。\n商品は「保管」に戻ります。\n\n品番：${eb.map(r=>r.kno).join('、')}\n\nよろしいですか？`)) return;
+  const bad=[]; for(const [i,r] of eb.entries()){ tnmsg.textContent=`取り下げています… ${i+1}/${eb.length}（品番 ${r.kno}）`;
+    const x=await ebayCall('end_listing',{kno:r.kno}); if(x.ok){ r.ebay_item_id=null; r.listing_url=null; r.status='stock' } else bad.push(`${r.kno}：${x.error||(x.errors||[]).join(' ')}`) }
+  renderTana(); tnmsg.innerHTML=bad.length?`<b class="neg">取り下げられなかった品：</b>${bad.map(tnEsc).join('／')}`:`<b style="color:#15803d">eBayの出品を ${eb.length}本 取り下げました。</b>`; initFilters(); }
+async function tanaEtsy(){ const ng=TN.filter(r=>tnState(r)==='ng'); tnmsg.textContent='Etsyの出品を読んでいます…';
+  const r=await etsyCall('active_listings'); if(r.error){ tnmsg.textContent='Etsyを読めませんでした：'+r.error; return }
+  const by=new Map(); (r.listings||[]).forEach(l=>(l.skus||[]).forEach(k=>by.set(String(k),l))); let n=0;
+  ng.forEach(x=>{ const l=by.get(String(x.kno)), el=$('tne'+x.kno); if(!el) return;
+    if(l){ n++; el.innerHTML=`<a class="neg" href="https://www.etsy.com/your/shops/me/listing-editor/edit/${l.listing_id}" target="_blank" rel="noopener"><b>Etsyに出ています→止める ›</b></a>` } else el.innerHTML='<span class="sub">Etsyには出ていない</span>' });
+  tnmsg.textContent=n?`Etsyに出ている品が ${n}本 あります。リンクから開いて「非公開」にしてください。`:'Etsyに出ている品はありません。' }
+async function tanaReset(){ if(!window.confirm('「ある／無い」の印を全部消して、最初からやり直します。よろしいですか？')) return;
+  const {error}=await sb.from('items').update({tana:null}).not('tana','is',null); if(error){ alert('消せません：'+error.message); return } TNF='todo'; loadTana() }
 // リサーチ「いつも見る」：打たずに1タップで開く。上限は総額の目安（推定・2026-10-25 実績11本の売値中央値36,350円から）
 const WATCH=[{name:'アンドレムッシュ',q:'アンドレムッシュ',max:13800}];
 function renderWatch(){ const e=encodeURIComponent, a=(t,u,c)=>`<a class="lk ${c||''}" href="${u}" target="_blank" rel="noopener">${t}</a>`;
@@ -2879,7 +2946,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261025114220';
+const BUILD='20261025120651';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
