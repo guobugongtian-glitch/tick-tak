@@ -1655,7 +1655,7 @@ async function saveItem(keepOpen){
 // リサーチ
 function calcR(){ $('r_out').textContent=fmtP(profit(r_price.value,r_ship.value,r_cost.value,r_actship.value?+r_actship.value:undefined)); }
 // ===== リサーチ：自分の実績から「速く売れて利益が出る型」を並べ、ヤフオク・メルカリ・eBay・Etsyをすぐ開く =====
-const KANA={'gucci':'グッチ','longines':'ロンジン','christian dior':'ディオール','dior':'ディオール','hermes':'エルメス','rado':'ラドー','bulova':'ブローバ','fendi':'フェンディ','baume & mercier':'ボーム＆メルシエ','baume':'ボーム＆メルシエ','frederique constant':'フレデリックコンスタント','frédérique constant':'フレデリックコンスタント','oris':'オリス','seiko':'セイコー','hamilton':'ハミルトン','andre mouche':'アンドレムーシュ','omega':'オメガ','tissot':'ティソ','concord':'コンコルド','tag heuer':'タグホイヤー','cartier':'カルティエ','chanel':'シャネル','burberry':'バーバリー','citizen':'シチズン','raymond weil':'レイモンドウィル','ebel':'エベル','corum':'コルム'};
+const KANA={'gucci':'グッチ','longines':'ロンジン','christian dior':'ディオール','dior':'ディオール','hermes':'エルメス','rado':'ラドー','bulova':'ブローバ','fendi':'フェンディ','baume & mercier':'ボーム＆メルシエ','baume':'ボーム＆メルシエ','frederique constant':'フレデリックコンスタント','frédérique constant':'フレデリックコンスタント','oris':'オリス','seiko':'セイコー','hamilton':'ハミルトン','andre mouche':'アンドレムッシュ','omega':'オメガ','tissot':'ティソ','concord':'コンコルド','tag heuer':'タグホイヤー','cartier':'カルティエ','chanel':'シャネル','burberry':'バーバリー','citizen':'シチズン','raymond weil':'レイモンドウィル','ebel':'エベル','corum':'コルム'};
 // 英語の型番名 → ヤフオク用（ブランドをカタカナに）
 function jpQuery(q){ let s=String(q||'').trim(), low=s.toLowerCase(); for(const k of Object.keys(KANA).sort((a,b)=>b.length-a.length)){ const i=low.indexOf(k); if(i>=0){ s=(KANA[k]+' '+(s.slice(0,i)+s.slice(i+k.length)).trim()).trim(); break } } return s; }
 function searchLinks(q){ const e=encodeURIComponent, jp=jpQuery(q), en=String(q||'').trim(); if(!en) return '';
@@ -2841,7 +2841,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261025083545';
+const BUILD='20261025093712';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
