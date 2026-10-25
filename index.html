@@ -576,7 +576,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   nav button[data-v=items]{order:1} nav button[data-v=orders]{order:2} nav button[data-v=etsyrv]{order:3}
   nav button[data-v=tana]{order:3} nav button[data-v=research]{order:4} nav button[data-v=buy]{order:5}
   nav button[data-v=pf]{order:6} nav button[data-v=cash]{order:7} nav button[data-v=card]{order:8} nav button[data-v=bank]{order:9}
-  nav button[data-v=io]{order:10;margin-top:10px;position:relative}
+  nav button.pk{order:10} nav button[data-v=io]{order:10;margin-top:10px;position:relative}
   nav button[data-v=io]::before{content:"";position:absolute;left:14px;right:14px;top:-6px;border-top:1px solid var(--line)}
 }
 </style>
@@ -613,6 +613,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
     <button data-v="tana" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 13l2 2 4-4"/></svg><span>棚卸し</span></button>
+    <button class="mh pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Pinkoi</span></button>
     <button data-v="io" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>取込/設定</span></button>
     <button data-v="more" class="mo"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
   </nav>
@@ -665,6 +666,9 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button onclick="go('tana')">棚卸し（手元にあるか確かめる）</button>
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
+    <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')">Pinkoi 管理画面 ↗</button>
+    <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/listings','_blank','noopener')">Pinkoi 商品管理 ↗</button>
+    <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/orders','_blank','noopener')">Pinkoi 注文 ↗</button>
     <button onclick="go('io')">取込・eBay接続・設定</button>
   </div>
 </section>
@@ -2946,7 +2950,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261025120651';
+const BUILD='20261025125309';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
