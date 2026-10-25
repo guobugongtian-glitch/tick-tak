@@ -541,6 +541,12 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   #v-items tr.old90{outline:3px solid #f5a623;outline-offset:-3px}
   #v-items tr.old180 td,#v-items tr.old90 td{background:none}
 }
+/* 商品の「出品中・保管・売れた」：eBayStockっぽい灰色の箱をやめ、下線のタブ＋件数の丸（2026-10-25 本人） */
+#f1{background:none;border-radius:0;padding:0;border-bottom:1px solid var(--line);gap:0;margin-top:4px}
+#f1 .chip{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:0;border-radius:0;box-shadow:none;border-bottom:3px solid transparent;margin:0 0 -1px;padding:12px 4px 10px;color:var(--sub);font-weight:600;font-size:15px}
+#f1 .chip .cnt{font-size:12px;font-weight:700;background:var(--fill);color:var(--sub);border-radius:999px;padding:1px 9px;min-width:28px;text-align:center}
+#f1 .chip.on{background:none;box-shadow:none;color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+#f1 .chip.on .cnt{background:var(--accent);color:#fff}
 /* ===== パソコンは左の縦メニュー（メルカリShopsの管理画面風）2026-10-25 本人の希望。スマホの下タブはそのまま ===== */
 @media (min-width:701px){
   #app{padding-left:232px}
@@ -681,6 +687,10 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 
 <!-- リサーチ -->
 <section id="v-research" class="hide">
+  <div class="card">
+    <h3 style="margin-top:0">いつも見る</h3>
+    <div id="rwatch"></div>
+  </div>
   <div class="card">
     <h3 style="margin-top:0">他の店で売れた（Etsy・日本の時計の店）</h3>
     <p class="sub" style="margin-top:0">毎週月曜の朝に、Etsyの腕時計×日本の店の出品を控え、前の週から消えた出品を確かめます。Etsyで「売り切れ」になっていたら売れた、と数えます（推定。期限切れ・取り下げは数えない）。1週目は控えるだけで、売れた分は2週目から出ます。</p>
@@ -1075,13 +1085,13 @@ document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
 const F = {status:'listed', location:null, location_status:null};
 function chips(el, opts, key, after){
   el.innerHTML=''; opts.forEach(o=>{ const b=document.createElement('button'); b.className='chip'+(F[key]===o.v?' on':'');
-    b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
+    if(o.h) b.innerHTML=o.h; else b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
 }
 async function initFilters(){
   // 件数だけ数える（中身は読まない）
   const n=async s=>(await sb.from('items').select('kno',{count:'exact',head:true}).eq('status',s)).count||0;
   const [a,b,c]=await Promise.all([n('listed'),n('stock'),n('sold')]);
-  chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`})), 'status', ()=>{F.location=null;F.location_status=null});
+  chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`,h:`${t}<b class="cnt">${k.toLocaleString()}</b>`})), 'status', ()=>{F.location=null;F.location_status=null});
 }
 let RES = {};
 // 長期在庫：仕入日（なければ最初に出品した日）から何日たったか。listed_onは出し直しで新しくなるので使わない。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
@@ -1784,6 +1794,15 @@ function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.datase
         <a class="go e" href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120" target="_blank" rel="noopener">eBay<br>売れた相場 ›</a></div></div>` }).join('')||'<p class="sub">当てはまる型がありません。「全部」を押すとすべて出ます。</p>';
   const nd=RSTAT.reduce((s,x)=>s+x.sold-x.days.length,0);
   rnote.textContent=`全部の販売の集計です（${RSTAT.length}型。型番マスタに無い商品は商品名から型番を拾っています）。利益は送料の決まりで計算し、広告費などを引く前。`+(nd?` 売れるまでの日数が入っていない販売が${nd}本あります。「取込/設定」で実績明細をもう一度取り込むと入ります。`:''); }
+// リサーチ「いつも見る」：打たずに1タップで開く。上限は総額の目安（推定・2026-10-25 実績11本の売値中央値36,350円から）
+const WATCH=[{name:'アンドレムッシュ',q:'アンドレムッシュ',max:13800}];
+function renderWatch(){ const e=encodeURIComponent, a=(t,u,c)=>`<a class="lk ${c||''}" href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  rwatch.innerHTML=WATCH.map(w=>`<div class="rname">${w.name} <span class="sub">上限 ${w.max.toLocaleString()}円（推定）</span></div><div class="row rlinks">`
+    +a('ヤフオク 上限以下',`https://auctions.yahoo.co.jp/search/search?p=${e(w.q)}&va=${e(w.q)}&aucmaxprice=${w.max}&s1=end&o1=a&n=100`,'y')
+    +a('ヤフオク 落札相場',`https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(w.q)}&va=${e(w.q)}&b=1&n=50`,'y')
+    +a('メルカリ 上限以下',`https://jp.mercari.com/search?keyword=${e(w.q)}&status=on_sale&price_max=${w.max}&sort=created_time&order=desc`,'y')
+    +a('メルカリ 売り切れ',`https://jp.mercari.com/search?keyword=${e(w.q)}&status=sold_out`,'y')+'</div>').join('') }
+renderWatch();
 rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
 document.querySelectorAll('#rtabs .chip').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#rtabs .chip').forEach(x=>x.classList.toggle('on',x===b)); drawResearch() });
 
@@ -2860,7 +2879,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261025095512';
+const BUILD='20261025114220';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
