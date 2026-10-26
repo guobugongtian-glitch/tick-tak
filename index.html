@@ -966,7 +966,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <div id="rcimg" style="text-align:center;margin-bottom:10px"></div>
     <div class="rcf">
       <label>日付<input id="rc_d" type="date"></label>
-      <label>金額（円・税込）<input id="rc_a" type="number" inputmode="numeric" placeholder="1234"></label>
+      <label>金額（円・税込）<input id="rc_a" inputmode="numeric" placeholder="1234"></label>
       <label>お店<input id="rc_s" placeholder="ダイソー 水戸店"></label>
       <label>科目<select id="rc_c"></select></label>
       <label>払い方<select id="rc_p"></select></label>
@@ -3045,7 +3045,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261026153357';
+const BUILD='20261026153938';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
