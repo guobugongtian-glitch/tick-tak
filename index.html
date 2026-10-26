@@ -620,7 +620,6 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button data-v="rcpt" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>レシート</span></button>
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
-    <button data-v="tana" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 13l2 2 4-4"/></svg><span>棚卸し</span></button>
     <button class="mh pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Pinkoi</span></button>
     <button class="mh pk" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Grailed</span></button>
     <button data-v="io" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>取込/設定</span></button>
@@ -672,7 +671,6 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button onclick="go('research')">リサーチ・利益計算</button>
     <button onclick="go('orders')">販売情報</button>
     <button onclick="go('etsyrv')">Etsyの出品の見直し</button>
-    <button onclick="go('tana')">棚卸し（手元にあるか確かめる）</button>
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
     <button onclick="go('rcpt')">経費のレシート</button>
@@ -736,7 +734,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
       <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
     <div class="row sub">残したい利益 <input id="rtarget" type="number" value="3000" style="width:90px" oninput="drawResearch()"> 円
       買わないブランド <input id="rng" type="text" style="flex:1;min-width:140px" oninput="saveRng();drawResearch()"></div>
-    <p class="sub" style="margin:4px 0 0">買値の上限＝売れた値段（商品代のみ）×0.66 − 送料5,000 − ワンロック2,200 − 残したい利益（10月の仕入計画の式）。「今月狙う」＝おすすめの型のうち、同じ型の出品中が2本未満で、買わないブランドでないもの。</p>
+    <p class="sub" style="margin:4px 0 0">おすすめ順＝利益/本 × 売れた数 × 速さ × 仕入値に対する利益 × 他の店の回転（ブランドごと、推定）。仕入値に対する利益が30%未満、または出品中の半分以上が90日超の型は「避けたい」に入ります。<br>買値の上限＝売れた値段（商品代のみ）×0.66 − 送料5,000 − ワンロック2,200 − 残したい利益（10月の仕入計画の式）。「今月狙う」＝おすすめの型のうち、同じ型の出品中が2本未満で、買わないブランドでないもの。</p>
     <div id="rcards"></div>
     <p class="sub" id="rnote"></p>
   </div>
@@ -1823,24 +1821,33 @@ async function loadResearch(){ loadMarket(); rcards.innerHTML='<p class="sub">�
   its.forEach(r=>{ const mk=r.research?.name?null:modelKey(r.title); const n=r.research?.name||mk?.name; if(!n) return; const x=g[n]??={name:n,brand:r.research?.brand||mk?.brand||'',guess:!!mk,sold:0,listed:0,stock:0,old:0,sales:[],ips:[],prof:[],days:[],costs:[],eb:0,et:0};
     if(r.cost_jpy) x.costs.push(r.cost_jpy);
     if(r.status==='sold'){ const o=r.orders?.[0]; if(!o) return; x.sold++; const s=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);
-      x.sales.push(s); if(o.item_price_jpy) x.ips.push(o.item_price_jpy); x.prof.push(s-(r.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)); x.cut=(x.cut||0)+shipOf(o)+(o.sales_fee_jpy||0)+(o.payoneer_fee_jpy||0)+(o.duty_jpy||0);
+      x.sales.push(s); if(o.item_price_jpy) x.ips.push(o.item_price_jpy); x.prof.push(s-(r.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)); if(r.cost_jpy) (x.rois??=[]).push(100*x.prof[x.prof.length-1]/r.cost_jpy); x.cut=(x.cut||0)+shipOf(o)+(o.sales_fee_jpy||0)+(o.payoneer_fee_jpy||0)+(o.duty_jpy||0);
       if(o.platform==='eBay') x.eb++; else x.et++;
       if(r.listed_on&&r.sold_on) x.days.push(Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5));
     } else if(r.status==='listed'){ x.listed++; const f=r.first_listed_on||r.listed_on; if(f&&(Date.now()-new Date(f))/864e5>90) x.old++ } else x.stock++; });
   RSTAT=Object.values(g).map(x=>{ const avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
-    return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),mip:med(x.ips),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null} });
-  drawResearch(); }
+    return {...x,md:med(x.days),w90:x.days.length?Math.round(100*x.days.filter(d=>d<=90).length/x.days.length):null,ap:avg(x.prof),ms:med(x.sales),mip:med(x.ips),ac:avg(x.costs),minc:x.costs.length?Math.min(...x.costs):null,maxc:x.costs.length?Math.max(...x.costs):null,acut:x.sold?x.cut/x.sold:null,roi:x.rois?.length?Math.round(med(x.rois)):null} });
+  await loadMkRate(); drawResearch(); }
+// 他の店（Etsy）の1週の回転＝いちばん新しい週に売れた本数÷控えた出品数。ブランドごと（推定）2026-10-26
+let MKRATE={};
+async function loadMkRate(){ try{ const {data:runs}=await sb.from('etsy_market_run').select('week').eq('phase','done').order('week',{ascending:false}).limit(1); const w=runs?.[0]?.week; if(!w) return;
+  const rows=await allRows(()=>sb.from('etsy_market').select('brand,title,sold_on').order('listing_id')); const g={};
+  rows.forEach(x=>{ if(x.sold_on&&x.sold_on<w) return; const b=mkBrand(x.brand||x.title); if(!b) return; const o=g[b]??={n:0,s:0}; o.n++; if(x.sold_on===w) o.s++ });
+  MKRATE=g; MKRATE._w=w }catch(e){} }
+const mkRateOf=x=>{ const r=MKRATE[mkBrand(x.brand+' '+x.name)]; return r&&r.n>=40?{...r,p:Math.round(1000*r.s/r.n)/10}:null };
 const RNG_DEF='SEIKO, ORIS, HAMILTON, BULOVA, BAUME';
 function getRng(){ try{ const v=localStorage.getItem('ws_rng'); return v==null?RNG_DEF:v }catch(e){ return RNG_DEF } }
 function saveRng(){ try{ localStorage.setItem('ws_rng',rng.value) }catch(e){} }
 function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.dataset.init!=='1'){ rng.value=getRng(); rng.dataset.init='1' } const k=(rkw.value||'').toLowerCase(), target=+rtarget.value||0, esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   // おすすめ＝3本以上売れて、利益1万円以上、90日以内に7割以上（日数が入っていない間は利益と本数だけで判定）。避けたい＝売れるまで120日超、または赤字
-  const isRec=x=>x.sold>=3&&x.ap>=10000&&(x.w90==null||x.w90>=70), isNg=x=>x.sold>=3&&((x.md!=null&&x.md>120)||x.ap<3000);
+  const glut=x=>x.listed>=4&&x.old*2>=x.listed;   // 出品中の半分以上が90日超＝在庫が多すぎる
+  const isRec=x=>x.sold>=3&&x.ap>=10000&&(x.w90==null||x.w90>=70)&&(x.roi==null||x.roi>=35)&&!glut(x), isNg=x=>x.sold>=3&&((x.md!=null&&x.md>120)||x.ap<3000||(x.roi!=null&&x.roi<30)||glut(x));
   const ngb=getRng().split(/[,、\s]+/).map(b=>b.trim().toUpperCase()).filter(Boolean), isOff=x=>ngb.some(b=>(x.brand+' '+x.name).toUpperCase().includes(b));
   const isBuy=x=>isRec(x)&&x.listed<2&&!isOff(x);
   const tab=document.querySelector('#rtabs .on')?.dataset.r||'buy';
   let a=RSTAT.filter(x=>(!k||(x.name+' '+x.brand+' '+jpQuery(x.name)).toLowerCase().includes(k))&&(k||tab==='all'||({buy:isBuy,rec:isRec,ng:isNg}[tab])(x)));
-  const rec=x=>(isRec(x)?1e9:0)+(x.ap||0)*((x.w90??60)/100)*Math.min(1,x.sold/5);
+  const rec=x=>{ const m=mkRateOf(x), mf=!m?1:m.p>=2?1.2:m.s===0?0.7:1;
+    return (isRec(x)?1e9:0)+(x.ap||0)*((x.w90??60)/100)*Math.min(1,x.sold/5)*(1+Math.min(x.roi??40,200)/100)*mf*(glut(x)?0.5:1) };
   const few=x=>x.sold<3?1:0;   // 1〜2本しか売れていない型は、利益順・速さ順では後ろに回す
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>few(p)-few(q)||(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>few(p)-few(q)||(p.md??1e9)-(q.md??1e9)}[rsort.value]);
   rcards.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
@@ -1855,8 +1862,10 @@ function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.datase
           <span>利益/本<b class="${x.ap<0?'neg':''}">${x.ap!=null?yen(x.ap)+'円':'—'}</b></span>
           <span>売れるまで<b>${x.md!=null?x.md+'日':'—'}${x.w90!=null?`（90日内 ${x.w90}%）`:''}</b></span>
           <span>売れた数<b>${x.sold}本</b></span>
+          <span>仕入値に対する利益<b class="${x.roi!=null&&x.roi<30?'neg':''}">${x.roi!=null?x.roi+'%':'—'}</b></span>
+          <span>他の店の回転（1週）<b>${(m=>m?`${m.p}%（${m.n}本中${m.s}本）`:'—')(mkRateOf(x))}</b></span>
         </div>
-        <div class="rsub">落札価格の幅 ${x.minc!=null?`${yen(x.minc)}〜${yen(x.maxc)}円`:'—'}・出品中 ${x.listed}本${x.old?`（90日超 <span class="neg">${x.old}本</span>）`:''}${x.stock?`・保管 ${x.stock}本`:''}・eBay ${x.eb}／Etsyほか ${x.et}
+        <div class="rsub">落札価格の幅 ${x.minc!=null?`${yen(x.minc)}〜${yen(x.maxc)}円`:'—'}・出品中 ${x.listed}本${x.old?`（90日超 <span class="neg">${x.old}本</span>）`:''}${glut(x)?'<span class="neg">・在庫が多すぎ</span>':''}${x.stock?`・保管 ${x.stock}本`:''}・eBay ${x.eb}／Etsyほか ${x.et}
           　<a href="https://jp.mercari.com/search?keyword=${e(jp)}&status=on_sale" target="_blank" rel="noopener">メルカリ</a>・<a href="https://www.ebay.com/sch/i.html?_nkw=${e(en)}&_sacat=31387&LH_Sold=1&LH_Complete=1" target="_blank" rel="noopener">eBay売れた</a>・<a href="https://www.etsy.com/search?q=${e(en+' watch')}" target="_blank" rel="noopener">Etsy</a></div>
       </div>
       <div class="rgo"><a class="go y" href="https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(jp)}&va=${e(jp)}&b=1&n=50" target="_blank" rel="noopener">ヤフオク<br>落札相場 ›</a>
@@ -3045,7 +3054,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261026153938';
+const BUILD='20261026162956';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
