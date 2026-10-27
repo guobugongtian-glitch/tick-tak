@@ -1000,6 +1000,18 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <details class="fold"><summary class="sub">説明文の下に付ける決まり文句（この端末に保存）</summary>
       <textarea id="jpfoot" rows="6" style="width:100%"></textarea><div class="row"><button class="btn s" type="button" onclick="jpFootSave()">保存して作り直す</button></div></details>
   </div></dialog>
+<dialog id="osdlg"><div class="dh"><b>eBay・Etsy以外で売れた</b><button class="btn s" type="button" onclick="osdlg.close()">✕</button></div>
+  <div class="db">
+    <p class="sub" id="ostitle" style="margin-top:0"></p>
+    <label>どこで<select id="ospf" onchange="osFee()"><option>Pinkoi</option><option>Shopee</option><option>メルカリ</option><option>ヤフオク</option><option>その他</option></select></label>
+    <label>売れた日<input id="osday" type="date"></label>
+    <label>売値（円・送料を除く）<input id="osprice" inputmode="numeric" placeholder="Pinkoiは商品ページの円の値段"></label>
+    <label>手数料（%）<input id="osfee" inputmode="decimal"></label>
+    <label>実際の送料（円）<input id="osship" inputmode="numeric"></label>
+    <label>注文番号（なくてもよい）<input id="osno"></label>
+    <div class="row"><button class="btn" type="button" onclick="osSave()">売れたにする</button><span id="osmsg" class="sub"></span></div>
+    <div id="osout" class="sub"></div>
+  </div></dialog>
 <dialog id="rdlg"><div class="dh"><b>レシート</b><button class="btn s" type="button" onclick="rdlg.close()">✕</button></div>
   <div class="db">
     <div id="rcimg" style="text-align:center;margin-bottom:10px"></div>
@@ -1085,7 +1097,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><button class="btn s" type="button" onclick="jpOpen()">ヤフオク・メルカリ用</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><button class="btn s" type="button" onclick="jpOpen()">ヤフオク・メルカリ用</button><button class="btn s" type="button" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="osOpen()">Pinkoiなどで売れた</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <dialog id="edlg"><div class="dh"><b>写真の編集</b><button class="btn s" type="button" onclick="edlg.close()">✕</button></div>
@@ -1240,6 +1252,26 @@ async function jpSold(){ const m=JP.m, nm=JP_NAME[m], x=JP.jp[m]; const v=window
   const et=await etsyCall('active_listings').catch(()=>({})); const l=(et.listings||[]).find(l=>(l.skus||[]).map(String).includes(String(JP.f.kno)));
   out.push(l?`<b class="neg">Etsyにも出ています → 止めてください</b> <a href="https://www.etsy.com/your/shops/me/listing-editor/edit/${+l.listing_id}" target="_blank" rel="noopener">開く ›</a>`:et.error?'Etsyは確かめられませんでした。出ていたら止めてください':'Etsyには出ていません');
   jpRec(); jpout.innerHTML=out.join('<br>'); initFilters(); loadItems(); loadHero(); jpTodo(); }
+// eBay・Etsy以外（Pinkoi・Shopee・国内）で売れたとき。①eBayの出品を取り下げ ②商品を「販売」＋売れた日 ③注文を1件 ④Etsyに出ていないか確かめる
+// 手数料・送料の初期値は今までの実績から（Pinkoi 12.5%・送料176円＝日本倉庫まで）
+const OS_DEF={Pinkoi:[12.5,176],Shopee:[0,0],'メルカリ':[10,750],'ヤフオク':[10,750],'その他':[0,0]};
+function osFee(){ const d=OS_DEF[ospf.value]||[0,0]; osfee.value=d[0]; osship.value=d[1]; }
+function osOpen(){ const kno=+ifm.kno.value; if(!kno){ dmsg.textContent='先に品番を入れてください'; return }
+  ostitle.textContent=`品番 ${kno}　${ifm.title.value||''}`; ospf.value='Pinkoi'; osday.value=jpToday(); osprice.value=''; osno.value=''; osmsg.textContent=''; osout.innerHTML=''; osFee(); osdlg.showModal(); }
+async function osSave(){ const kno=+ifm.kno.value, pf=ospf.value, price=+String(osprice.value).replace(/[^\d]/g,''), d=osday.value;
+  if(!price||!d){ osmsg.textContent='売値と日付を入れてください'; return }
+  const {data:cur}=await sb.from('items').select('ebay_item_id,status').eq('kno',kno).maybeSingle(); const {data:dup}=await sb.from('orders').select('id').eq('kno',kno).limit(1);
+  if(!window.confirm(`品番 ${kno} を「${pf}で ${yen(price)}円で売れた（${d}）」にします。\n\n・商品は「販売」になります\n・売上に入れます${cur?.ebay_item_id?'\n・eBayの出品を取り下げます':''}${dup?.length?'\n\n※この品番はもう売上が入っています。二重になりませんか？':''}\n\nよろしいですか？`)) return;
+  const out=[]; osmsg.textContent='進めています…';
+  if(cur?.ebay_item_id){ const r=await ebayCall('end_listing',{kno}); out.push(r.ok?'eBayの出品を取り下げました':`<b class="neg">eBayを取り下げられませんでした：${String(r.error||(r.errors||[]).join(' ')).replace(/[<>&]/g,'')}</b>　eBayの画面で終了してください`) }
+  const {error}=await sb.from('items').update({status:'sold',sold_on:d,location_status:null}).eq('kno',kno); if(error){ osmsg.textContent='保存できません：'+error.message; return }
+  const {error:e2}=await sb.from('orders').insert({kno,ordered_on:d,platform:pf,order_no:osno.value.trim()||null,country:pf==='Pinkoi'?'TW':['メルカリ','ヤフオク'].includes(pf)?'JP':null,
+    item_price_jpy:price,ship_charged_jpy:0,ship_actual_jpy:+osship.value||0,sales_fee_jpy:Math.round(price*(+osfee.value||0)/100)});
+  out.push(e2?`<b class="neg">売上に入れられませんでした：${e2.message}</b>`:'売上に入れました'); ifm.status.value='sold'; ifm.sold_on.value=d;
+  const et=await etsyCall('active_listings').catch(()=>({})); const l=(et.listings||[]).find(l=>(l.skus||[]).map(String).includes(String(kno)));
+  out.push(l?`<b class="neg">Etsyにも出ています → 止めてください</b> <a href="https://www.etsy.com/your/shops/me/listing-editor/edit/${+l.listing_id}" target="_blank" rel="noopener">開く ›</a>`:et.error?'Etsyは確かめられませんでした。出ていたら止めてください':'Etsyには出ていません');
+  if(pf!=='Pinkoi') out.push('Pinkoiに出していたら、Pinkoiも止めてください');
+  osmsg.textContent=''; osout.innerHTML=out.join('<br>'); initFilters(); loadItems(); loadHero(); }
 // 商品の画面の上：売れたのにほかで出たままのもの（国内）を出す
 async function jpTodo(){ const {data}=await sb.from('items').select('kno,title,status,jp').not('jp','is',null).eq('status','sold');
   const rows=[]; (data||[]).forEach(r=>Object.entries(JP_NAME).forEach(([k,n])=>{ const x=r.jp?.[k]; if(x?.on&&!x.off&&!x.sold) rows.push({r,k,n,x}) }));
@@ -3207,7 +3239,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261027152741';
+const BUILD='20261027155349';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
