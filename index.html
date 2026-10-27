@@ -1185,7 +1185,6 @@ const jw=v=>v==null?'':String(v).split(/\s*,\s*/).map(x=>JP_WORD[x]||x).join('�
 const JP_COND={'Brand New':0,'Unused':0,'Almost Unused':1,'Top MINT':1,'MINT':2,'Almost MINT':2,'Near MINT':2,'Exc+5':3,'Exc+4':3,'Exc+3':4,'Exc':4,'As-Is':5,'For Parts':5};
 const JP_CN=[['新品、未使用','未使用'],['未使用に近い'],['目立った傷や汚れなし'],['やや傷や汚れあり'],['傷や汚れあり'],['全体的に状態が悪い']];
 const JP_FOOT_DEF=`中古品のため、写真をよくご確認ください。
-写真に写っているものがすべてです。
 ご質問はお気軽にどうぞ。`;
 const jpFoot=()=>{ try{ return localStorage.getItem('tt_jp_foot')??JP_FOOT_DEF }catch(e){ return JP_FOOT_DEF } };
 let JP=null;
@@ -1194,7 +1193,7 @@ async function jpOpen(){ const f=Object.fromEntries(new FormData(ifm)); f.specs=
   JP={f,ph:[...PH],m:'mercari'}; jpfoot.value=jpFoot(); document.querySelectorAll('.jpt').forEach(b=>b.classList.toggle('on',b.dataset.m==='mercari')); jpDraw(); jpdlg.showModal(); }
 function jpTab(b){ document.querySelectorAll('.jpt').forEach(x=>x.classList.toggle('on',x===b)); JP.m=b.dataset.m; jpDraw(); }
 function jpTitle(f,max){ const sp=f.specs, br=sp.Brand||'', ref=sp['Reference Number']||sp.Model||'';
-  const parts=[KANA_BRAND[br]||'', br, ref, jw(sp.Movement), jw(sp.Department), '腕時計', 'ヴィンテージ', jw(sp['Dial Color'])&&jw(sp['Dial Color'])+'文字盤', '稼働品'].filter(Boolean);
+  const parts=[KANA_BRAND[br]||'', br, ref, jw(sp.Movement), jw(sp.Department), '腕時計', 'ヴィンテージ', jw(sp['Dial Color'])&&jw(sp['Dial Color'])+'文字盤', (JP_COND[f.condition]??2)<5&&'稼働品'].filter(Boolean);
   let t=''; for(const p of parts){ const n=t?t+' '+p:p; if(n.length<=max) t=n } return t; }
 function jpDraw(){ const {f,m}=JP, sp=f.specs, mer=m==='mercari', ci=JP_COND[f.condition]??2;
   jpttl.value=jpTitle(f,mer?40:65); jpLen();
@@ -3166,7 +3165,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261027151054';
+const BUILD='20261027151144';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
