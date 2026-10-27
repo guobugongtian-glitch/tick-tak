@@ -27,6 +27,7 @@ main{padding:16px;max-width:1200px;margin:auto}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0}
 .chip{border:0;border-radius:6px;padding:6px 12px;background:#6b7280;color:#fff;cursor:pointer;font:inherit}
 .chip.on{background:var(--warn);color:#222}
+.jpt.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
 textarea{width:100%;min-height:60px}
 .btn{border:0;border-radius:6px;padding:7px 14px;background:var(--accent);color:#fff;cursor:pointer;font:inherit}
@@ -980,6 +981,18 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 </section>
 
 </main>
+<dialog id="jpdlg"><div class="dh"><b>ヤフオク・メルカリに出す</b><button class="btn s" type="button" onclick="jpdlg.close()">✕</button></div>
+  <div class="db">
+    <div class="row"><button class="btn s jpt on" type="button" data-m="mercari" onclick="jpTab(this)">メルカリ</button><button class="btn s jpt" type="button" data-m="yahoo" onclick="jpTab(this)">ヤフオク</button></div>
+    <label class="sub">タイトル <span id="jptl"></span></label><div class="row"><textarea id="jpttl" rows="2" style="flex:1" oninput="jpLen()"></textarea><button class="btn s" type="button" onclick="jpCopy('jpttl',this)">コピー</button></div>
+    <label class="sub">状態（選ぶ所）</label><div class="row"><input id="jpcond" readonly style="flex:1"></div>
+    <label class="sub">値段（円）</label><div class="row"><input id="jpprice" inputmode="numeric" style="flex:1"><button class="btn s" type="button" onclick="jpCopy('jpprice',this)">コピー</button></div>
+    <p id="jppn" class="sub" style="margin:0 0 8px"></p>
+    <label class="sub">説明文</label><div class="row"><textarea id="jpdesc" rows="12" style="flex:1"></textarea><button class="btn s" type="button" onclick="jpCopy('jpdesc',this)">コピー</button></div>
+    <div class="row"><button class="btn s" type="button" onclick="jpPhotos()">写真を保存（<span id="jppc"></span>枚）</button><span id="jpmsg" class="sub"></span></div>
+    <details class="fold"><summary class="sub">説明文の下に付ける決まり文句（この端末に保存）</summary>
+      <textarea id="jpfoot" rows="6" style="width:100%"></textarea><div class="row"><button class="btn s" type="button" onclick="jpFootSave()">保存して作り直す</button></div></details>
+  </div></dialog>
 <dialog id="rdlg"><div class="dh"><b>レシート</b><button class="btn s" type="button" onclick="rdlg.close()">✕</button></div>
   <div class="db">
     <div id="rcimg" style="text-align:center;margin-bottom:10px"></div>
@@ -1065,7 +1078,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><button class="btn s" type="button" onclick="jpOpen()">ヤフオク・メルカリ用</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <dialog id="edlg"><div class="dh"><b>写真の編集</b><button class="btn s" type="button" onclick="edlg.close()">✕</button></div>
@@ -1163,6 +1176,47 @@ async function bioUnlock(){ try{ await navigator.credentials.get({publicKey:{cha
 async function pinForgot(){ pinClear(); await sb.auth.signOut(); location.reload(); }
 // 10分以上ほかのアプリにいたら、戻ったときにもう一度鍵をかける
 let __hidAt=0; document.addEventListener('visibilitychange',()=>{ if(document.hidden){ __hidAt=Date.now(); return } if(window.__unlocked&&pinHas()&&__hidAt&&Date.now()-__hidAt>6e5) pinLock() });
+
+// ===== ヤフオク・メルカリ用の下書き（個人アカウントには出品の仕組みが無いので、コピーして貼る） =====
+const KANA_BRAND={'GUCCI':'グッチ','Gucci':'グッチ','Christian Dior':'クリスチャンディオール','Dior':'ディオール','Andre Mouche':'アンドレモッシュ','ANDRE MOUCHE':'アンドレモッシュ','BULOVA':'ブローバ','Bulova':'ブローバ','SEIKO':'セイコー','Seiko':'セイコー','CITIZEN':'シチズン','Citizen':'シチズン','OMEGA':'オメガ','Omega':'オメガ','LONGINES':'ロンジン','Longines':'ロンジン','TISSOT':'ティソ','Tissot':'ティソ','Cartier':'カルティエ','CARTIER':'カルティエ','RADO':'ラドー','Rado':'ラドー','BAUME & MERCIER':'ボーム&メルシエ','Baume & Mercier':'ボーム&メルシエ','HERMES':'エルメス','Hermes':'エルメス','CHANEL':'シャネル','Chanel':'シャネル','TAG Heuer':'タグホイヤー','ORIENT':'オリエント','Orient':'オリエント','CASIO':'カシオ','Casio':'カシオ','Michel Herbelin':'ミッシェルエルブラン','Burberry':'バーバリー','BURBERRY':'バーバリー','Givenchy':'ジバンシィ','Courreges':'クレージュ','COURREGES':'クレージュ','Yves Saint Laurent':'イヴサンローラン','Christian Bernard':'クリスチャンベルナール'};
+const JP_WORD={'Quartz':'クオーツ','Automatic':'自動巻き','Mechanical (Automatic)':'自動巻き','Mechanical (Manual)':'手巻き','Manual':'手巻き','Hand-winding':'手巻き','Women':'レディース','Men':'メンズ','Unisex':'ユニセックス','Unisex Adult':'ユニセックス','Stainless Steel':'ステンレス','Leather':'革','Gold Plated':'金メッキ','Gold-plated':'金メッキ','Gold Tone':'ゴールドカラー','Silver Tone':'シルバーカラー','Two Tone':'コンビ','Black':'黒','White':'白','Silver':'シルバー','Gold':'ゴールド','Blue':'青','Brown':'茶','Ivory':'アイボリー','Champagne':'シャンパン','Green':'緑','Red':'赤','Pink':'ピンク','Gray':'グレー','Grey':'グレー','Mother of Pearl':'シェル','Analog':'アナログ','Round':'丸型','Square':'角型','Rectangle':'長方形','Oval':'オーバル'};
+const jw=v=>v==null?'':String(v).split(/\s*,\s*/).map(x=>JP_WORD[x]||x).join('・');
+// 状態の名前（メルカリとヤフオクは同じ6段階。メルカリだけ一番上が「新品、未使用」）
+const JP_COND={'Brand New':0,'Unused':0,'Almost Unused':1,'Top MINT':1,'MINT':2,'Almost MINT':2,'Near MINT':2,'Exc+5':3,'Exc+4':3,'Exc+3':4,'Exc':4,'As-Is':5,'For Parts':5};
+const JP_CN=[['新品、未使用','未使用'],['未使用に近い'],['目立った傷や汚れなし'],['やや傷や汚れあり'],['傷や汚れあり'],['全体的に状態が悪い']];
+const JP_FOOT_DEF=`中古品のため、写真をよくご確認ください。
+写真に写っているものがすべてです。
+ご質問はお気軽にどうぞ。`;
+const jpFoot=()=>{ try{ return localStorage.getItem('tt_jp_foot')??JP_FOOT_DEF }catch(e){ return JP_FOOT_DEF } };
+let JP=null;
+async function jpOpen(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
+  if(!f.kno){ dmsg.textContent='先に品番を入れてください'; return }
+  JP={f,ph:[...PH],m:'mercari'}; jpfoot.value=jpFoot(); document.querySelectorAll('.jpt').forEach(b=>b.classList.toggle('on',b.dataset.m==='mercari')); jpDraw(); jpdlg.showModal(); }
+function jpTab(b){ document.querySelectorAll('.jpt').forEach(x=>x.classList.toggle('on',x===b)); JP.m=b.dataset.m; jpDraw(); }
+function jpTitle(f,max){ const sp=f.specs, br=sp.Brand||'', ref=sp['Reference Number']||sp.Model||'';
+  const parts=[KANA_BRAND[br]||'', br, ref, jw(sp.Movement), jw(sp.Department), '腕時計', 'ヴィンテージ', jw(sp['Dial Color'])&&jw(sp['Dial Color'])+'文字盤', '稼働品'].filter(Boolean);
+  let t=''; for(const p of parts){ const n=t?t+' '+p:p; if(n.length<=max) t=n } return t; }
+function jpDraw(){ const {f,m}=JP, sp=f.specs, mer=m==='mercari', ci=JP_COND[f.condition]??2;
+  jpttl.value=jpTitle(f,mer?40:65); jpLen();
+  jpcond.value=JP_CN[ci][mer?0:JP_CN[ci].length-1];
+  // 値段：手数料10%と送料を引いて仕入値＋1,000円が残る値段が下限。目安はeBay売価の8割（円）
+  const ship=750, cost=+f.cost_jpy||0, low=Math.ceil((cost+ship+1000)/0.9/100)*100, ebay=f.price_usd?Math.round(f.price_usd*getS().fx*0.8/100)*100:0;
+  jpprice.value=Math.max(low,ebay)||''; jppn.textContent=`下限 ${yen(low)}円（手数料10%・送料${ship}円を引いて仕入値＋1,000円残る）`+(ebay?`／eBay売価の8割 ${yen(ebay)}円`:'')+'。送料込みで出す前提です。';
+  const L=(k,v)=>v?`【${k}】${v}\n`:'';
+  jpdesc.value=`${jpTitle(f,80)}\n\n`+L('商品番号',f.kno)+L('ブランド',[sp.Brand,KANA_BRAND[sp.Brand]].filter(Boolean).join(' / '))+L('型番',sp['Reference Number']||sp.Model)+L('ムーブメント',jw(sp.Movement))
+    +L('対象',jw(sp.Department))+L('ケース',[jw(sp['Case Material']),sp['Case Size']&&'幅 '+sp['Case Size']].filter(Boolean).join('　'))+L('ベルト',[jw(sp['Band Material']),sp['Max Wrist Size']&&'腕回り '+sp['Max Wrist Size']+'まで'].filter(Boolean).join('　'))
+    +L('文字盤',jw(sp['Dial Color']))+L('状態',JP_CN[ci][JP_CN[ci].length-1])+L('動作',f.condition_note)+L('外観',f.appearance_note)+L('付属品',f.accessories||'写真に写っているものがすべてです')+`\n${jpfoot.value}`;
+  const n=Math.min(JP.ph.length,mer?20:10); jppc.textContent=n+(JP.ph.length>n?`／${JP.ph.length}`:''); jpmsg.textContent=''; }
+function jpLen(){ const max=JP?.m==='yahoo'?65:40, n=jpttl.value.length; jptl.textContent=`${n}／${max}字`; jptl.style.color=n>max?'var(--bad)':''; }
+function jpFootSave(){ try{ localStorage.setItem('tt_jp_foot',jpfoot.value) }catch(e){} jpDraw(); }
+async function jpCopy(id,b){ try{ await navigator.clipboard.writeText($(id).value) }catch(e){ $(id).select(); document.execCommand('copy') } const t=b.textContent; b.textContent='コピーしました'; setTimeout(()=>b.textContent=t,1200); }
+// 写真：スマホは「共有」で写真アプリに保存、パソコンはダウンロード
+async function jpPhotos(){ const n=JP.m==='mercari'?20:10, us=JP.ph.slice(0,n).map(u=>u.includes('i.ebayimg.com')?u.replace(/\/s-l\d+\./,'/s-l1600.'):u); jpmsg.textContent='写真を集めています…';
+  const fs=[]; for(const [i,u] of us.entries()){ try{ const b=await fetch(u).then(r=>{ if(!r.ok) throw 0; return r.blob() }); fs.push(new File([b],`${JP.f.kno}_${String(i+1).padStart(2,'0')}.jpg`,{type:b.type||'image/jpeg'})) }catch(e){} }
+  if(!fs.length){ jpmsg.textContent='写真を取れませんでした'; return }
+  if(navigator.canShare?.({files:fs})&&matchMedia('(max-width:700px)').matches){ try{ await navigator.share({files:fs}); jpmsg.textContent=''; return }catch(e){ if(e.name==='AbortError'){ jpmsg.textContent=''; return } } }
+  for(const x of fs){ const a=document.createElement('a'); a.href=URL.createObjectURL(x); a.download=x.name; a.click(); await new Promise(r=>setTimeout(r,250)); URL.revokeObjectURL(a.href) }
+  jpmsg.textContent=`${fs.length}枚 保存しました`+(fs.length<us.length?`（${us.length-fs.length}枚は取れませんでした）`:''); }
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
@@ -3112,7 +3166,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261027131410';
+const BUILD='20261027151054';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
