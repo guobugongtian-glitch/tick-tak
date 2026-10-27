@@ -653,6 +653,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 <!-- 商品管理 -->
 <section id="v-items">
   <div id="greet" class="greet hide"></div>
+  <div id="jptodo" class="card hide" style="border:2px solid var(--bad)"></div>
   <div class="hero">
     <div class="hl"><span id="hm">今月</span>の売上</div>
     <div class="hbig"><span id="hsales">—</span><small>円</small></div>
@@ -990,6 +991,12 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <p id="jppn" class="sub" style="margin:0 0 8px"></p>
     <label class="sub">説明文</label><div class="row"><textarea id="jpdesc" rows="12" style="flex:1"></textarea><button class="btn s" type="button" onclick="jpCopy('jpdesc',this)">コピー</button></div>
     <div class="row"><button class="btn s" type="button" onclick="jpPhotos()">写真を保存（<span id="jppc"></span>枚）</button><span id="jpmsg" class="sub"></span></div>
+    <fieldset style="margin:12px 0"><legend>出品の記録</legend>
+      <p id="jpst" class="sub" style="margin:0 0 6px"></p>
+      <div class="row"><input id="jpurl" placeholder="出品ページのURL（なくてもよい）" style="flex:1"></div>
+      <div class="row"><button class="btn s" type="button" id="jpon" onclick="jpMark('on')">出した</button><button class="btn s" type="button" id="jpoff" onclick="jpMark('off')">下ろした</button><button class="btn s" type="button" id="jpsold" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="jpSold()">ここで売れた</button></div>
+      <div id="jpout" class="sub"></div>
+    </fieldset>
     <details class="fold"><summary class="sub">説明文の下に付ける決まり文句（この端末に保存）</summary>
       <textarea id="jpfoot" rows="6" style="width:100%"></textarea><div class="row"><button class="btn s" type="button" onclick="jpFootSave()">保存して作り直す</button></div></details>
   </div></dialog>
@@ -1138,7 +1145,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); if(AUTO_LOOKUP) autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); if(AUTO_LOOKUP) autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -1190,7 +1197,8 @@ const jpFoot=()=>{ try{ return localStorage.getItem('tt_jp_foot')??JP_FOOT_DEF }
 let JP=null;
 async function jpOpen(){ const f=Object.fromEntries(new FormData(ifm)); f.specs={}; document.querySelectorAll('[data-spec]').forEach(i=>{ if(i.value) f.specs[i.dataset.spec]=i.value });
   if(!f.kno){ dmsg.textContent='先に品番を入れてください'; return }
-  JP={f,ph:[...PH],m:'mercari'}; jpfoot.value=jpFoot(); document.querySelectorAll('.jpt').forEach(b=>b.classList.toggle('on',b.dataset.m==='mercari')); jpDraw(); jpdlg.showModal(); }
+  const {data:cur}=await sb.from('items').select('jp,status,ebay_item_id').eq('kno',f.kno).maybeSingle();
+  JP={f,ph:[...PH],m:'mercari',jp:cur?.jp||{},status:cur?.status,ebay:cur?.ebay_item_id}; jpfoot.value=jpFoot(); document.querySelectorAll('.jpt').forEach(b=>b.classList.toggle('on',b.dataset.m==='mercari')); jpDraw(); jpdlg.showModal(); }
 function jpTab(b){ document.querySelectorAll('.jpt').forEach(x=>x.classList.toggle('on',x===b)); JP.m=b.dataset.m; jpDraw(); }
 function jpTitle(f,max){ const sp=f.specs, br=sp.Brand||'', ref=sp['Reference Number']||sp.Model||'';
   const parts=[KANA_BRAND[br]||'', br, ref, jw(sp.Movement), jw(sp.Department), '腕時計', 'ヴィンテージ', jw(sp['Dial Color'])&&jw(sp['Dial Color'])+'文字盤', (JP_COND[f.condition]??2)<5&&'稼働品'].filter(Boolean);
@@ -1205,7 +1213,41 @@ function jpDraw(){ const {f,m}=JP, sp=f.specs, mer=m==='mercari', ci=JP_COND[f.c
   jpdesc.value=`${jpTitle(f,80)}\n\n`+L('商品番号',f.kno)+L('ブランド',[sp.Brand,KANA_BRAND[sp.Brand]].filter(Boolean).join(' / '))+L('型番',sp['Reference Number']||sp.Model)+L('ムーブメント',jw(sp.Movement))
     +L('対象',jw(sp.Department))+L('ケース',[jw(sp['Case Material']),sp['Case Size']&&'幅 '+sp['Case Size']].filter(Boolean).join('　'))+L('ベルト',[jw(sp['Band Material']),sp['Max Wrist Size']&&'腕回り '+sp['Max Wrist Size']+'まで'].filter(Boolean).join('　'))
     +L('文字盤',jw(sp['Dial Color']))+L('状態',JP_CN[ci][JP_CN[ci].length-1])+L('動作',f.condition_note)+L('外観',f.appearance_note)+L('付属品',f.accessories||'写真に写っているものがすべてです')+`\n${jpfoot.value}`;
-  const n=Math.min(JP.ph.length,mer?20:10); jppc.textContent=n+(JP.ph.length>n?`／${JP.ph.length}`:''); jpmsg.textContent=''; }
+  const n=Math.min(JP.ph.length,mer?20:10); jppc.textContent=n+(JP.ph.length>n?`／${JP.ph.length}`:''); jpmsg.textContent=''; jpRec(); }
+// 出品の記録：items.jp = {mercari:{on,price,url,off,sold}, yahoo:{…}}。二重に売らないために使う
+const JP_NAME={mercari:'メルカリ',yahoo:'ヤフオク'};
+const jpToday=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+function jpLine(x){ return !x?.on?'まだ出していない':x.sold?`${x.sold} に売れた（${yen(x.sold_price||x.price)}円）`:x.off?`${x.on} に出して、${x.off} に下ろした`:`${x.on} から出品中（${yen(x.price)}円）` }
+function jpRec(){ const x=JP.jp[JP.m], nm=JP_NAME[JP.m], live=x?.on&&!x.off&&!x.sold;
+  jpst.innerHTML=Object.entries(JP_NAME).map(([k,n])=>`${n}：${jpLine(JP.jp[k])}${JP.jp[k]?.url?` <a href="${encodeURI(JP.jp[k].url)}" target="_blank" rel="noopener">開く ›</a>`:''}`).join('<br>');
+  jpurl.value=x?.url||''; jpon.textContent=`${nm}に出した`; jpon.classList.toggle('hide',!!live||JP.status==='sold'); jpoff.classList.toggle('hide',!live); jpsold.textContent=`${nm}で売れた`; jpsold.classList.toggle('hide',!live); jpout.innerHTML=''; }
+async function jpSave(){ const {error}=await sb.from('items').update({jp:JP.jp}).eq('kno',JP.f.kno); if(error){ jpout.textContent='保存できません：'+error.message; return false } return true }
+async function jpMark(k){ const m=JP.m, url=jpurl.value.trim()||null;
+  if(k==='on') JP.jp[m]={on:jpToday(),price:+String(jpprice.value).replace(/[^\d]/g,'')||null,url};
+  else JP.jp[m]={...JP.jp[m],off:jpToday(),url:url||JP.jp[m]?.url||null};
+  if(await jpSave()){ jpRec(); jpout.textContent=k==='on'?'記録しました。売れたらここで「売れた」を押してください':'下ろしたと記録しました'; jpTodo() } }
+// 国内で売れた：①eBayの出品を取り下げ ②商品を「販売」に ③注文を1件入れる（手数料10%・送料は目安） ④ほかで下ろすものを出す
+async function jpSold(){ const m=JP.m, nm=JP_NAME[m], x=JP.jp[m]; const v=window.prompt(`${nm}で売れた値段（円）`,x.price||jpprice.value); if(v==null) return;
+  const price=+String(v).replace(/[^\d]/g,''); if(!price){ jpout.textContent='値段を入れてください'; return }
+  if(!window.confirm(`品番 ${JP.f.kno} を「${nm}で ${yen(price)}円で売れた」にします。\n\n・商品は「販売」になります\n・売上に入れます（手数料10%・送料750円で計算。あとで注文の画面で直せます）${JP.ebay?'\n・eBayの出品を取り下げます':''}\n\nよろしいですか？`)) return;
+  const out=[]; jpout.textContent='進めています…';
+  if(JP.ebay){ const r=await ebayCall('end_listing',{kno:JP.f.kno}); out.push(r.ok?'eBayの出品を取り下げました':`<b class="neg">eBayを取り下げられませんでした：${String(r.error||(r.errors||[]).join(' ')).replace(/[<>&]/g,'')}</b>　eBayの画面で終了してください`) }
+  const d=jpToday(); JP.jp[m]={...x,sold:d,sold_price:price};
+  const {error}=await sb.from('items').update({status:'sold',sold_on:d,location_status:null,jp:JP.jp}).eq('kno',JP.f.kno); if(error){ jpout.textContent='保存できません：'+error.message; return }
+  const {error:e2}=await sb.from('orders').insert({kno:JP.f.kno,ordered_on:d,platform:nm,country:'JP',item_price_jpy:price,ship_charged_jpy:0,ship_actual_jpy:750,sales_fee_jpy:Math.round(price*0.1)});
+  out.push(e2?`<b class="neg">売上に入れられませんでした：${e2.message}</b>`:'売上に入れました'); JP.status='sold'; ifm.status.value='sold';
+  for(const [k,n] of Object.entries(JP_NAME)) if(k!==m&&JP.jp[k]?.on&&!JP.jp[k].off) out.push(`<b class="neg">${n}にも出ています → 下ろしてください</b>${JP.jp[k].url?` <a href="${encodeURI(JP.jp[k].url)}" target="_blank" rel="noopener">開く ›</a>`:''}`);
+  const et=await etsyCall('active_listings').catch(()=>({})); const l=(et.listings||[]).find(l=>(l.skus||[]).map(String).includes(String(JP.f.kno)));
+  out.push(l?`<b class="neg">Etsyにも出ています → 止めてください</b> <a href="https://www.etsy.com/your/shops/me/listing-editor/edit/${+l.listing_id}" target="_blank" rel="noopener">開く ›</a>`:et.error?'Etsyは確かめられませんでした。出ていたら止めてください':'Etsyには出ていません');
+  jpRec(); jpout.innerHTML=out.join('<br>'); initFilters(); loadItems(); loadHero(); jpTodo(); }
+// 商品の画面の上：売れたのにほかで出たままのもの（国内）を出す
+async function jpTodo(){ const {data}=await sb.from('items').select('kno,title,status,jp').not('jp','is',null).eq('status','sold');
+  const rows=[]; (data||[]).forEach(r=>Object.entries(JP_NAME).forEach(([k,n])=>{ const x=r.jp?.[k]; if(x?.on&&!x.off&&!x.sold) rows.push({r,k,n,x}) }));
+  jptodo.classList.toggle('hide',!rows.length); if(!rows.length) return;
+  jptodo.innerHTML=`<b class="neg">売れたのに出品が残っています（${rows.length}件）</b><p class="sub" style="margin:4px 0">二重に売れないよう、下ろしてから「下ろした」を押してください。</p>`
+    +rows.map(({r,k,n,x})=>`<div class="row"><span><b>${r.kno}</b> ${n}　${String(r.title||'').replace(/[<>&]/g,'').slice(0,40)}</span>${x.url?`<a href="${encodeURI(x.url)}" target="_blank" rel="noopener">開く ›</a>`:''}<button class="btn s" onclick="jpTodoOff(${r.kno},'${k}')">下ろした</button></div>`).join(''); }
+async function jpTodoOff(kno,k){ const {data:r}=await sb.from('items').select('jp').eq('kno',kno).single(); const jp={...r.jp,[k]:{...r.jp[k],off:jpToday()}};
+  const {error}=await sb.from('items').update({jp}).eq('kno',kno); if(error){ alert('保存できません：'+error.message); return } jpTodo(); }
 function jpLen(){ const max=JP?.m==='yahoo'?65:40, n=jpttl.value.length; jptl.textContent=`${n}／${max}字`; jptl.style.color=n>max?'var(--bad)':''; }
 function jpFootSave(){ try{ localStorage.setItem('tt_jp_foot',jpfoot.value) }catch(e){} jpDraw(); }
 async function jpCopy(id,b){ try{ await navigator.clipboard.writeText($(id).value) }catch(e){ $(id).select(); document.execCommand('copy') } const t=b.textContent; b.textContent='コピーしました'; setTimeout(()=>b.textContent=t,1200); }
@@ -3165,7 +3207,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261027151153';
+const BUILD='20261027152741';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
