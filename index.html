@@ -51,6 +51,9 @@ legend{font-weight:600;padding:0 4px}
 .g2 label input,.g2 label select{color:var(--ink);font-size:14px}
 .profit{font-weight:700;font-size:16px}
 #login{max-width:360px;margin:80px auto}
+#lock{position:fixed;inset:0;z-index:999;background:var(--bg,#f6f6f8);display:flex;align-items:flex-start;justify-content:center}
+#lock .card,#pinset{max-width:360px;width:calc(100% - 32px);margin:80px auto;text-align:center}
+.pinin{font-size:28px;letter-spacing:12px;text-align:center;width:100%;max-width:220px}
 .hide{display:none!important}
 nav button{display:inline-flex;align-items:center;gap:4px}
 .card{border:0;border-radius:16px;box-shadow:0 1px 3px #1d233014,0 4px 14px #1d23300a}
@@ -597,6 +600,24 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   <div class="row"><button class="btn" onclick="login()">ログイン</button><span id="lmsg" class="sub"></span></div>
 </div>
 
+<div id="lock" class="hide"><div class="card">
+  <h3>Tick Tak</h3>
+  <button id="lkbio" class="btn hide" style="width:100%;min-height:44px;margin-bottom:12px" onclick="bioUnlock()">顔認証で開く</button>
+  <div class="row" style="justify-content:center"><input id="lkpin" class="pinin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="PIN" oninput="if(this.value.length===4) pinUnlock()"></div>
+  <p id="lkmsg" class="sub"></p>
+  <button class="btn s" onclick="pinForgot()">PINを忘れた（メールとパスワードで入る）</button>
+</div></div>
+
+<div id="pinset" class="card hide">
+  <h3>PINを決める</h3>
+  <p class="sub">この端末だけで使う4桁の数字です。次からはメールとパスワードの代わりにこれで開きます。</p>
+  <div class="row" style="justify-content:center"><input id="ps1" class="pinin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4桁"></div>
+  <div class="row" style="justify-content:center"><input id="ps2" class="pinin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="もう一度"></div>
+  <label id="psbiow" class="hide" style="display:block;margin:8px 0"><input id="psbio" type="checkbox" checked> 顔認証（指紋）でも開けるようにする</label>
+  <div class="row" style="justify-content:center"><button class="btn" onclick="pinSave()">決める</button><button class="btn s" onclick="pinSkip()">あとで</button></div>
+  <p id="psmsg" class="sub"></p>
+</div>
+
 <div id="setpw" class="card hide">
   <h3>パスワードを決める</h3>
   <p class="sub">次からはメールアドレスとこのパスワードでログインします。8文字以上。</p>
@@ -955,7 +976,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     </div>
     <div class="row"><button class="btn" onclick="saveSettings()">保存（この端末）</button></div>
   </div>
-  <div class="card row"><button class="btn s" onclick="sb.auth.signOut().then(()=>location.reload())">ログアウト</button></div>
+  <div class="card row"><button class="btn s" onclick="pinSetup()">PIN・顔認証を決め直す</button><button class="btn s" onclick="if(confirm('この端末のPIN・顔認証をやめますか？')){ pinClear(); alert('やめました') }">PIN・顔認証をやめる</button><button class="btn s" onclick="pinClear();sb.auth.signOut().then(()=>location.reload())">ログアウト</button></div>
 </section>
 
 </main>
@@ -1093,7 +1114,7 @@ const fmtP = x => x ? `利益 ${yen(x.p)}円 (${x.r.toFixed(0)}%)` : '—';
 
 // ログイン
 async function login(){ const {error}=await sb.auth.signInWithPassword({email:em.value,password:pw.value});
-  if(error){ lmsg.textContent='ログインできません：'+error.message; return } boot(); }
+  if(error){ lmsg.textContent='ログインできません：'+error.message; return } window.__unlocked=true; $('login').classList.add('hide'); if(!pinHas()) return pinSetup(true); boot(); }
 async function setPw(){ if(pw1.value.length<8){ pwmsg.textContent='8文字以上にしてください'; return } if(pw1.value!==pw2.value){ pwmsg.textContent='2回の入力が違います'; return }
   const {error}=await sb.auth.updateUser({password:pw1.value}); if(error){ pwmsg.textContent='決められません：'+error.message; return }
   window.__pwSet=true; $('setpw').classList.add('hide'); boot(); }
@@ -1101,10 +1122,47 @@ async function boot(){
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ $('login').classList.remove('hide'); return }
   if(AUTH_TYPE&&!window.__pwSet){ $('setpw').classList.remove('hide'); return }
-  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  if(!window.__unlocked&&pinHas()) return pinLock();
+  $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
   initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); if(AUTO_LOOKUP) autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
+
+// PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
+const PK='tt_pin', BK='tt_bio', ls=k=>{ try{ return localStorage.getItem(k) }catch(e){ return null } };
+const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))), unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function pinHash(pin,salt){ const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
+  return b64(await crypto.subtle.deriveBits({name:'PBKDF2',salt:unb64(salt),iterations:150000,hash:'SHA-256'},k,256)); }
+const pinHas=()=>!!(ls(PK)||ls(BK));
+function pinClear(){ try{ localStorage.removeItem(PK); localStorage.removeItem(BK); localStorage.removeItem('tt_pinng') }catch(e){} }
+async function pinSetup(first){ window.__pinFirst=!!first; ps1.value=ps2.value=''; psmsg.textContent='';
+  $('app').classList.add('hide'); $('pinset').classList.remove('hide');
+  if(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(()=>false)) $('psbiow').classList.remove('hide'); }
+function pinDone(){ $('pinset').classList.add('hide'); if(window.__pinFirst) boot(); else $('app').classList.remove('hide'); }
+function pinSkip(){ pinDone() }
+async function pinSave(){ if(!/^\d{4}$/.test(ps1.value)){ psmsg.textContent='数字4桁にしてください'; return } if(ps1.value!==ps2.value){ psmsg.textContent='2回の入力が違います'; return }
+  const salt=b64(crypto.getRandomValues(new Uint8Array(16))); localStorage.setItem(PK,JSON.stringify({salt,hash:await pinHash(ps1.value,salt)})); localStorage.removeItem(BK);
+  if(!$('psbiow').classList.contains('hide')&&psbio.checked){
+    try{ const {data:{user}}=await sb.auth.getUser();
+      const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Tick Tak'},
+        user:{id:crypto.getRandomValues(new Uint8Array(16)),name:user?.email||'tick-tak',displayName:'Tick Tak'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},timeout:60000}});
+      localStorage.setItem(BK,b64(c.rawId));
+    }catch(e){ psmsg.textContent='顔認証は登録できませんでした（PINだけで使えます）'; await new Promise(r=>setTimeout(r,1500)) } }
+  pinDone(); }
+function pinLock(){ window.__unlocked=false; lkpin.value=''; lkmsg.textContent=''; $('app').classList.add('hide'); $('lock').classList.remove('hide');
+  $('lkbio').classList.toggle('hide',!ls(BK)); $('lkpin').parentElement.classList.toggle('hide',!ls(PK)); if(!ls(BK)) setTimeout(()=>lkpin.focus(),50); }
+function pinOk(){ try{ localStorage.removeItem('tt_pinng') }catch(e){} $('lock').classList.add('hide'); const first=!window.__booted; window.__unlocked=true; if(first) boot(); else $('app').classList.remove('hide'); }
+async function pinUnlock(){ const p=JSON.parse(ls(PK)||'null'); if(!p) return; const v=lkpin.value; lkpin.value='';
+  if(await pinHash(v,p.salt)===p.hash) return pinOk();
+  const ng=(+ls('tt_pinng')||0)+1; localStorage.setItem('tt_pinng',ng);
+  if(ng>=5){ pinClear(); await sb.auth.signOut(); alert('5回まちがえたのでログアウトしました。メールとパスワードで入ってください'); return location.reload() }
+  lkmsg.textContent=`ちがいます（あと${5-ng}回でログアウト）`; }
+async function bioUnlock(){ try{ await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:'public-key',id:unb64(ls(BK))}],userVerification:'required',timeout:60000}}); pinOk() }
+  catch(e){ lkmsg.textContent=ls(PK)?'顔認証できませんでした。PINで入ってください':'顔認証できませんでした'; } }
+async function pinForgot(){ pinClear(); await sb.auth.signOut(); location.reload(); }
+// 10分以上ほかのアプリにいたら、戻ったときにもう一度鍵をかける
+let __hidAt=0; document.addEventListener('visibilitychange',()=>{ if(document.hidden){ __hidAt=Date.now(); return } if(window.__unlocked&&pinHas()&&__hidAt&&Date.now()-__hidAt>6e5) pinLock() });
 
 function go(v){ document.querySelector(`nav button[data-v="${v}"]`).click(); if(matchMedia('(max-width:700px)').matches) document.querySelector('nav button.mo').classList.add('on'); }
 // いちばん上の数字：今月の売上・利益の見込み・売れた数、いまの出品数と在庫の金額
@@ -3054,7 +3112,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261026162956';
+const BUILD='20261027131410';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
