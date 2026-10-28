@@ -1535,7 +1535,8 @@ function specTitle(cond){ const sp=k=>(document.querySelector(`[data-spec="${k}"
   return fitTitle(parts.filter(Boolean).join(' '),cond); }
 function titleIdeas(){ const cond=ifm.condition.value, ideas=[], seen=new Set(), add=(t,why)=>{ const s=fitTitle(t,cond); const key=s.toLowerCase(); if(s.length<20||seen.has(key)) return; seen.add(key); ideas.push({s,why}) };
   const days=r=>r.listed_on&&r.sold_on?Math.round((new Date(r.sold_on)-new Date(r.listed_on))/864e5):null;
-  PAST.filter(r=>r.status==='sold'&&r.title).map(r=>({r,d:days(r)})).sort((a,b)=>(a.d??999)-(b.d??999)).slice(0,3)
+  const want=buyColors();   // 色が合うものを先に、その中で速く売れた順
+  PAST.filter(r=>r.status==='sold'&&r.title&&colorScore(r,want)>=0).map(r=>({r,d:days(r),c:colorScore(r,want)})).sort((a,b)=>(b.c-a.c)||((a.d??999)-(b.d??999))).slice(0,3)
     .forEach(({r,d})=>add(r.title,`同じ型で売れたタイトル${d!=null?`（${d}日で売れた）`:''}${r.orders?.[0]?.sales_usd?`・$${r.orders[0].sales_usd}`:''}`));
   PAST.filter(r=>r.status==='listed'&&(r.ebay?.title||r.title)).slice(0,1).forEach(r=>add(r.ebay?.title||r.title,'いま出品中の同じ型のタイトル'));
   const st=specTitle(cond); if(st.replace(/^\[[^\]]*\]\s*/,'').split(' ').length>=5) add(st,'スペックから組み立てた形');
@@ -1597,11 +1598,21 @@ async function otherTitles(){ const q=specQuery();
   tideas.querySelectorAll('.tidea').forEach(b=>b.onclick=()=>{ ifm.title.value=fitTitle(ls[+b.dataset.i].title,cond); tlen.textContent=ifm.title.value.length; seoCheck() });
   tideas.querySelectorAll('.kw').forEach(b=>b.onclick=()=>{ let t=ifm.title.value.trim(); const tail=/\s*(From\s+JAPAN|JAPAN)\s*$/i.exec(t); const head=tail?t.slice(0,tail.index).trim():t, end=tail?' '+tail[1]:'';
     const s=head+' '+b.dataset.w+end; if(s.length>80){ seo.innerHTML='<span class="neg">80字を超えるので足せません。別の語を消してから押してください。</span>'; return } ifm.title.value=s; tlen.textContent=s.length; b.remove(); seoCheck() }); }
-function fillFromPast(){ const src=PAST.find(r=>r.ebay&&r.condition===ifm.condition.value)||PAST.find(r=>r.ebay)||PAST[0];
+// 同じ型番でも色違いがある（1500Lの黒・シェル・金など）。仕入れのタイトル（台帳：…）の色に近い過去の出品を手本にする
+const COLOR_WORDS=[['shell',/シェル|貝/],['gold',/ゴールド|金色|GP|メッキ|K18|YG/i],['silver',/シルバー|銀色|SS|ステンレス/i],['black',/ブラック|黒/],['white',/ホワイト|白/],
+  ['pink',/ピンク/],['blue',/ブルー|青/],['navy',/ネイビー|紺/],['gray',/グレー|灰/],['ivory',/アイボリー|クリーム/],['green',/グリーン|緑/],['red',/レッド|赤/],['brown',/ブラウン|茶/],['diamond',/ダイヤ|1P/i]];
+function buyColors(){ const ln=(ifm.memo.value||'').split('\n').find(x=>x.startsWith('台帳：'))||''; return COLOR_WORDS.filter(([,re])=>re.test(ln)).map(([w])=>w) }
+function colorScore(r,want){ if(!want.length) return 0; const t=((r.ebay?.title||r.title||'')+' '+Object.values(r.specs||{}).join(' ')).toLowerCase();
+  let s=0; for(const [w] of COLOR_WORDS){ const has=t.includes(w)||(w==='gray'&&t.includes('grey')); if(has&&want.includes(w)) s+=2; else if(has&&!['silver','gold','white','diamond'].includes(w)) s-=3 } return s }  // 仕入れに無い色（黒など）が入っている手本は外す
+function fillFromPast(){ const want=buyColors(), byColor=[...PAST].sort((a,b)=>colorScore(b,want)-colorScore(a,want));
+  const src=byColor.find(r=>r.ebay&&r.condition===ifm.condition.value)||byColor.find(r=>r.ebay)||byColor[0];
   if(!src){ rhint.textContent=ifm.research_name.value?'この型番の過去の出品が見つかりません。':'先に型番を選んでください。'; return }
   const cond=ifm.condition.value, base=(src.ebay?.title||src.title||'').replace(/^\[[^\]]*\]\s*/,'');
   ifm.title.value=(`[${cond}] `+base).slice(0,80); tlen.textContent=ifm.title.value.length;
   renderSpecs(src.specs||{});
+  // 型番は手本に無くても必ず入れる（型番の欄の値＝Reference Number）
+  const rn=ifm.research_name.value.trim().split(/\s+/).pop(), ref=document.querySelector('[data-spec="Reference Number"]');
+  if(rn&&ref&&(!ref.value.trim()||rn.startsWith(ref.value.trim()))) ref.value=rn;   // 「1500」だけ入っていたら「1500L」にそろえる
   if(!ifm.price_usd.value&&src.price_usd) ifm.price_usd.value=src.price_usd;
   if(src.shipping_policy) ifm.shipping_policy.value=src.shipping_policy; pickPolicy();
   if(src.store_cat1||src.ebay?.store_cat) ifm.store_cat1.value=src.store_cat1||src.ebay.store_cat;
@@ -3239,7 +3250,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261027155349';
+const BUILD='20261028160051';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
