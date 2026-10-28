@@ -1133,8 +1133,8 @@ const $ = id => document.getElementById(id);
 
 // 設定（この端末に保存）
 function getS(){ let s={}; try{ s=JSON.parse(localStorage.getItem('ws_settings')||'{}') }catch(e){}
-  return {fx:s.fx??150, fee:s.fee??15, pay:s.pay??2, ship:s.ship??3000}; }
-function saveSettings(){ const s={fx:+s_fx.value,fee:+s_fee.value,pay:+s_pay.value,ship:+s_ship.value};
+  return {fx:s.fxv===2&&s.fx?s.fx:152, fee:s.fee??15, pay:s.pay??2, ship:s.ship??3000}; }   // 為替は152円にそろえる（2026-10-28 本人指定。前に端末で保存した150円などは使わない。設定で保存し直したらその値）
+function saveSettings(){ const s={fxv:2,fx:+s_fx.value,fee:+s_fee.value,pay:+s_pay.value,ship:+s_ship.value};
   try{ localStorage.setItem('ws_settings',JSON.stringify(s)) }catch(e){} alert('保存しました'); }
 function profit(priceUsd, shipUsd, cost, actShip){
   const s=getS(); const gross=(+priceUsd + +(shipUsd||0))*s.fx;
@@ -1157,7 +1157,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); if(AUTO_LOOKUP) autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -1432,7 +1432,9 @@ const sizeNum=(str,u)=>{ const m=String(str??'').match(/([\d.]+)\s*(mm|cm|in|"|i
   if(un!==u) v=un==='in'?(u==='mm'?v*25.4:v*2.54):un==='cm'&&u==='mm'?v*10:un==='mm'&&u==='cm'?v/10:v; return Math.round(v*10)/10 };
 // eBayで探す言葉：スペックのブランド＋型番。無ければタイトルから型番を読む（Etsyから入れた商品はスペックが空なので）
 // 仕入れ（ヤフオク・メルカリ）の日本語の商品名を、型番を読める形に（ブランドのカタカナ→英語）
-const JP_BRAND=[['グッチ','GUCCI'],['セイコー','SEIKO'],['ロンジン','LONGINES'],['クリスチャンディオール','DIOR'],['ディオール','DIOR'],['ラドー','RADO'],['オメガ','OMEGA'],['ハミルトン','HAMILTON'],['エルメス','HERMES'],['フェンディ','FENDI'],['ブローバ','BULOVA'],['ジャックルマン','JACQUES LEMANS'],['シチズン','CITIZEN'],['オリス','ORIS'],['ボーム','BAUME'],['カルティエ','Cartier'],['ティソ','TISSOT']];
+const JP_BRAND=[['グッチ','GUCCI'],['セイコー','SEIKO'],['ロンジン','LONGINES'],['クリスチャンディオール','DIOR'],['ディオール','DIOR'],['ラドー','RADO'],['オメガ','OMEGA'],['ハミルトン','HAMILTON'],['エルメス','HERMES'],['フェンディ','FENDI'],['ブローバ','BULOVA'],['ジャックルマン','JACQUES LEMANS'],['シチズン','CITIZEN'],['オリス','ORIS'],['ボーム','BAUME'],['カルティエ','Cartier'],['ティソ','TISSOT'],
+  ['アンドレ・ムッシュ','ANDRE MOUCHE'],['アンドレムッシュ','ANDRE MOUCHE'],['クレドール','CREDOR'],['フレデリックコンスタント','FREDERIQUE CONSTANT'],['ボーム＆メルシエ','BAUME'],  // 型番の自動付けで英語に寄せる（2026-10-28）
+  ['チャールストン','CHARLESTON'],['クリッパー','CLIPPER'],['セリエ','SELLIER'],['ケリー','KELLY'],['アルソー','ARCEAU'],['ラリー','RALLYE'],['フローレンス','FLORENCE'],['クーポール','COUPOLE'],['ドルチェ','DOLCE'],['ノワエ','NOIE'],['カーキ','KHAKI'],['コンクエスト','CONQUEST'],['ハンプトン','HAMPTON'],['クラシマ','CLASSIMA']];
 const enName=t=>{ t=String(t||''); JP_BRAND.forEach(([j,e])=>{ t=t.split(j).join(' '+e+' ') }); return t };
 const itemText=(title,memo)=>title||enName(String(memo||'').split('\n')[0].replace(/^台帳：/,''));
 function specQuery(){ const sp=k=>(document.querySelector(`[data-spec="${k}"]`)?.value||'').trim();
@@ -1964,9 +1966,10 @@ function searchLinks(q){ const e=encodeURIComponent, jp=jpQuery(q), en=String(q|
     +a('Etsy',`https://www.etsy.com/search?q=${e(en+' watch')}`); }
 let RSTAT=[];
 // 型番マスタに無い商品は、商品名から「ブランド＋型番」を拾ってまとめる（拾えなければ「ブランド（型番不明）」）
-const MK_BRAND=[['GRAND SEIKO','GRAND SEIKO'],['CREDOR','SEIKO CREDOR'],['GUCCI','GUCCI'],['HERMES','HERMES'],['DIOR','Christian Dior'],['RADO','RADO'],['LONGINES','LONGINES'],['OMEGA','OMEGA'],['FENDI','FENDI'],['HAMILTON','HAMILTON'],['ORIS','ORIS'],['BAUME','Baume & Mercier'],['BULOVA','BULOVA'],['CARTIER','Cartier'],['TISSOT','TISSOT'],['FREDERIQUE','Frederique Constant'],['RAYMOND','RAYMOND WEIL'],['SEIKO','SEIKO'],['CITIZEN','CITIZEN'],['CONCORD','CONCORD'],['BURBERRY','BURBERRY'],['CELINE','CELINE'],['CHANEL','CHANEL'],['MOVADO','MOVADO'],['TAG HEUER','TAG HEUER'],['BVLGARI','BVLGARI'],['CORUM','CORUM'],['EBEL','EBEL'],['ZENITH','ZENITH'],['LOEWE','LOEWE']];
+const MK_BRAND=[['GRAND SEIKO','GRAND SEIKO'],['CREDOR','SEIKO CREDOR'],['GUCCI','GUCCI'],['HERMES','HERMES'],['DIOR','Christian Dior'],['RADO','RADO'],['LONGINES','LONGINES'],['OMEGA','OMEGA'],['FENDI','FENDI'],['HAMILTON','HAMILTON'],['ORIS','ORIS'],['BAUME','Baume & Mercier'],['BULOVA','BULOVA'],['CARTIER','Cartier'],['TISSOT','TISSOT'],['FREDERIQUE','Frederique Constant'],['RAYMOND','RAYMOND WEIL'],['SEIKO','SEIKO'],['CITIZEN','CITIZEN'],['CONCORD','CONCORD'],['BURBERRY','BURBERRY'],['CELINE','CELINE'],['CHANEL','CHANEL'],['MOVADO','MOVADO'],['TAG HEUER','TAG HEUER'],['BVLGARI','BVLGARI'],['CORUM','CORUM'],['EBEL','EBEL'],['ZENITH','ZENITH'],['LOEWE','LOEWE'],['ANDRE MOUCHE','Andre Mouche']];
 const MK_NAME=['CLIPPER','SERIE','CROISIERE','ARCEAU','KELLY','HEURE H','RALLYE','PULLMAN','NOMADE','MEDOR','CAPE COD','SELLIER','DIASTAR','COUPOLE','FLORENCE','CHARLESTON','DOLCE','NOIE','LAUREL','CHAMELEON','KHAKI','ARDMORE','SEVILLE','HOSEBIT','PRESENCE','LA GRANDE','CONQUEST','DE VILLE','CONSTELLATION','SEAMASTER','HAMPTON','CLASSIMA','LINEA','TANK','SANTOS','PANTHERE','J12','PREMIERE'];
-function modelKey(t){ if(!t) return null; const T=String(t).toUpperCase().replace(/\[[^\]]*\]/g,' '); const b=(MK_BRAND.find(([k])=>T.includes(k))||[])[1]; if(!b) return null;
+function modelKey(t){ if(!t) return null; const T=String(t).toUpperCase().replace(/É/g,'E').replace(/\[[^\]]*\]/g,' '); const b=(MK_BRAND.find(([k])=>T.includes(k))||[])[1]; if(!b) return null;
+  if(b==='Andre Mouche') return {name:b,brand:b};   // アンドレムッシュは型番が無いのでブランドでまとめる
   if(/CHANGE BEZEL|11\/12\.2/.test(T)) return {name:b+' 11/12.2',brand:b};
   const m=T.match(/\b(\d{3,4}\.?\d?\.?[A-Z]?L|\d{4}M|[A-Z]?\d{1,3}[.\-]\d{2,4}(?:[.\-]\d{1,4}[A-Z]?)?)\b/), nm=MK_NAME.find(x=>T.includes(x));
   const cap=s=>s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
@@ -2718,7 +2721,7 @@ async function importCsv(){
   const done=[];
   for(const j of jobs){ const r=await [null,importFull,importSales,importListed,importSheet,importEtsy,importSpeedpak,importEtsyListings][j.kind](j.rows,j.ix,j.h);
     if(!r.ok){ iomsg.textContent=[...done,`${j.name}：${r.msg}`].join(' ／ '); return } done.push(r.msg); iomsg.textContent=done.join(' ／ ')+' …'; }
-  iomsg.textContent=done.join(' ／ '); if(AUTO_LOOKUP){ const n=await autoModels(); if(n) iomsg.textContent+=` ／ ${n}本に型番を自動で付けました` } initFilters(); loadItems();
+  iomsg.textContent=done.join(' ／ '); { const n=await autoModels(); if(n) iomsg.textContent+=` ／ ${n}本に型番を自動で付けました` } initFilters(); loadItems();
 }
 
 // .xlsx は表計算の読み取り部品（SheetJS）を使うときだけ読み込む
@@ -2903,7 +2906,7 @@ async function importEtsy(rows, ix){
   const v=(r,k)=>(r[ix[k]]??'').trim(); const num=(r,k)=>{ const x=v(r,k).replace(/[$,\s]/g,''); return x===''||isNaN(+x)?0:+x };
   const day=s=>{ let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/); if(m) return `${m[3].length===2?'20'+m[3]:m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
     m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[0]:null };
-  const fx=+getS().fx||150, rs=rows.filter(r=>r.length>3&&day(v(r,'Sale Date'))); iomsg.textContent=`Etsy ${rs.length}行を読んでいます…`;
+  const fx=+getS().fx||152, rs=rows.filter(r=>r.length>3&&day(v(r,'Sale Date'))); iomsg.textContent=`Etsy ${rs.length}行を読んでいます…`;
   const seen=new Set(), orders=[], unknown=[], nosku=[]; let other=0; etmatch.innerHTML='';
   for(const r of rs){ const d=day(v(r,'Sale Date')), sku=v(r,'SKU'), oid=v(r,'Order ID'), cur=v(r,'Currency')||'USD';
     const price=num(r,'Price')*(num(r,'Quantity')||1)-num(r,'Discount Amount'), ship=seen.has(oid)?0:num(r,'Order Shipping')-num(r,'Shipping Discount'); seen.add(oid);
@@ -3231,8 +3234,9 @@ async function importDrafts(){ const f=djson.files[0]; if(!f){ djmsg.textContent
 // 型番が付いていない商品を、タイトルに型番が含まれるかでつなぐ（長い型番を優先。付いているものは触らない）
 // 型番を自動で付ける（友達用で起動時・取込のあとに動く）。型番の無い商品のタイトルから型番を読み、型番マスタを作ってつなぐ。
 // スペックの Brand と Reference Number も空なら入れる（ほかのセラーの検索・タイトル案に使う）
-async function autoModels(){ const its=await allRows(()=>sb.from('items').select('kno,title,memo,specs').is('research_id',null).order('kno'));
-  const g={}; its.forEach(i=>{ i.title=itemText(i.title,i.memo); const mk=modelKey(i.title); if(!mk) return; (g[mk.name]??={brand:mk.brand,its:[]}).its.push(i) });
+// 型番が空の在庫・出品中に型番を付ける（売れた過去分は触らない。型番がわからないものは付けない）
+async function autoModels(){ const its=await allRows(()=>sb.from('items').select('kno,title,memo,specs').is('research_id',null).neq('status','sold').order('kno'));
+  const g={}; its.forEach(i=>{ i.title=itemText(i.title,i.memo); const mk=modelKey(i.title); if(!mk||mk.name.includes('型番不明')) return; (g[mk.name]??={brand:mk.brand,its:[]}).its.push(i) });
   const names=Object.keys(g); if(!names.length) return 0;
   const {data,error}=await sb.from('research').upsert(names.map(n=>({name:n,brand:g[n].brand,model:n.slice(g[n].brand.length).trim()||null})),{onConflict:'name'}).select('id,name');
   if(error) return 0; const id=Object.fromEntries(data.map(r=>[r.name,r.id])); let n=0;
@@ -3250,7 +3254,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261028160051';
+const BUILD='20261028163136';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
