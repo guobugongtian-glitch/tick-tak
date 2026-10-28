@@ -3224,7 +3224,7 @@ async function importDrafts(){ const f=djson.files[0]; if(!f){ djmsg.textContent
     if(done.some(x=>(x.memo||'').includes(mark))){ skipped++; continue }
     const rn=(d.research_name||'').trim();
     if(rn&&!rid[rn]){ const {data,error}=await sb.from('research').insert({name:rn,brand:d.brand||null,model:d.model||null}).select('id').single(); if(error){ djmsg.textContent='型番の登録に失敗：'+error.message; return } rid[rn]=data.id }
-    const it={kno:next,status:'stock',location:d.location||'自宅',location_status:'出品待ち',research_id:rid[rn]??null,title:(d.title||'').slice(0,80),condition:d.condition||null,
+    const it={kno:next,status:'stock',location:d.location||'自宅',location_status:'出品待ち',research_id:rid[rn]??null,title:(d.title||'').slice(0,80),condition:d.condition||'Near MINT',
       price_usd:d.price_usd||null,cost_jpy:d.cost_jpy||null,purchased_on:d.purchased_on||null,supplier:d.supplier||null,serial_no:d.serial_no||null,
       condition_note:d.condition_note||null,appearance_note:d.appearance_note||null,accessories:d.accessories||null,specs:d.specs||{},
       memo:[d.memo,d.check?'要確認：'+d.check:null,mark].filter(Boolean).join('\n')};
@@ -3235,7 +3235,8 @@ async function importDrafts(){ const f=djson.files[0]; if(!f){ djmsg.textContent
 // 型番を自動で付ける（友達用で起動時・取込のあとに動く）。型番の無い商品のタイトルから型番を読み、型番マスタを作ってつなぐ。
 // スペックの Brand と Reference Number も空なら入れる（ほかのセラーの検索・タイトル案に使う）
 // 型番が空の在庫・出品中に型番を付ける（売れた過去分は触らない。型番がわからないものは付けない）
-async function autoModels(){ const its=await allRows(()=>sb.from('items').select('kno,title,memo,specs').is('research_id',null).neq('status','sold').order('kno'));
+async function autoModels(){ await sb.from('items').update({condition:'Near MINT'}).eq('status','stock').is('condition',null);   // 状態の空いた仕入れは Near MINT（2026-10-28 本人指定）
+  const its=await allRows(()=>sb.from('items').select('kno,title,memo,specs').is('research_id',null).neq('status','sold').order('kno'));
   const g={}; its.forEach(i=>{ i.title=itemText(i.title,i.memo); const mk=modelKey(i.title); if(!mk||mk.name.includes('型番不明')) return; (g[mk.name]??={brand:mk.brand,its:[]}).its.push(i) });
   const names=Object.keys(g); if(!names.length) return 0;
   const {data,error}=await sb.from('research').upsert(names.map(n=>({name:n,brand:g[n].brand,model:n.slice(g[n].brand.length).trim()||null})),{onConflict:'name'}).select('id,name');
@@ -3254,7 +3255,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261028163340';
+const BUILD='20261028171714';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3278,7 +3279,7 @@ async function importLedger(){ const yr=+lgyear.value||new Date().getFullYear(),
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); let next=(mx?.[0]?.kno||0)+1, add=[], skip=0;
   const SUP=['ヤフオク','メルカリ','ラクマ','キタムラ','ハードオフ','仕入れツアー'];
   for(const r of recs){ if(seen.has(r.key)){ skip++; continue } seen.add(r.key);
-    add.push({kno:next++,status:'stock',location:'自宅',purchased_on:r.date,cost_jpy:r.amount,supplier:SUP.includes(r.shop)?r.shop:(r.shop?'その他':null),supplier_url:r.url,
+    add.push({kno:next++,status:'stock',condition:'Near MINT',location:'自宅',purchased_on:r.date,cost_jpy:r.amount,supplier:SUP.includes(r.shop)?r.shop:(r.shop?'その他':null),supplier_url:r.url,
       memo:[`台帳：${r.name}`,r.shop&&!SUP.includes(r.shop)?`お店：${r.shop}`:null,r.pay?`支払：${r.pay}`:null,`[台帳:${r.key}]`].filter(Boolean).join('\n')}); }
   for(let i=0;i<add.length;i+=200){ const {error}=await sb.from('items').insert(add.slice(i,i+200)); if(error){ lgmsg.textContent=' 失敗：'+error.message; return } }
   lgmsg.textContent=` ${add.length}件を「保管」に入れました`+(add.length?`（品番 ${add[0].kno}〜${add[add.length-1].kno}、仕入値の合計 ${yen(add.reduce((a,x)=>a+x.cost_jpy,0))}円）`:'')+(skip?`。読み込み済みの${skip}件は飛ばしました`:'')+(bad?`。読めなかった行 ${bad}行（見出しや合計の行など）`:'');
@@ -3431,7 +3432,7 @@ async function loadBuy(){ if(!bym.value) bym.value=new Date(Date.now()+9*3600e3)
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
   const memo=[`台帳：${nm}`,by_seller.value&&`出品者：${by_seller.value}`,by_addr.value&&`住所：${by_addr.value}`,by_pay.value&&`支払：${by_pay.value}`].filter(Boolean).join('\n');
-  const {error}=await sb.from('items').insert({kno,status:'stock',location:'自宅',purchased_on:d,cost_jpy:Math.round(a),supplier:by_shop.value,supplier_url:by_url.value.trim()||null,memo});
+  const {error}=await sb.from('items').insert({kno,status:'stock',condition:'Near MINT',location:'自宅',purchased_on:d,cost_jpy:Math.round(a),supplier:by_shop.value,supplier_url:by_url.value.trim()||null,memo});
   if(error){ bymsg2.textContent='入れられません：'+error.message; return }
   bymsg2.textContent=`品番 ${kno} で入れました`; ['by_name','by_amt','by_url','by_seller','by_addr'].forEach(i=>$(i).value=''); bym.value=d.slice(0,7); loadBuy(); }
 // Gmail（ヤフオクの「ご購入の確認」メール）を読んで ledger_push に送るプログラムを作る
