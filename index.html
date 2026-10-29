@@ -522,6 +522,8 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 #lbbar select{padding:8px}
 #lbbar.hide{display:none!important}
 .lbmode td.ph{position:relative}
+.kpsel{padding:4px 6px;font-size:13px;border-radius:8px}.kpsel.ok{background:rgba(52,199,89,.12);color:#1a7f37}.kpsel.ng{background:rgba(255,59,48,.1);color:#d70015}
+#v-items.lbmode #itbody tr{cursor:pointer}
 .lbmode td.ph::after{content:"";position:absolute;left:6px;bottom:6px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25);box-shadow:0 1px 4px #0005}
 .lbmode tr.lbon td.ph::after{content:"✓";background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .lbmode tr.lbon td.ph img{outline:3px solid var(--accent);outline-offset:-3px}
@@ -681,7 +683,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <div class="seg" id="f1"></div>
   </div>
   <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a><button class="lbtog" onclick="labelMode(!LBSEL)">🏷 ラベルを印刷</button></div>
-  <div id="lbbar" class="hide"><span id="lbcnt">0本を選択中</span><select id="lbstart2" title="何枚目から"></select><button class="btn s" onclick="lbAll()">全部</button><button class="btn" onclick="printLabels([...LBSEL])">印刷</button><button class="btn s" onclick="labelMode(false)">やめる</button></div>
+  <div id="lbbar" class="hide"><span id="lbcnt">印刷する時計をタップ</span><select id="lbstart2" title="何枚目から"></select><button class="btn s" onclick="lbAll()">全部</button><button class="btn" onclick="lbPrint()">選んだ分を印刷</button><button class="btn s" onclick="labelMode(false)">やめる</button></div>
   <div class="tbl"><table>
     <thead><tr><th>写真</th><th>品番</th><th>仕入日</th><th>状態</th><th>(型番)<br>出品タイトル</th><th class="n">売価</th><th class="n">仕入値</th><th class="n">利益<br><span class=sub>売れた分は実額</span></th><th class="n st">eBayの反応</th></tr></thead>
     <tbody id="itbody"></tbody>
@@ -724,7 +726,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <label class="sub">何枚目から <select id="lbstart"></select></label>
     <button class="btn s" onclick="document.querySelectorAll('.lbk').forEach(c=>c.checked=true)">全部選ぶ</button>
     <button class="btn" onclick="printLabels([...document.querySelectorAll('.lbk:checked')].map(c=>+c.value))">選んだ分を印刷</button><span id="lbmsg" class="sub"></span></div>
-  <div class="tbl"><table><thead><tr><th></th><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th>仕入れ先</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th></tr></thead><tbody id="bybody"></tbody></table></div>
+  <div class="tbl"><table><thead><tr><th></th><th>品番</th><th>購入日</th><th>商品名</th><th>お店</th><th>仕入れ先</th><th class=n>仕入値</th><th>出品者</th><th>住所</th><th>カード</th><th>支払日</th><th>状態</th><th>検品</th></tr></thead><tbody id="bybody"></tbody></table></div>
   <div class="card">
     <h3 style="margin-top:0">ヤフオクの購入メールから自動で入れる</h3>
     <p class="sub">Gmailに届く「【Yahoo!オークション】ご購入の確認」を5分おきに読み、ここに1行ずつ入れます（店名・購入日・商品名・金額・送料・URL）。同じ商品は二度入りません。最初に1回だけ、Gmailのアカウントでプログラムを貼る作業が要ります。</p>
@@ -3256,7 +3258,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029135909';
+const BUILD='20261029140124';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3291,8 +3293,12 @@ let LBSEL=null;
 function labelMode(on){ LBSEL=on?new Set():null; $('v-items').classList.toggle('lbmode',!!on); lbbar.classList.toggle('hide',!on);
   if(on&&!lbstart2.options.length) lbstart2.innerHTML=Array.from({length:24},(_,i)=>`<option value="${i+1}">${i+1}枚目〜</option>`).join('');
   document.querySelectorAll('#itbody tr.lbon').forEach(t=>t.classList.remove('lbon')); lbCount(); }
-function lbCount(){ if(window.lbcnt) lbcnt.textContent=`${LBSEL?.size||0}本を選択中`; }
+function lbCount(){ if(window.lbcnt) lbcnt.textContent=LBSEL?.size?`${LBSEL.size}本を選択中`:'印刷する時計をタップ'; }
 function tapItem(kno,td){ if(!LBSEL) return viewItem(kno); const tr=td.closest('tr'); if(LBSEL.has(kno)){ LBSEL.delete(kno); tr.classList.remove('lbon') } else { LBSEL.add(kno); tr.classList.add('lbon') } lbCount(); }
+// 選ぶモードの間は行のどこを押しても選ぶ／外す（写真だけだと文字を押して何も起きなかった）2026-10-29
+itbody.addEventListener('click',e=>{ if(!LBSEL) return; const tr=e.target.closest('tr[data-kno]'); if(!tr) return;
+  e.preventDefault(); e.stopPropagation(); tapItem(+tr.dataset.kno,tr.firstElementChild) },true);
+function lbPrint(){ if(!LBSEL?.size){ lbcnt.textContent='先に印刷する時計をタップして選んでください'; return } printLabels([...LBSEL]) }
 function lbAll(){ document.querySelectorAll('#itbody tr[data-kno]').forEach(t=>{ LBSEL.add(+t.dataset.kno); t.classList.add('lbon') }); lbCount(); }
 // ===== 在庫ラベル（A4・24面 70×33.9mm、3列×8段、上下の余白12.9mm） 2026-10-20 =====
 // 載せるもの：品番・ブランドと型番・仕入日と仕入値・売価（本人指定）。何枚目から＝途中まで使ったシートの続き
@@ -3427,9 +3433,19 @@ async function loadBuy(){ if(!bym.value) bym.value=new Date(Date.now()+9*3600e3)
   const due={}; rows.forEach(r=>{ const c=cardOf(r), d=payDay(c,r.purchased_on); const k=d?`${d.slice(5).replace('-','/')} ${c}`:(c||'カード不明'); due[k]=(due[k]||0)+(r.cost_jpy||0) });
   bymsg.innerHTML=' 支払い予定：'+Object.entries(due).sort().map(([k,v])=>`<b>${k}</b> ${yen(v)}円`).join('　');
   bybody.innerHTML=rows.map(r=>{ const nm=r.title||memoLine(r.memo,'台帳')||'';
-    return `<tr><td><input type=checkbox class=lbk value="${r.kno}"></td><td><a class=k onclick="viewItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${/mercari/.test(r.supplier_url)?'メルカリで開く':/yahoo/.test(r.supplier_url)?'ヤフオクで開く':'開く'}</a>${/auctions\.yahoo/.test(r.supplier_url)?` ・ <a href="https://buy.auctions.yahoo.co.jp/order/status?auctionId=${esc(r.supplier_url.split('/').pop())}" target="_blank" rel="noopener">取引ナビ</a>`:''}`:'<span class=sub>なし</span>'}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td></tr>` }).join('')||'<tr><td colspan=12 class=sub>この月の仕入れはまだありません</td></tr>';
+    return `<tr><td><input type=checkbox class=lbk value="${r.kno}"></td><td><a class=k onclick="viewItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on.slice(5).replace('-','/')}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${esc(nm.slice(0,60))}</a>`:esc(nm.slice(0,60))}</td><td>${esc(r.supplier||memoLine(r.memo,'お店'))}</td><td>${r.supplier_url?`<a href="${esc(r.supplier_url)}" target="_blank" rel="noopener">${/mercari/.test(r.supplier_url)?'メルカリで開く':/yahoo/.test(r.supplier_url)?'ヤフオクで開く':'開く'}</a>${/auctions\.yahoo/.test(r.supplier_url)?` ・ <a href="https://buy.auctions.yahoo.co.jp/order/status?auctionId=${esc(r.supplier_url.split('/').pop())}" target="_blank" rel="noopener">取引ナビ</a>`:''}`:'<span class=sub>なし</span>'}</td><td class=n>${yen(r.cost_jpy)}</td><td>${esc(memoLine(r.memo,'出品者'))}</td><td class=sub>${esc(memoLine(r.memo,'住所'))}</td><td>${cardOf(r)==='未確定'?'<span class=sub>未確定（PayPayか楽天）</span>':cardOf(r)?esc(cardOf(r))+(memoLine(r.memo,'支払')?'':'<span class=sub>（決まり）</span>'):'<span class=sub>不明</span>'}</td><td>${(x=>x?x.slice(5).replace('-','/'):'—')(payDay(cardOf(r),r.purchased_on))}</td><td>${{stock:'保管',listed:'出品中',sold:'売れた'}[r.status]}</td><td>${kpSel(r)}</td></tr>` }).join('')||'<tr><td colspan=13 class=sub>この月の仕入れはまだありません</td></tr>';
   if(!lbstart.options.length) lbstart.innerHTML=Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join('');
   if(!mlstart.value) mlstart.value=new Date(Date.now()+9*3600e3).toISOString().slice(0,10); }
+// 検品の記録はメモの「検品：」の1行に持つ（表の項目は増やさない）2026-10-29
+const KENPIN=['検品済み','要修理','不良・返品'];
+function kpSel(r){ const v=memoLine(r.memo,'検品');
+  return `<select class="kpsel${v==='検品済み'?' ok':v?' ng':''}" onchange="setKenpin(${r.kno},this)"><option value="">未検品</option>${KENPIN.map(k=>`<option${k===v?' selected':''}>${k}</option>`).join('')}${v&&!KENPIN.includes(v)?`<option selected>${v.replace(/[&<>"]/g,'')}</option>`:''}</select>` }
+async function setKenpin(kno,sel){ sel.disabled=true;
+  const {data,error:e1}=await sb.from('items').select('memo').eq('kno',kno).single(); if(e1){ sel.disabled=false; alert('読めません：'+e1.message); return }
+  const lines=(data.memo||'').split('\n').filter(x=>x&&!x.startsWith('検品：')); if(sel.value) lines.push(`検品：${sel.value}`);
+  const {error}=await sb.from('items').update({memo:lines.join('\n')||null}).eq('kno',kno); sel.disabled=false;
+  if(error){ alert('保存できません：'+error.message); return }
+  sel.className='kpsel'+(sel.value==='検品済み'?' ok':sel.value?' ng':''); }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
   const memo=[`台帳：${nm}`,by_seller.value&&`出品者：${by_seller.value}`,by_addr.value&&`住所：${by_addr.value}`,by_pay.value&&`支払：${by_pay.value}`].filter(Boolean).join('\n');
