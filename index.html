@@ -1366,8 +1366,9 @@ async function loadItems(){
   if(F.status==='sold') q=q.order('sold_on',{ascending:false,nullsFirst:false});
   q=q.order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
   $('v-items').classList.toggle('ls',F.status==='listed');
-  // ラベルは「保管」のタブにだけ出す（2026-10-20 本人）。ほかのタブに移ったら選ぶモードは終える
-  $('v-items').classList.toggle('stk',F.status==='stock'); if(F.status!=='stock'&&LBSEL) labelMode(false);
+  // ラベルは「保管」と「出品中」のタブに出す（2026-10-20 保管だけ→2026-10-29 出品後も作れるように）。ほかのタブに移ったら選ぶモードは終える
+  const lbok=F.status==='stock'||F.status==='listed';
+  $('v-items').classList.toggle('stk',lbok); if(!lbok&&LBSEL) labelMode(false);
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   const {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
@@ -3255,7 +3256,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261028171714';
+const BUILD='20261029135909';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
