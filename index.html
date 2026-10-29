@@ -830,7 +830,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <label class="sub">④質問、悩み、気づき<textarea id="np_kizuki" rows="3" style="width:100%" oninput="npRender()"></textarea></label>
     <label class="sub">いい点（うまくいったこと）<textarea id="np_good" rows="2" style="width:100%" oninput="npRender()"></textarea></label>
     <label class="sub">改善点（次はこうする）<textarea id="np_improve" rows="2" style="width:100%" oninput="npRender()"></textarea></label>
-    <div class="row"><button class="btn" onclick="saveNippo()">保存</button><button class="btn s" onclick="npCopy()">文をコピー</button></div>
+    <div class="row"><button class="btn" onclick="saveNippo()">保存</button><button class="btn s" onclick="npFill()">自動で入れる</button><button class="btn s" onclick="npCopy()">文をコピー</button></div>
   </div>
   <div class="card"><h3 style="margin-top:0">自動の分析</h3><div id="npai" class="sub">—</div>
     <div class="row"><button class="btn s" onclick="npUseAi()">分析を「改善点」に入れる</button></div></div>
@@ -3278,7 +3278,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029164538';
+const BUILD='20261029171134';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3482,11 +3482,11 @@ async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.val
   const bc=buyM.reduce((a,i)=>a+(i.cost_jpy||0),0);
   NP={d,listed:lst.length,usd:lst.reduce((a,i)=>a+(+i.price_usd||0),0),sold:os.length,s,p,
     todayList:lc.count||0,todayBuy:buyM.filter(i=>i.purchased_on===d).length,buyN:buyM.length,bc,zan:1300000-bc,stock:stk.reduce((a,i)=>a+(i.cost_jpy||0),0)};
-  npAnalyze(d,os,s,p).catch(e=>npai.textContent='分析できません：'+e.message);
   const r=n.data||{}, prev=(past.data||[]).find(x=>x.day<d&&x.limit_qty);
   np_lq.value=r.limit_qty??prev?.limit_qty??''; np_lu.value=r.limit_usd??prev?.limit_usd??'';
   ['shiire','cp','kizuki','good','improve'].forEach(k=>$('np_'+k).value=r[k]||'');
   npRender();
+  npAnalyze(d,os,s,p).then(()=>{ if(!n.data) npFill() }).catch(e=>npai.textContent='分析できません：'+e.message);
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
   nplist.innerHTML=(past.data||[]).map(x=>`<div style="border-top:1px solid var(--line);padding:8px 0;cursor:pointer" onclick="npd.value='${x.day}';loadNippo();scrollTo(0,0)"><b>${x.day.replace(/-/g,'/')}</b>
     ${x.kizuki?`<div>気づき：${esc(x.kizuki)}</div>`:''}${x.good?`<div style="color:#1a7f37">いい点：${esc(x.good)}</div>`:''}${x.improve?`<div style="color:#d70015">改善点：${esc(x.improve)}</div>`:''}</div>`).join('')||'まだありません'; }
@@ -3522,7 +3522,7 @@ ${v('kizuki')}
 ${v('good')?`\nいい点\n${v('good')}\n`:''}${v('improve')?`\n改善点\n${v('improve')}\n`:''}`.trim(); }
 // 自動の分析（2026-10-29）：Tick Takの数字から決まったルールで読むだけ（AIの文章ではない。APIキーが来たら差し替える）
 //   先月の同じ日までとの比較／利益率の低い注文／売れたブランドの利益率と売れるまでの日数／出品中の長期在庫
-let NPAI=[];
+let NPAI=[], NPAUTO=null;
 async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.slice(0,4),+d.slice(5,7)-2,1), pk=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,'0')}`;
   const pd=Math.min(+d.slice(8,10),new Date(pm.getFullYear(),pm.getMonth()+1,0).getDate());
   const [po,sold,lst]=await Promise.all([
@@ -3550,7 +3550,29 @@ async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.s
   const old=lst.map(ageDays), o90=old.filter(x=>x>=90).length, o180=old.filter(x=>x>=180).length;
   if(lst.length) L.push(`出品中 ${lst.length}本のうち 90日超 ${o90}本（${pct(o90,lst.length)}%）・180日超 ${o180}本。${o90/lst.length>=0.5?'半分以上が90日超。値下げか国内に回すのを先に。':''}`);
   if(!L.length) L.push('この日までの数字がまだありません。');
+  // ── 自動で入れる文（2026-10-29 本人「自動で入れられるとこまで」）──
+  const y=new Date(new Date(d)-864e5).toISOString().slice(0,10);
+  const bz=await allRows(()=>sb.from('items').select('kno,purchased_on,cost_jpy,supplier,title,memo').gte('purchased_on',y).lte('purchased_on',d).order('kno'));
+  const nm=r=>(r.title||memoLine(r.memo,'台帳')||'').replace(/^\[.*?\]\s*/,'').replace(/[★☆]/g,'').slice(0,40);
+  const sh=v=>memoLine(v.memo,'送料').match(/[\d,]+/)?.[0]||'';
+  const line=r=>`[${r.kno}] ${nm(r)}　${yen(r.cost_jpy||0)}円${sh(r)?'＋送料'+sh(r)+'円':''}（${r.supplier||memoLine(r.memo,'お店')||'—'}）`;
+  const bt=bz.filter(r=>r.purchased_on===d);
+  const auc=r=>/ヤフオク|オークション|オークネット|CP/i.test(r.supplier||'');
+  const ab=bz.filter(auc), sum=a=>yen(a.reduce((x,r)=>x+(r.cost_jpy||0),0));
+  const todaySold=sold.filter(o=>o.ordered_on===d).map(o=>({o,v:pr(o)}));
+  const gs=todaySold.filter(x=>x.o.items?.cost_jpy&&x.v.x&&x.v.p/x.v.x>=0.25);
+  NPAUTO={
+    shiire: bt.length?`${bt.length}本・${sum(bt)}円\n`+bt.map(line).join('\n'):'なし',
+    cp: ab.length?[[y,'昨日'],[d,'本日']].map(([k,t])=>{ const a=ab.filter(r=>r.purchased_on===k); return a.length?`${t} 落札 ${a.length}本・${sum(a)}円\n`+a.map(line).join('\n'):`${t} 落札なし` }).join('\n'):'昨日・本日とも落札なし',
+    kizuki: L.filter(x=>/^売上は|^利益率は|^出品中/.test(x)).join('\n'),
+    good: [todaySold.length?`今日 ${todaySold.length}本売れた（${yen(todaySold.reduce((a,x)=>a+x.v.x,0))}円）`:'',
+      ...gs.map(x=>`${x.o.kno} ${(x.o.items.title||'').replace(/^\[.*?\]\s*/,'').slice(0,30)} 利益率${pct(x.v.p,x.v.x)}%`),
+      good.length?`利益率25%以上で早く売れている：${good.map(g=>g.k).join('、')}`:''].filter(Boolean).join('\n'),
+    improve: L.filter(x=>/見直す|下げる|値下げ|落ちて/.test(x)).join('\n')};
   NPAI=L; npai.innerHTML=L.map(x=>`<div style="padding:4px 0">・${x.replace(/[<>&]/g,'')}</div>`).join(''); }
+function npFill(){ if(!NPAUTO) return; let n=0;
+  for(const k of ['shiire','cp','kizuki','good','improve']){ const el=$('np_'+k); if(!el.value.trim()&&NPAUTO[k]){ el.value=NPAUTO[k]; n++ } }
+  npRender(); npmsg.textContent=n?` 空いている欄に${n}か所入れました（まだ保存していません）`:' 入れられる欄はありません（書いてある欄はそのまま）'; }
 function npUseAi(){ if(!NPAI.length) return; const t=NPAI.filter(x=>/見直す|下げる|値下げ|落ちて|仕入れるなら/.test(x)).join('\n')||NPAI.join('\n');
   np_improve.value=(np_improve.value.trim()?np_improve.value.trim()+'\n':'')+t; npRender(); }
 function npRender(){ nptext.textContent=npText(); }
