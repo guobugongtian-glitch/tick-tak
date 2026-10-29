@@ -820,16 +820,19 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 </section>
 
 <!-- 経費のレシート（2026-10-26）：撮って残す。カード払いはカード明細にひも付けるだけ（二重に数えない） -->
-<!-- 日報（2026-10-29）：1日1枚。その日の数字は自動、やったこと・いい点・改善点は手で -->
+<!-- 日報（2026-10-29）：本人の日報の形（①数字 ②仕入れ ③CPの結果 ④質問・悩み・気づき）＋いい点・改善点。①は自動 -->
 <section id="v-nippo" class="hide">
   <div class="card">
     <div class="row">日付：<input id="npd" type="date" onchange="loadNippo()"> <button class="btn s" onclick="npd.value=jstToday();loadNippo()">今日</button><span id="npmsg" class="sub"></span></div>
-    <div id="npnum" class="sub" style="margin:8px 0"></div>
-    <label class="sub">やったこと<textarea id="np_done" rows="3" style="width:100%"></textarea></label>
-    <label class="sub">いい点（うまくいったこと）<textarea id="np_good" rows="3" style="width:100%"></textarea></label>
-    <label class="sub">改善点（次はこうする）<textarea id="np_improve" rows="3" style="width:100%"></textarea></label>
-    <div class="row"><button class="btn" onclick="saveNippo()">保存</button></div>
+    <div class="row sub">eBayのリミット：<input id="np_lq" type="number" style="width:100px" placeholder="品数" oninput="npRender()"> 品 / $<input id="np_lu" type="number" style="width:120px" placeholder="金額" oninput="npRender()"></div>
+    <label class="sub">②仕入れ<textarea id="np_shiire" rows="3" style="width:100%" oninput="npRender()"></textarea></label>
+    <label class="sub">③昨日・本日のCP（落札）の結果<textarea id="np_cp" rows="3" style="width:100%" oninput="npRender()"></textarea></label>
+    <label class="sub">④質問、悩み、気づき<textarea id="np_kizuki" rows="3" style="width:100%" oninput="npRender()"></textarea></label>
+    <label class="sub">いい点（うまくいったこと）<textarea id="np_good" rows="2" style="width:100%" oninput="npRender()"></textarea></label>
+    <label class="sub">改善点（次はこうする）<textarea id="np_improve" rows="2" style="width:100%" oninput="npRender()"></textarea></label>
+    <div class="row"><button class="btn" onclick="saveNippo()">保存</button><button class="btn s" onclick="npCopy()">文をコピー</button></div>
   </div>
+  <div class="card"><h3 style="margin-top:0">日報の文（このまま貼れます）</h3><pre id="nptext" style="white-space:pre-wrap;font:inherit;margin:0"></pre></div>
   <div class="card"><h3 style="margin-top:0">これまでの日報</h3><div id="nplist" class="sub">—</div></div>
 </section>
 
@@ -3273,7 +3276,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029163813';
+const BUILD='20261029164157';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3461,20 +3464,63 @@ async function setKenpin(kno,sel){ sel.disabled=true;
   const {error}=await sb.from('items').update({memo:lines.join('\n')||null}).eq('kno',kno); sel.disabled=false;
   if(error){ alert('保存できません：'+error.message); return }
   sel.className='kpsel'+(sel.value==='検品済み'?' ok':sel.value?' ng':''); }
-// ===== 日報（2026-10-29）：表 nippo（nippo.sql）。その日の数字は items・orders から数えるだけで保存しない =====
-async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.value; npmsg.textContent='';
-  const [n,os,buy,lst,past]=await Promise.all([sb.from('nippo').select('*').eq('day',d).maybeSingle(),
-    sb.from('orders').select('platform,item_price_jpy,ship_charged_jpy').eq('ordered_on',d),
-    sb.from('items').select('cost_jpy').eq('purchased_on',d), sb.from('items').select('kno',{count:'exact',head:true}).eq('listed_on',d),
-    sb.from('nippo').select('*').order('day',{ascending:false}).limit(60)]);
+// ===== 日報（2026-10-29）：表 nippo（nippo.sql）。①の数字は items・orders から数えるだけで保存しない =====
+//   月の数字はその日までの分（売上・粗利の出し方は上の紫のカードと同じ）。仕入れ残高＝仕入れ画面の予算130万−その月の仕入れ額
+let NP=null;
+async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.value, m0=d.slice(0,8)+'01'; npmsg.textContent='';
+  const [n,past,os,buyM,lst,lc,stk]=await Promise.all([sb.from('nippo').select('*').eq('day',d).maybeSingle(),
+    sb.from('nippo').select('*').order('day',{ascending:false}).limit(60),
+    allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(cost_jpy)').gte('ordered_on',m0).lte('ordered_on',d).order('id')),
+    allRows(()=>sb.from('items').select('kno,purchased_on,cost_jpy').gte('purchased_on',m0).lte('purchased_on',d).order('kno')),
+    allRows(()=>sb.from('items').select('price_usd').eq('status','listed').order('kno')),
+    sb.from('items').select('kno',{count:'exact',head:true}).eq('listed_on',d),
+    allRows(()=>sb.from('items').select('cost_jpy').neq('status','sold').order('kno'))]);
   if(n.error){ npmsg.textContent=' 日報の表がまだありません（nippo.sql をSupabaseで1回実行してください）'; return }
-  const sales=(os.data||[]).reduce((a,o)=>a+(o.item_price_jpy||0)+(o.ship_charged_jpy||0),0), bc=(buy.data||[]).reduce((a,i)=>a+(i.cost_jpy||0),0);
-  npnum.innerHTML=`この日の数字：売れた <b>${(os.data||[]).length}本</b>（${yen(sales)}円）・仕入れ <b>${(buy.data||[]).length}本</b>（${yen(bc)}円）・出品 <b>${lst.count||0}本</b>`;
-  np_done.value=n.data?.done||''; np_good.value=n.data?.good||''; np_improve.value=n.data?.improve||'';
+  let s=0,p=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
+  const bc=buyM.reduce((a,i)=>a+(i.cost_jpy||0),0);
+  NP={d,listed:lst.length,usd:lst.reduce((a,i)=>a+(+i.price_usd||0),0),sold:os.length,s,p,
+    todayList:lc.count||0,todayBuy:buyM.filter(i=>i.purchased_on===d).length,buyN:buyM.length,bc,zan:1300000-bc,stock:stk.reduce((a,i)=>a+(i.cost_jpy||0),0)};
+  const r=n.data||{}, prev=(past.data||[]).find(x=>x.day<d&&x.limit_qty);
+  np_lq.value=r.limit_qty??prev?.limit_qty??''; np_lu.value=r.limit_usd??prev?.limit_usd??'';
+  ['shiire','cp','kizuki','good','improve'].forEach(k=>$('np_'+k).value=r[k]||'');
+  npRender();
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
-  nplist.innerHTML=(past.data||[]).map(r=>`<div style="border-top:1px solid var(--line);padding:8px 0;cursor:pointer" onclick="npd.value='${r.day}';loadNippo();scrollTo(0,0)"><b>${r.day.replace(/-/g,'/')}</b>
-    ${r.done?`<div>やったこと：${esc(r.done)}</div>`:''}${r.good?`<div style="color:#1a7f37">いい点：${esc(r.good)}</div>`:''}${r.improve?`<div style="color:#d70015">改善点：${esc(r.improve)}</div>`:''}</div>`).join('')||'まだありません'; }
-async function saveNippo(){ const v={day:npd.value||jstToday(),done:np_done.value.trim()||null,good:np_good.value.trim()||null,improve:np_improve.value.trim()||null,updated_at:new Date().toISOString()};
+  nplist.innerHTML=(past.data||[]).map(x=>`<div style="border-top:1px solid var(--line);padding:8px 0;cursor:pointer" onclick="npd.value='${x.day}';loadNippo();scrollTo(0,0)"><b>${x.day.replace(/-/g,'/')}</b>
+    ${x.kizuki?`<div>気づき：${esc(x.kizuki)}</div>`:''}${x.good?`<div style="color:#1a7f37">いい点：${esc(x.good)}</div>`:''}${x.improve?`<div style="color:#d70015">改善点：${esc(x.improve)}</div>`:''}</div>`).join('')||'まだありません'; }
+const man=v=>Math.round(v/10000).toLocaleString()+'万円';
+function npText(){ if(!NP) return ''; const X=NP, v=k=>$('np_'+k).value.trim();
+  const lq=+np_lq.value, lu=+np_lu.value;
+  return `①日報
+
+時計 ${+X.d.slice(5,7)}月
+1 リミット： ${lq?lq.toLocaleString():'—'} 品 / $${lu?lu.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+2 現在出品数： ${X.listed}個
+3 出品金額: $${X.usd.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+4 販売個数： ${X.sold}個
+5 売上： ${man(X.s)}
+6 粗利 ${man(X.p)}
+7 利益率： ${X.s?Math.round(X.p/X.s*100):0}%
+8 今日1日の行動内容：
+【出 品】${X.todayList}個
+【仕入れ】${X.todayBuy}個
+総仕入れ数 ${X.buyN}個
+総仕入れ金額 ${man(X.bc)}
+仕入れ残高 ${man(X.zan)}
+在庫金額 ${man(X.stock)}
+
+②仕入れ
+${v('shiire')}
+
+③昨日・本日のCP（落札）の結果
+${v('cp')}
+
+④質問、悩み、気づき
+${v('kizuki')}
+${v('good')?`\nいい点\n${v('good')}\n`:''}${v('improve')?`\n改善点\n${v('improve')}\n`:''}`.trim(); }
+function npRender(){ nptext.textContent=npText(); }
+async function npCopy(){ try{ await navigator.clipboard.writeText(npText()); npmsg.textContent=' コピーしました' }catch(e){ npmsg.textContent=' コピーできません（下の文を長押しで選んでください）' } }
+async function saveNippo(){ const v={day:npd.value||jstToday(),limit_qty:+np_lq.value||null,limit_usd:+np_lu.value||null,updated_at:new Date().toISOString()};
+  ['shiire','cp','kizuki','good','improve'].forEach(k=>v[k]=$('np_'+k).value.trim()||null);
   const {error}=await sb.from('nippo').upsert(v); if(error){ npmsg.textContent=' 保存できません：'+error.message; return }
   await loadNippo(); npmsg.textContent=' 保存しました'; }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
