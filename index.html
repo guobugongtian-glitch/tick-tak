@@ -581,7 +581,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
   nav button.sell:hover{background:var(--grad,var(--accent));opacity:.9}
   nav button[data-v=items]{order:1} nav button[data-v=orders]{order:2} nav button[data-v=etsyrv]{order:3}
   nav button[data-v=tana]{order:3} nav button[data-v=research]{order:4} nav button[data-v=buy]{order:5}
-  nav button[data-v=pf]{order:6} nav button[data-v=cash]{order:7} nav button[data-v=card]{order:8} nav button[data-v=bank]{order:9} nav button[data-v=rcpt]{order:9}
+  nav button[data-v=pf]{order:6} nav button[data-v=cash]{order:7} nav button[data-v=card]{order:8} nav button[data-v=bank]{order:9} nav button[data-v=rcpt]{order:9} nav button[data-v=nippo]{order:9}
   nav button.pk{order:10} nav button[data-v=io]{order:10;margin-top:10px;position:relative}
   nav button[data-v=io]::before{content:"";position:absolute;left:14px;right:14px;top:-6px;border-top:1px solid var(--line)}
 }
@@ -642,6 +642,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button data-v="card" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>カード明細</span></button>
     <button data-v="bank" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg><span>銀行明細</span></button>
     <button data-v="rcpt" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>レシート</span></button>
+    <button data-v="nippo" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>日報</span></button>
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
     <button class="mh pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Pinkoi</span></button>
@@ -699,6 +700,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
     <button onclick="go('rcpt')">経費のレシート</button>
+    <button onclick="go('nippo')">日報（いい点・改善点）</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')">Pinkoi 管理画面 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/listings','_blank','noopener')">Pinkoi 商品管理 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/orders','_blank','noopener')">Pinkoi 注文 ↗</button>
@@ -818,6 +820,19 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 </section>
 
 <!-- 経費のレシート（2026-10-26）：撮って残す。カード払いはカード明細にひも付けるだけ（二重に数えない） -->
+<!-- 日報（2026-10-29）：1日1枚。その日の数字は自動、やったこと・いい点・改善点は手で -->
+<section id="v-nippo" class="hide">
+  <div class="card">
+    <div class="row">日付：<input id="npd" type="date" onchange="loadNippo()"> <button class="btn s" onclick="npd.value=jstToday();loadNippo()">今日</button><span id="npmsg" class="sub"></span></div>
+    <div id="npnum" class="sub" style="margin:8px 0"></div>
+    <label class="sub">やったこと<textarea id="np_done" rows="3" style="width:100%"></textarea></label>
+    <label class="sub">いい点（うまくいったこと）<textarea id="np_good" rows="3" style="width:100%"></textarea></label>
+    <label class="sub">改善点（次はこうする）<textarea id="np_improve" rows="3" style="width:100%"></textarea></label>
+    <div class="row"><button class="btn" onclick="saveNippo()">保存</button></div>
+  </div>
+  <div class="card"><h3 style="margin-top:0">これまでの日報</h3><div id="nplist" class="sub">—</div></div>
+</section>
+
 <section id="v-rcpt" class="hide">
   <div class="card">
     <div class="row rcbig"><label class="btn">レシートを撮る<input type="file" accept="image/*" capture="environment" class="hide" onchange="rcAdd(this)"></label>
@@ -1335,7 +1350,7 @@ document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=docum
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
-  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt})[b.dataset.v]?.();
+  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo})[b.dataset.v]?.();
 });
 
 // 商品管理：3段の絞り込み
@@ -3258,7 +3273,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029140124';
+const BUILD='20261029163813';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3446,6 +3461,22 @@ async function setKenpin(kno,sel){ sel.disabled=true;
   const {error}=await sb.from('items').update({memo:lines.join('\n')||null}).eq('kno',kno); sel.disabled=false;
   if(error){ alert('保存できません：'+error.message); return }
   sel.className='kpsel'+(sel.value==='検品済み'?' ok':sel.value?' ng':''); }
+// ===== 日報（2026-10-29）：表 nippo（nippo.sql）。その日の数字は items・orders から数えるだけで保存しない =====
+async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.value; npmsg.textContent='';
+  const [n,os,buy,lst,past]=await Promise.all([sb.from('nippo').select('*').eq('day',d).maybeSingle(),
+    sb.from('orders').select('platform,item_price_jpy,ship_charged_jpy').eq('ordered_on',d),
+    sb.from('items').select('cost_jpy').eq('purchased_on',d), sb.from('items').select('kno',{count:'exact',head:true}).eq('listed_on',d),
+    sb.from('nippo').select('*').order('day',{ascending:false}).limit(60)]);
+  if(n.error){ npmsg.textContent=' 日報の表がまだありません（nippo.sql をSupabaseで1回実行してください）'; return }
+  const sales=(os.data||[]).reduce((a,o)=>a+(o.item_price_jpy||0)+(o.ship_charged_jpy||0),0), bc=(buy.data||[]).reduce((a,i)=>a+(i.cost_jpy||0),0);
+  npnum.innerHTML=`この日の数字：売れた <b>${(os.data||[]).length}本</b>（${yen(sales)}円）・仕入れ <b>${(buy.data||[]).length}本</b>（${yen(bc)}円）・出品 <b>${lst.count||0}本</b>`;
+  np_done.value=n.data?.done||''; np_good.value=n.data?.good||''; np_improve.value=n.data?.improve||'';
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
+  nplist.innerHTML=(past.data||[]).map(r=>`<div style="border-top:1px solid var(--line);padding:8px 0;cursor:pointer" onclick="npd.value='${r.day}';loadNippo();scrollTo(0,0)"><b>${r.day.replace(/-/g,'/')}</b>
+    ${r.done?`<div>やったこと：${esc(r.done)}</div>`:''}${r.good?`<div style="color:#1a7f37">いい点：${esc(r.good)}</div>`:''}${r.improve?`<div style="color:#d70015">改善点：${esc(r.improve)}</div>`:''}</div>`).join('')||'まだありません'; }
+async function saveNippo(){ const v={day:npd.value||jstToday(),done:np_done.value.trim()||null,good:np_good.value.trim()||null,improve:np_improve.value.trim()||null,updated_at:new Date().toISOString()};
+  const {error}=await sb.from('nippo').upsert(v); if(error){ npmsg.textContent=' 保存できません：'+error.message; return }
+  await loadNippo(); npmsg.textContent=' 保存しました'; }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
   const memo=[`台帳：${nm}`,by_seller.value&&`出品者：${by_seller.value}`,by_addr.value&&`住所：${by_addr.value}`,by_pay.value&&`支払：${by_pay.value}`].filter(Boolean).join('\n');
