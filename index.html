@@ -832,6 +832,8 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <label class="sub">改善点（次はこうする）<textarea id="np_improve" rows="2" style="width:100%" oninput="npRender()"></textarea></label>
     <div class="row"><button class="btn" onclick="saveNippo()">保存</button><button class="btn s" onclick="npCopy()">文をコピー</button></div>
   </div>
+  <div class="card"><h3 style="margin-top:0">自動の分析</h3><div id="npai" class="sub">—</div>
+    <div class="row"><button class="btn s" onclick="npUseAi()">分析を「改善点」に入れる</button></div></div>
   <div class="card"><h3 style="margin-top:0">日報の文（このまま貼れます）</h3><pre id="nptext" style="white-space:pre-wrap;font:inherit;margin:0"></pre></div>
   <div class="card"><h3 style="margin-top:0">これまでの日報</h3><div id="nplist" class="sub">—</div></div>
 </section>
@@ -3276,7 +3278,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029164157';
+const BUILD='20261029164538';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3475,11 +3477,12 @@ async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.val
     allRows(()=>sb.from('items').select('price_usd').eq('status','listed').order('kno')),
     sb.from('items').select('kno',{count:'exact',head:true}).eq('listed_on',d),
     allRows(()=>sb.from('items').select('cost_jpy').neq('status','sold').order('kno'))]);
-  if(n.error){ npmsg.textContent=' 日報の表がまだありません（nippo.sql をSupabaseで1回実行してください）'; return }
+  if(n.error) npmsg.textContent=' 日報の表がまだありません（nippo.sql をSupabaseで1回実行してください）。数字と分析は見られます';
   let s=0,p=0; os.forEach(o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); s+=x; p+=x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0) });
   const bc=buyM.reduce((a,i)=>a+(i.cost_jpy||0),0);
   NP={d,listed:lst.length,usd:lst.reduce((a,i)=>a+(+i.price_usd||0),0),sold:os.length,s,p,
     todayList:lc.count||0,todayBuy:buyM.filter(i=>i.purchased_on===d).length,buyN:buyM.length,bc,zan:1300000-bc,stock:stk.reduce((a,i)=>a+(i.cost_jpy||0),0)};
+  npAnalyze(d,os,s,p).catch(e=>npai.textContent='分析できません：'+e.message);
   const r=n.data||{}, prev=(past.data||[]).find(x=>x.day<d&&x.limit_qty);
   np_lq.value=r.limit_qty??prev?.limit_qty??''; np_lu.value=r.limit_usd??prev?.limit_usd??'';
   ['shiire','cp','kizuki','good','improve'].forEach(k=>$('np_'+k).value=r[k]||'');
@@ -3517,6 +3520,39 @@ ${v('cp')}
 ④質問、悩み、気づき
 ${v('kizuki')}
 ${v('good')?`\nいい点\n${v('good')}\n`:''}${v('improve')?`\n改善点\n${v('improve')}\n`:''}`.trim(); }
+// 自動の分析（2026-10-29）：Tick Takの数字から決まったルールで読むだけ（AIの文章ではない。APIキーが来たら差し替える）
+//   先月の同じ日までとの比較／利益率の低い注文／売れたブランドの利益率と売れるまでの日数／出品中の長期在庫
+let NPAI=[];
+async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.slice(0,4),+d.slice(5,7)-2,1), pk=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,'0')}`;
+  const pd=Math.min(+d.slice(8,10),new Date(pm.getFullYear(),pm.getMonth()+1,0).getDate());
+  const [po,sold,lst]=await Promise.all([
+    allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(cost_jpy)').gte('ordered_on',pk+'-01').lte('ordered_on',`${pk}-${String(pd).padStart(2,'0')}`).order('id')),
+    allRows(()=>sb.from('orders').select('kno,ordered_on,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(title,specs,cost_jpy,first_listed_on,listed_on,research(name))').gte('ordered_on',m0).lte('ordered_on',d).order('id')),
+    allRows(()=>sb.from('items').select('kno,status,purchased_on,first_listed_on,listed_on').eq('status','listed').order('kno'))]);
+  const pr=o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); return {x,p:x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)} };
+  let ps=0,pp=0; po.forEach(o=>{ const v=pr(o); ps+=v.x; pp+=v.p });
+  const L=[], pct=(a,b)=>b?Math.round(a/b*100):0;
+  if(ps) L.push(`売上は先月の同じ日まで（${yen(ps)}円）より ${s>=ps?'+':''}${pct(s-ps,ps)}%。${pct(s-ps,ps)<=-5?'ペースが落ちています。':pct(s-ps,ps)>=5?'先月より上です。':'ほぼ同じです。'}`);
+  if(s) L.push(`利益率は ${pct(p,s)}%（先月の同じ日まで ${pct(pp,ps)}%）。${pct(p,s)<20?'20%を切っています。仕入値か値付けを見直すところです。':''}`);
+  const low=sold.filter(o=>{ const v=pr(o); return o.items?.cost_jpy&&v.x&&v.p/v.x<0.1 });
+  if(low.length) L.push(`利益率10%未満の販売が ${low.length}本：${low.slice(0,3).map(o=>`${o.kno}（${(o.items.title||'').replace(/^\[.*?\]\s*/,'').slice(0,28)}）`).join('、')}${low.length>3?' ほか':''}。この型は買値の上限を下げる。`);
+  // ブランドごと：売れた本数・利益率・売れるまでの日数（出品日→注文日）
+  const B={}; sold.forEach(o=>{ const it=o.items||{}; const w=(it.specs?.Brand||(it.title||'').replace(/^\[.*?\]\s*/,'').replace(/^(Vintage|Vtg|Rare|\d{4})\s+/ig,'')||it.research?.name||'').trim().split(/\s+/);
+    let b=(/^(CHRISTIAN|RAYMOND|FREDERIQUE|YVES|ANDRE|BAUME|TAG|PAUL|CARTIER)$/i.test(w[0])&&w[1]?w[0]+' '+w[1]:w[0])||'';
+    b=/^HELMESU$/i.test(b)?'HERMES':/\d/.test(b)||!b?'その他（ブランド名なし）':b;
+    const k=b.toUpperCase(), v=pr(o), f=it.first_listed_on||it.listed_on; const g=B[k]??={n:0,x:0,p:0,days:[]};
+    g.n++; g.x+=v.x; g.p+=v.p; if(f) g.days.push(Math.max(0,(new Date(o.ordered_on)-new Date(f))/864e5)) });
+  const med=a=>{ if(!a.length) return null; const b=[...a].sort((x,y)=>x-y); return Math.round(b[Math.floor(b.length/2)]) };
+  const bl=Object.entries(B).filter(([,g])=>g.n>=2).map(([k,g])=>({k,n:g.n,r:pct(g.p,g.x),dd:med(g.days)}));
+  const good=bl.filter(g=>g.r>=25&&(g.dd==null||g.dd<=60)).sort((a,b)=>b.r-a.r);
+  if(bl.length) L.push('今月売れたブランド：'+bl.sort((a,b)=>b.n-a.n).slice(0,5).map(g=>`${g.k} ${g.n}本・利益率${g.r}%${g.dd!=null?'・中央'+g.dd+'日':''}`).join('／'));
+  if(good.length) L.push(`利益率25%以上で早く売れている：${good.map(g=>g.k).join('、')}。仕入れるならここ。`);
+  const old=lst.map(ageDays), o90=old.filter(x=>x>=90).length, o180=old.filter(x=>x>=180).length;
+  if(lst.length) L.push(`出品中 ${lst.length}本のうち 90日超 ${o90}本（${pct(o90,lst.length)}%）・180日超 ${o180}本。${o90/lst.length>=0.5?'半分以上が90日超。値下げか国内に回すのを先に。':''}`);
+  if(!L.length) L.push('この日までの数字がまだありません。');
+  NPAI=L; npai.innerHTML=L.map(x=>`<div style="padding:4px 0">・${x.replace(/[<>&]/g,'')}</div>`).join(''); }
+function npUseAi(){ if(!NPAI.length) return; const t=NPAI.filter(x=>/見直す|下げる|値下げ|落ちて|仕入れるなら/.test(x)).join('\n')||NPAI.join('\n');
+  np_improve.value=(np_improve.value.trim()?np_improve.value.trim()+'\n':'')+t; npRender(); }
 function npRender(){ nptext.textContent=npText(); }
 async function npCopy(){ try{ await navigator.clipboard.writeText(npText()); npmsg.textContent=' コピーしました' }catch(e){ npmsg.textContent=' コピーできません（下の文を長押しで選んでください）' } }
 async function saveNippo(){ const v={day:npd.value||jstToday(),limit_qty:+np_lq.value||null,limit_usd:+np_lu.value||null,updated_at:new Date().toISOString()};
