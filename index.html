@@ -592,7 +592,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 .rcth{width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;background:#eee}
 #rcbody tr{cursor:pointer}
 @media (max-width:700px){ .rcbig .btn{flex:1 1 100%;text-align:center;min-height:44px} .rcf{grid-template-columns:1fr} }
-body.hideam .amh{display:none!important}
+body.hideam .amh,body.hideam button.pk{display:none!important}
 </style>
 </head>
 <body>
@@ -993,7 +993,7 @@ body.hideam .amh{display:none!important}
   </div>
   <div class="card">
     <h3 style="margin-top:0">見せない</h3>
-    <label class="row" style="gap:8px"><input type="checkbox" id="hideam" onchange="setHideAM(this.checked)"> アンドレムッシュを画面に出さない（一覧・リサーチ・注文など。合計の数字には入ったまま）</label>
+    <label class="row" style="gap:8px"><input type="checkbox" id="hideam" onchange="setHideAM(this.checked)"> アンドレムッシュ・Pinkoi・Grailedを画面に出さない（一覧・リサーチ・注文など。合計の数字には入ったまま）</label>
   </div>
   <div class="card">
     <h3 style="margin-top:0">計算の設定</h3>
@@ -1124,7 +1124,7 @@ body.hideam .amh{display:none!important}
     <label class="sub">商品備考</label><textarea name="memo"></textarea>
   </div>
   <div id="vout" class="sub" style="padding:0 16px;line-height:1.6"></div>
-  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><button class="btn s" type="button" onclick="jpOpen()">ヤフオク・メルカリ用</button><button class="btn s" type="button" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="osOpen()">Pinkoiなどで売れた</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
+  <div class="df dff"><button class="btn g" onclick="saveItem()">保存</button><button class="btn" type="button" id="verbtn" onclick="verifyItem()">eBayで確認（出品はしない）</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s hide" type="button" id="chkbtn" onclick="checkEbay()">eBayの出品を見る</button><button class="btn s hide" type="button" id="revbtn" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="reviseDesc()">eBayの説明文を直す</button><button class="btn s hide" type="button" id="endbtn" onclick="endListing()">出品を取り下げる</button><button class="btn" type="button" id="pubbtn" onclick="publishItem()" disabled title="先に「eBayで確認」を通してください">eBayに出品する</button><button class="btn s" type="button" id="etsybtn" onclick="etsyDraft()">Etsyに下書きを作る</button><button class="btn s" type="button" onclick="jpOpen()">ヤフオク・メルカリ用</button><button class="btn s" type="button" style="border-color:#ff333f;color:#ff333f;font-weight:700" onclick="osOpen()" id="osbtn">Pinkoiなどで売れた</button><span id="dmsg" class="sub"></span><button class="btn s" onclick="dlg.close()">閉じる</button></div>
   <div class="df dfq"><button class="btn" type="button" id="qbtn" style="flex:1 1 100%;min-height:52px;font-size:17px;font-weight:700" onclick="quickPublish()">出品する</button><button class="btn s" type="button" onclick="saveItem()">下書きで保存</button><button class="btn s" type="button" onclick="previewDesc()">説明文を見る</button><button class="btn s" type="button" onclick="dlg.classList.remove('quick')">くわしく入力</button></div>
 </form></dialog>
 <dialog id="edlg"><div class="dh"><b>写真の編集</b><button class="btn s" type="button" onclick="edlg.close()">✕</button></div>
@@ -1284,7 +1284,7 @@ async function jpSold(){ const m=JP.m, nm=JP_NAME[m], x=JP.jp[m]; const v=window
 const OS_DEF={Pinkoi:[12.5,176],Shopee:[0,0],'メルカリ':[10,750],'ヤフオク':[10,750],'その他':[0,0]};
 function osFee(){ const d=OS_DEF[ospf.value]||[0,0]; osfee.value=d[0]; osship.value=d[1]; }
 function osOpen(){ const kno=+ifm.kno.value; if(!kno){ dmsg.textContent='先に品番を入れてください'; return }
-  ostitle.textContent=`品番 ${kno}　${ifm.title.value||''}`; ospf.value='Pinkoi'; osday.value=jpToday(); osprice.value=''; osno.value=''; osmsg.textContent=''; osout.innerHTML=''; osFee(); osdlg.showModal(); }
+  ostitle.textContent=`品番 ${kno}　${ifm.title.value||''}`; ospf.value=document.body.classList.contains('hideam')?'Shopee':'Pinkoi'; osday.value=jpToday(); osprice.value=''; osno.value=''; osmsg.textContent=''; osout.innerHTML=''; osFee(); osdlg.showModal(); }
 async function osSave(){ const kno=+ifm.kno.value, pf=ospf.value, price=+String(osprice.value).replace(/[^\d]/g,''), d=osday.value;
   if(!price||!d){ osmsg.textContent='売値と日付を入れてください'; return }
   const {data:cur}=await sb.from('items').select('ebay_item_id,status').eq('kno',kno).maybeSingle(); const {data:dup}=await sb.from('orders').select('id').eq('kno',kno).limit(1);
@@ -3283,7 +3283,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030163005';
+const BUILD='20261030163512';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3778,13 +3778,14 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
   if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
   msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
 
-// アンドレムッシュを画面から隠す（2026-10-30 本人「全部隠したい」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
-const AM_RE=/アンドレ|ムッシュ|モッシュ|ムーシュ|andre\s*mouche|mouche/i;
+// アンドレムッシュ・Pinkoiを画面から隠す（2026-10-30 本人「全部隠したい」「pinkoiも隠して」「grailedも」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
+const AM_RE=/アンドレ|ムッシュ|モッシュ|ムーシュ|andre\s*mouche|mouche|pinkoi|ピンコイ|grailed|グレイルド/i;
 function markAM(root){ (root||document).querySelectorAll('tr,.rrow,li,option,#mkout a,#rwatch>*').forEach(el=>{ if(AM_RE.test(el.textContent)) el.classList.add('amh') });
   if(WATCH.every(x=>AM_RE.test(x.name))) document.getElementById('rwatch')?.closest('.card')?.classList.add('amh'); }   // 「いつも見る」はアンドレムッシュだけなので枠ごと
-function setHideAM(on){ try{ localStorage.setItem('ws_hide_am',on?'1':'0') }catch(e){} document.body.classList.toggle('hideam',on); }
+function setHideAM(on){ try{ localStorage.setItem('ws_hide_am',on?'1':'0') }catch(e){} document.body.classList.toggle('hideam',on);
+  const b=document.getElementById('osbtn'); if(b) b.textContent=on?'ほかで売れた':'Pinkoiなどで売れた'; }
 (function(){ let on=true; try{ on=localStorage.getItem('ws_hide_am')!=='0' }catch(e){}
-  document.body.classList.toggle('hideam',on); const cb=document.getElementById('hideam'); if(cb) cb.checked=on;
+  setHideAM(on); const cb=document.getElementById('hideam'); if(cb) cb.checked=on;
   markAM(); let t; new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(()=>markAM(),50) }).observe(document.body,{childList:true,subtree:true}); })();
 
 boot();
