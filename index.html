@@ -679,6 +679,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
   </div>
   <div class="card" id="kzcard">
     <div class="row" style="justify-content:space-between"><b>今日の改善点 <span id="kzmsg" class="sub"></span></b></div>
+    <div id="kznp" class="note hide"></div>
     <div id="kzlist" class="note"></div>
   </div>
   <div class="card" id="newscard">
@@ -1206,7 +1207,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadKzNippo(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -3311,7 +3312,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030174002';
+const BUILD='20261031080242';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3613,7 +3614,7 @@ async function npCopy(){ try{ await navigator.clipboard.writeText(npText()); npm
 async function saveNippo(){ const v={day:npd.value||jstToday(),limit_qty:+np_lq.value||null,limit_usd:+np_lu.value||null,updated_at:new Date().toISOString()};
   ['shiire','cp','kizuki','good','improve'].forEach(k=>v[k]=$('np_'+k).value.trim()||null);
   const {error}=await sb.from('nippo').upsert(v); if(error){ npmsg.textContent=' 保存できません：'+error.message; return }
-  await loadNippo(); npmsg.textContent=' 保存しました'; }
+  await loadNippo(); loadKzNippo(); npmsg.textContent=' 保存しました'; }
 async function addBuy(){ const nm=by_name.value.trim(), d=by_date.value, a=+by_amt.value; if(!nm||!d||!a){ bymsg2.textContent='商品名・購入日・仕入値を入れてください'; return }
   const {data:mx}=await sb.from('items').select('kno').order('kno',{ascending:false}).limit(1); const kno=(mx?.[0]?.kno||0)+1;
   const memo=[`台帳：${nm}`,by_seller.value&&`出品者：${by_seller.value}`,by_addr.value&&`住所：${by_addr.value}`,by_pay.value&&`支払：${by_pay.value}`].filter(Boolean).join('\n');
@@ -3861,6 +3862,11 @@ function kzRules(S){ const R=[], k=a=>a.map(x=>x.kno);
   if(S.listed&&S.over90/S.listed>=0.3) R.push({what:'90日超の在庫が多い',why:`出品中${S.listed}本のうち90日超${S.over90}本・180日超${S.over180}本`,action:'180日超から国内（ヤフオク・メルカリ）に回すか値下げ',knos:k(S.oldest)});
   if(S.last14.rate!=null&&S.last14.rate<20) R.push({what:'利益率が20%を切っている',why:`直近14日の利益率 ${S.last14.rate}%`,action:'値下げしすぎていないか確かめる（1本5,000円は残す）'});
   return R.length?R:[{what:'目立った問題はありません',why:`出品中${S.listed}本・直近14日${S.last14.n}本`,action:'このまま'}]; }
+// 日報の改善点もTOPに（2026-10-31 本人）。今日の分が無ければ一番新しい日の分。押すと日報を開く
+async function loadKzNippo(){ const {data,error}=await sb.from('nippo').select('day,improve').not('improve','is',null).lte('day',jpToday()).order('day',{ascending:false}).limit(1);
+  const r=!error&&data?.[0]; kznp.classList.toggle('hide',!r); if(!r) return;
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
+  kznp.innerHTML=`<div style="margin:8px 0;cursor:pointer" onclick="npd.value='${r.day}';go('nippo')"><b>日報の改善点（${r.day===jpToday()?'今日':+r.day.slice(5,7)+'/'+ +r.day.slice(8,10)}）</b><div style="color:#d70015">${esc(r.improve)}</div></div>`; }
 async function loadKaizen(){ kzmsg.textContent='まとめています…';
   let S; try{ S=await kzStats() }catch(e){ kzmsg.textContent='数字を読めません'; return }
   let r={}; try{ const {data,error}=await sb.functions.invoke('kaizen',{body:{day:S.day,stats:S}}); r=error?{error:error.message}:data }catch(e){ r={error:String(e)} }
