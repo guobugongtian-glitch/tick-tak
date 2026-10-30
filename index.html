@@ -3312,7 +3312,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031080242';
+const BUILD='20261031080951';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3811,31 +3811,73 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
 let MSGS=null;
 // 「消す」はTick Takの画面から外すだけ（eBayのメッセージは消さない）。消した印はこの端末に控える
 const msgHid=()=>{ try{ return new Set(JSON.parse(localStorage.getItem('ws_msg_hide')||'[]')) }catch(e){ return new Set() } };
-function msgHide(k,on){ const h=msgHid(); on?h.add(MSGS[k].id):h.delete(MSGS[k].id); try{ localStorage.setItem('ws_msg_hide',JSON.stringify([...h].slice(-500))) }catch(e){} drawMsgs(); }
+function msgHide(k,on){ const h=msgHid(); MSGS.filter(m=>m.from===MSGS[k].from).forEach(m=>on?h.add(m.id):h.delete(m.id)); try{ localStorage.setItem('ws_msg_hide',JSON.stringify([...h].slice(-500))) }catch(e){} drawMsgs(); }
 // 新しいメッセージ（未返信・消していない・まだこの画面で見ていない）があれば、メニューに赤い丸。10分おきに確かめる
 const msgSeen=()=>{ try{ return new Set(JSON.parse(localStorage.getItem('ws_msg_seen')||'[]')) }catch(e){ return new Set() } };
 function msgDots(){ const hid=msgHid(), seen=msgSeen(), n=(MSGS||[]).filter(m=>m.status!=='Answered'&&!hid.has(m.id)&&!seen.has(m.id)).length;
   [document.querySelector('nav button[data-v="msg"]'),document.querySelector('nav button.mo'),$('msgmenu')].forEach(b=>b?.classList.toggle('rdot',n>0)); }
 async function loadMsgs(quiet){ if(!quiet) msgmsg.textContent='読んでいます…'; const r=await ebayCall('messages',{days:3});
-  if(r.error){ if(!quiet) msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages;
+  if(r.error){ if(!quiet) msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages; const dn=msgDone(); MSGS.forEach(m=>{ if(dn.has(m.id)) m.status='Answered' });
   if(!$('v-msg').classList.contains('hide')) drawMsgs(); else msgDots(); }
 setInterval(()=>loadMsgs(true),10*60e3);
+// 同じ買い手のメッセージは1枚にまとめる（2026-10-31 本人「一緒のバイヤーのメッセージはまとめて」）。返信は1回、いちばん新しい未返信への返事として送り、
+// 同じ人のほかの未返信は「まとめて返信済み」としてこの端末に控える（eBayの印は付かない）
+const msgDone=()=>{ try{ return new Set(JSON.parse(localStorage.getItem('ws_msg_done')||'[]')) }catch(e){ return new Set() } };
+function msgGroups(){ const hid=msgHid(), live=MSGS.filter(m=>msgdel.checked||!hid.has(m.id)), g={};
+  live.forEach(m=>(g[m.from||'?']=g[m.from||'?']||[]).push(m));
+  return Object.values(g).map(a=>a.sort((x,y)=>String(x.at||'').localeCompare(String(y.at||''))))
+    .filter(a=>!msgun.checked||a.some(m=>m.status!=='Answered')).sort((x,y)=>String(y.at(-1).at||'').localeCompare(String(x.at(-1).at||''))); }
+// 返す相手＝その人のいちばん新しい未返信（無ければいちばん新しいもの）。k はこれの MSGS の番号
+const msgGroupOf=k=>MSGS.filter(m=>m.from===MSGS[k].from&&(msgdel.checked||!msgHid().has(m.id)));
 function drawMsgs(){ if(!MSGS) return; const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const seen=msgSeen(), hid=msgHid(), live=MSGS.filter(m=>msgdel.checked||!hid.has(m.id)), un=live.filter(m=>m.status!=='Answered'), a=msgun.checked?un:live;
-  msgmsg.textContent=`3日で${MSGS.length}件・未返信${un.length}件`;
-  msglist.innerHTML=a.length?a.map((m,i)=>{ const k=MSGS.indexOf(m), d=m.at?new Date(m.at):null;
-    return `<div class="card"><div class="row" style="justify-content:space-between"><b>${m.status!=='Answered'&&!seen.has(m.id)?'<span class="mdot"></span>':''}${esc(m.from)}</b><span class="sub">${d?`${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}`:''}　${m.status==='Answered'?'返信済み':'<span class="neg">未返信</span>'}</span></div>
-      <div class="sub">${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}</div>
-      <div style="white-space:pre-wrap;margin:8px 0">${esc(m.body)}</div>
-      ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}
-      <textarea id="mrep${k}" rows="4" style="width:100%;box-sizing:border-box" placeholder="英語で返信を書く"></textarea>
-      <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button>${hid.has(m.id)?`<button class="btn s" onclick="msgHide(${k},false)">戻す</button>`:`<button class="btn s" onclick="msgHide(${k},true)">消す</button>`}<span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>';
+  const seen=msgSeen(), hid=msgHid(), un=MSGS.filter(m=>!hid.has(m.id)&&m.status!=='Answered'), G=msgGroups(), when=m=>{ const d=m.at?new Date(m.at):null; return d?`${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}`:'' };
+  msgmsg.textContent=`3日で${MSGS.length}件・未返信${un.length}件（${new Set(un.map(m=>m.from)).size}人）`;
+  msglist.innerHTML=G.length?G.map(a=>{ const u=a.filter(m=>m.status!=='Answered'), t=u.at(-1)||a.at(-1), k=MSGS.indexOf(t), allHid=a.every(m=>hid.has(m.id));
+    return `<div class="card"><div class="row" style="justify-content:space-between"><b>${u.some(m=>!seen.has(m.id))?'<span class="mdot"></span>':''}${esc(t.from)}${a.length>1?`<span class="sub">（${a.length}件）</span>`:''}</b><span class="sub">${when(a.at(-1))}　${u.length?`<span class="neg">未返信${u.length>1?u.length+'件':''}</span>`:'返信済み'}</span></div>
+      ${a.map(m=>`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><div class="sub">${when(m)}　${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}${m.status==='Answered'?'　返信済み':''}</div>
+      <div style="white-space:pre-wrap;margin:6px 0">${esc(m.body)}</div>
+      ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}</div>`).join('')}
+      ${u.length?`<div class="sub" id="mdk${k}"></div>`:''}
+      <textarea id="mrep${k}" rows="6" style="width:100%;box-sizing:border-box" placeholder="英語で返信を書く"></textarea>
+      <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button>${u.length?`<button class="btn s" onclick="msgDraft(${k},true)">返信案を作り直す</button>`:''}${allHid?`<button class="btn s" onclick="msgHide(${k},false)">戻す</button>`:`<button class="btn s" onclick="msgHide(${k},true)">消す</button>`}<span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>';
+  G.forEach(a=>{ const u=a.filter(m=>m.status!=='Answered'); if(u.length) msgDraft(MSGS.indexOf(u.at(-1))) });
   try{ localStorage.setItem('ws_msg_seen',JSON.stringify([...new Set([...seen,...MSGS.map(m=>m.id)])].slice(-500))) }catch(e){} msgDots(); }
+// 返信案（2026-10-31 本人「メッセージ 自動で返信分考えて」）。質問の言葉から種類を見分けて、説明文と同じ決まり（SpeedPAK・関税・返品30日）で英文を組む。
+// AIではなくルール。値段など本人が決めるところは【 】で残し、【 】があるうちは送れない。送る前の確認はそのまま
+const MSGDR={};
+const MSG_KIND=[
+  ['値下げ',/offer|discount|best price|lowest|lower|deal|negotia|cheaper|reduce|less than|\$\s*\d/i,f=>`Thank you for your offer.\nI can do 【ドルの値段】 USD for this watch. If that works for you, I will send you an offer.`],
+  ['まだある？',/still available|is it available|available\?|still have|sold yet/i,f=>`Yes, it is still available.`],
+  ['本物？',/authentic|genuine|real\b|fake|original|replica/i,f=>`Yes, it is genuine. I check every watch before listing.`],
+  ['動く？',/work|running|run\b|battery|accura|keeps? (good |accurate )?time|servic|overhaul|movement|function/i,f=>f?.condition_note||'It works properly.'],
+  ['状態',/condition|scratch|damage|crack|scuff|wear|flaw/i,f=>`${f?.appearance_note||'It shows signs of normal use, such as tiny scuffs.'}\nPlease check the photos carefully.`],
+  ['サイズ',/size|diameter|\bmm\b|wrist|band length|strap length|fit|lug|thick/i,f=>{ const sp=f?.specs||{}, v=['Case Size','Case Thickness','Band Width','Max Wrist Size'].filter(k=>sp[k]).map(k=>`${({'Case Size':'Case width','Case Thickness':'Case thickness','Band Width':'Band width','Max Wrist Size':'Fits wrist up to'})[k]}: ${sp[k]}`);
+    return v.length?`Here are the measurements:\n${v.join('\n')}\n(Measured by hand. Please allow a small margin of error.)`:`The case width is about 【mm】 mm and it fits a wrist up to about 【cm】 cm.` }],
+  ['付属品',/box|papers|warranty card|accessor|included|come with/i,f=>f?.accessories?`It comes with: ${f.accessories}`:`All items you can see in the photos will be included.`],
+  ['写真',/photo|picture|pic\b|image|video/i,f=>`Sure. I will add more photos of 【どこ】 to the listing within a day.`],
+  ['送料・日数',/ship|deliver|arriv|how long|when will|tracking|express|dhl|fedex|ups/i,f=>`I ship by eBay SpeedPAK with a tracking number, Monday to Friday (the office is closed on weekends).`],
+  ['関税',/dut(y|ies)|tax|customs|tariff|import|vat/i,f=>`For buyers in the United States, import duties are included in the price, so there is no additional charge at delivery.\nFor other countries, import duties and taxes are not included and are the buyer's responsibility.`],
+  ['まとめ買い',/combine|multiple|two watches|both|together|bundle/i,f=>`Yes, I can combine shipping. Please let me know which items you would like, and I will send you the total.`],
+  ['返品',/return|refund/i,f=>`I accept returns within 30 days of receipt. The item must be in its original condition. Please contact me first before you send it back. Return shipping is paid by the buyer.`],
+  ['お礼',/thank|received|arrived|love it|great/i,f=>`Thank you very much for letting me know. I am glad you like it.`],
+];
+async function msgDraft(k,force){ const m=MSGS[k], el=$('mrep'+k), lab=$('mdk'+k); if(!el||!lab) return;
+  if(!force&&el.value.trim()) return;
+  if(!force&&MSGDR[m.id]){ el.value=MSGDR[m.id].text; lab.textContent=MSGDR[m.id].note; return }
+  const u=msgGroupOf(k).filter(x=>x.status!=='Answered'), body=(u.length?u:[m]).map(x=>x.body||'').join('\n'), kn=[...new Set(u.map(x=>x.kno).filter(Boolean))];
+  let f=null; if(m.kno){ const {data}=await sb.from('items').select('kno,title,price_usd,condition_note,appearance_note,accessories,specs').eq('kno',+m.kno).maybeSingle(); f=data }
+  const hit=MSG_KIND.filter(([,re])=>re.test(body)), parts=(hit.length?hit:[['ほか',null,()=>`【返事の中身】`]]).slice(0,4);
+  const text=[`Hi ${(m.from||'').trim()},`,'',`Thank you for your message${u.length>1?'s':''}${f?' about this watch':''}.`,...parts.map(([,,fn])=>fn(f)),'','Best regards'].join('\n');
+  const note=`${u.length>1?u.length+'件まとめて　':''}${kn.length>1?'品番が'+kn.length+'つあります（説明は品番'+(+m.kno)+'で作っています）　':''}返信案：${parts.map(x=>x[0]).join('・')}${/【/.test(text)?'　【 】を書き換えてください':''}　見直してから送ってください`;
+  MSGDR[m.id]={text,note}; if(force||!el.value.trim()){ el.value=text; lab.textContent=note } }
 async function replyMsg(k){ const m=MSGS[k], el=$('mrep'+k), out=$('mrs'+k), text=el.value.trim(); if(!text){ out.textContent='返信の文を入れてください'; return }
+  if(/【|】/.test(text)){ out.innerHTML='<span class="neg">【 】のところを書き換えてから送ってください</span>'; return }
   if(!window.confirm(`${m.from} さんに返信します。\n\n${text.slice(0,300)}\n\nよろしいですか？`)) return;
   out.textContent='送っています…'; const r=await ebayCall('reply_message',{parent_id:m.id,recipient:m.from,item_id:m.item_id,body:text});
   if(r.error){ out.innerHTML='<span class="neg">送れませんでした：'+String(r.error).replace(/[<>&]/g,'')+'</span>'; return }
-  m.status='Answered'; m.replies.push(text); el.value=''; drawMsgs(); }
+  const dn=msgDone(); msgGroupOf(k).filter(x=>x.status!=='Answered').forEach(x=>{ x.status='Answered'; if(x!==m) dn.add(x.id) });
+  try{ localStorage.setItem('ws_msg_done',JSON.stringify([...dn].slice(-500))) }catch(e){}
+  m.replies.push(text); el.value=''; delete MSGDR[m.id]; drawMsgs(); }
 
 // 今日の改善点（2026-10-30 本人「改善点もAIが毎日分析してTOPに」）。数字はこの画面でまとめ、AIは関数 kaizen（1日1回、表 kaizen に保存）。キーが無いうちはルールで出す
 async function kzStats(){ const day=jpToday(), d=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
