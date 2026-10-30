@@ -674,6 +674,10 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <div class="row" style="justify-content:space-between"><b>売れた分 <span id="soldmsg" class="sub"></span></b><button class="btn s" id="soldbtn" onclick="ebayOrders();etsyOrders();shopeeOrders()">いま取り込む</button></div>
     <div id="soldlist" class="note"></div><div id="etsold" class="note"></div><div id="spsold" class="note"></div>
   </div>
+  <div class="card" id="newscard">
+    <div class="row" style="justify-content:space-between"><b>最新情報 <span id="newsmsg" class="sub"></span></b><button class="btn s" onclick="loadNews(true)">更新</button></div>
+    <div id="newslist" class="note"></div>
+  </div>
   <div class="card" id="rvcard">
     <div class="row" style="justify-content:space-between"><b>今日の再出品 <span id="rvcount" class="sub"></span></b><button class="btn" id="rvbtn" onclick="toggleReview()">はじめる</button></div>
     <div id="rvlist" class="hide"></div>
@@ -1184,7 +1188,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadNews(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -3283,7 +3287,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030163512';
+const BUILD='20261030165255';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3778,6 +3782,18 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
   if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
   msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
 
+// TOP画面の最新情報（2026-10-30）。関数 news がRSSを集めて返す。3時間はこの端末に控えて、開くたびには取りに行かない
+const NEWS_CAT={ebay:'eBay',watch:'ヴィンテージ時計',tariff:'関税・米国発送'};
+async function loadNews(force){ const K='ws_news'; let c=null; try{ c=JSON.parse(localStorage.getItem(K)||'null') }catch(e){}
+  if(c&&!force&&Date.now()-c.t<3*3600e3) return drawNews(c.d);
+  newsmsg.textContent='読んでいます…'; const {data,error}=await sb.functions.invoke('news',{body:{}});
+  if(error||data?.error){ let m=error?.message||data.error; try{ m=(await error.context.json()).error||m }catch(e){} newsmsg.textContent='読めません：'+m; if(c) drawNews(c.d,true); return }
+  try{ localStorage.setItem(K,JSON.stringify({t:Date.now(),d:data})) }catch(e){} drawNews(data); }
+function drawNews(d,old){ const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const dt=s=>s?`${+s.slice(5,7)}/${+s.slice(8,10)}`:'';
+  newsmsg.textContent=(old?'前に読んだ分　':'')+`${dt(d.at)} ${new Date(d.at).toTimeString().slice(0,5)}`+(d.ai?'':'　日本語の要約はAPIキーを入れると出ます')+(d.note?'　'+d.note:'');
+  newslist.innerHTML=Object.entries(NEWS_CAT).map(([k,n])=>{ const a=d.items.filter(i=>i.cat===k); if(!a.length) return '';
+    return `<div style="margin-top:8px"><b>${n}</b></div>`+a.map(i=>`<div style="margin:6px 0"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.ja||i.title)}</a><div class="sub">${dt(i.at)}　${esc(i.src)}${i.ja?'　'+esc(i.title):''}</div></div>`).join('') }).join(''); }
 // アンドレムッシュ・Pinkoiを画面から隠す（2026-10-30 本人「全部隠したい」「pinkoiも隠して」「grailedも」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
 const AM_RE=/アンドレ|ムッシュ|モッシュ|ムーシュ|andre\s*mouche|mouche|pinkoi|ピンコイ|grailed|グレイルド/i;
 function markAM(root){ (root||document).querySelectorAll('tr,.rrow,li,option,#mkout a,#rwatch>*').forEach(el=>{ if(AM_RE.test(el.textContent)) el.classList.add('amh') });
