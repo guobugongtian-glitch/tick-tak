@@ -593,6 +593,8 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 #rcbody tr{cursor:pointer}
 @media (max-width:700px){ .rcbig .btn{flex:1 1 100%;text-align:center;min-height:44px} .rcf{grid-template-columns:1fr} }
 body.hideam .amh,body.hideam button.pk{display:none!important}
+.rdot{position:relative} .rdot::after{content:'';position:absolute;top:4px;right:6px;width:10px;height:10px;border-radius:50%;background:#ff3b30}
+.mdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff3b30;margin-right:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -702,7 +704,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button onclick="go('buy')">仕入れ台帳</button>
     <button onclick="go('research')">リサーチ・利益計算</button>
     <button onclick="go('orders')">販売情報</button>
-    <button onclick="go('msg')">メッセージ（eBay）</button>
+    <button onclick="go('msg')" id="msgmenu">メッセージ（eBay）</button>
     <button onclick="go('etsyrv')">Etsyの出品の見直し</button>
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
@@ -879,8 +881,8 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
 <section id="v-msg" class="hide">
   <div class="card">
     <div class="row" style="justify-content:space-between"><b>eBayのメッセージ <span id="msgmsg" class="sub"></span></b>
-      <span class="row"><label><input type="checkbox" id="msgun" checked onchange="drawMsgs()"> 未返信だけ</label><button class="btn s" onclick="loadMsgs()">読み直す</button></span></div>
-    <p class="sub" style="margin:4px 0 0">直近30日の買い手からの質問です。返信はその質問への返事としてeBayから送られます（Etsyのメッセージは公式の仕組みが無いのでEtsyのアプリで）。</p>
+      <span class="row"><label><input type="checkbox" id="msgun" checked onchange="drawMsgs()"> 未返信だけ</label><label><input type="checkbox" id="msgdel" onchange="drawMsgs()"> 消したものも見る</label><button class="btn s" onclick="loadMsgs()">読み直す</button></span></div>
+    <p class="sub" style="margin:4px 0 0">直近3日の買い手からの質問です。返信はその質問への返事としてeBayから送られます（Etsyのメッセージは公式の仕組みが無いのでEtsyのアプリで）。</p>
   </div>
   <div id="msglist"></div>
 </section>
@@ -1200,7 +1202,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadNews(); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -1376,7 +1378,7 @@ document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=docum
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
-  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo,msg:()=>{ if(!MSGS) loadMsgs() }})[b.dataset.v]?.();
+  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo,msg:()=>{ MSGS?drawMsgs():loadMsgs() }})[b.dataset.v]?.();
 });
 
 // 商品管理：3段の絞り込み
@@ -3299,7 +3301,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030165915';
+const BUILD='20261030170359';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3794,20 +3796,30 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
   if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
   msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
 
-// eBayのメッセージ（2026-10-30）。読む＝ebay関数 messages、返信＝reply_message（質問への返事。送る前に確認を出す）
+// eBayのメッセージ（2026-10-30。本人「過去3日分のみ」）。読む＝ebay関数 messages、返信＝reply_message（質問への返事。送る前に確認を出す）
 let MSGS=null;
-async function loadMsgs(){ msgmsg.textContent='読んでいます…'; const r=await ebayCall('messages',{days:30});
-  if(r.error){ msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages; drawMsgs(); }
+// 「消す」はTick Takの画面から外すだけ（eBayのメッセージは消さない）。消した印はこの端末に控える
+const msgHid=()=>{ try{ return new Set(JSON.parse(localStorage.getItem('ws_msg_hide')||'[]')) }catch(e){ return new Set() } };
+function msgHide(k,on){ const h=msgHid(); on?h.add(MSGS[k].id):h.delete(MSGS[k].id); try{ localStorage.setItem('ws_msg_hide',JSON.stringify([...h].slice(-500))) }catch(e){} drawMsgs(); }
+// 新しいメッセージ（未返信・消していない・まだこの画面で見ていない）があれば、メニューに赤い丸。10分おきに確かめる
+const msgSeen=()=>{ try{ return new Set(JSON.parse(localStorage.getItem('ws_msg_seen')||'[]')) }catch(e){ return new Set() } };
+function msgDots(){ const hid=msgHid(), seen=msgSeen(), n=(MSGS||[]).filter(m=>m.status!=='Answered'&&!hid.has(m.id)&&!seen.has(m.id)).length;
+  [document.querySelector('nav button[data-v="msg"]'),document.querySelector('nav button.mo'),$('msgmenu')].forEach(b=>b?.classList.toggle('rdot',n>0)); }
+async function loadMsgs(quiet){ if(!quiet) msgmsg.textContent='読んでいます…'; const r=await ebayCall('messages',{days:3});
+  if(r.error){ if(!quiet) msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages;
+  if(!$('v-msg').classList.contains('hide')) drawMsgs(); else msgDots(); }
+setInterval(()=>loadMsgs(true),10*60e3);
 function drawMsgs(){ if(!MSGS) return; const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const un=MSGS.filter(m=>m.status!=='Answered'), a=msgun.checked?un:MSGS;
-  msgmsg.textContent=`30日で${MSGS.length}件・未返信${un.length}件`;
+  const seen=msgSeen(), hid=msgHid(), live=MSGS.filter(m=>msgdel.checked||!hid.has(m.id)), un=live.filter(m=>m.status!=='Answered'), a=msgun.checked?un:live;
+  msgmsg.textContent=`3日で${MSGS.length}件・未返信${un.length}件`;
   msglist.innerHTML=a.length?a.map((m,i)=>{ const k=MSGS.indexOf(m), d=m.at?new Date(m.at):null;
-    return `<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(m.from)}</b><span class="sub">${d?`${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}`:''}　${m.status==='Answered'?'返信済み':'<span class="neg">未返信</span>'}</span></div>
+    return `<div class="card"><div class="row" style="justify-content:space-between"><b>${m.status!=='Answered'&&!seen.has(m.id)?'<span class="mdot"></span>':''}${esc(m.from)}</b><span class="sub">${d?`${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}`:''}　${m.status==='Answered'?'返信済み':'<span class="neg">未返信</span>'}</span></div>
       <div class="sub">${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}</div>
       <div style="white-space:pre-wrap;margin:8px 0">${esc(m.body)}</div>
       ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}
       <textarea id="mrep${k}" rows="4" style="width:100%;box-sizing:border-box" placeholder="英語で返信を書く"></textarea>
-      <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button><span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>'; }
+      <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button>${hid.has(m.id)?`<button class="btn s" onclick="msgHide(${k},false)">戻す</button>`:`<button class="btn s" onclick="msgHide(${k},true)">消す</button>`}<span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>';
+  try{ localStorage.setItem('ws_msg_seen',JSON.stringify([...new Set([...seen,...MSGS.map(m=>m.id)])].slice(-500))) }catch(e){} msgDots(); }
 async function replyMsg(k){ const m=MSGS[k], el=$('mrep'+k), out=$('mrs'+k), text=el.value.trim(); if(!text){ out.textContent='返信の文を入れてください'; return }
   if(!window.confirm(`${m.from} さんに返信します。\n\n${text.slice(0,300)}\n\nよろしいですか？`)) return;
   out.textContent='送っています…'; const r=await ebayCall('reply_message',{parent_id:m.id,recipient:m.from,item_id:m.item_id,body:text});
@@ -3815,7 +3827,7 @@ async function replyMsg(k){ const m=MSGS[k], el=$('mrep'+k), out=$('mrs'+k), tex
   m.status='Answered'; m.replies.push(text); el.value=''; drawMsgs(); }
 
 // TOP画面の最新情報（2026-10-30）。関数 news がRSSを集めて返す。3時間はこの端末に控えて、開くたびには取りに行かない
-const NEWS_CAT={ebay:'eBay',watch:'ヴィンテージ時計',tariff:'関税・米国発送'};
+const NEWS_CAT={ebay:'eBay',watch:'ヴィンテージ時計',buzz:'SNS・話題の時計（Reddit・TikTok・Instagramなどの記事）',tariff:'関税・米国発送'};
 async function loadNews(force){ const K='ws_news'; let c=null; try{ c=JSON.parse(localStorage.getItem(K)||'null') }catch(e){}
   if(c&&!force&&Date.now()-c.t<3*3600e3) return drawNews(c.d);
   newsmsg.textContent='読んでいます…'; const {data,error}=await sb.functions.invoke('news',{body:{}});
