@@ -677,6 +677,10 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <div class="row" style="justify-content:space-between"><b>売れた分 <span id="soldmsg" class="sub"></span></b><button class="btn s" id="soldbtn" onclick="ebayOrders();etsyOrders();shopeeOrders()">いま取り込む</button></div>
     <div id="soldlist" class="note"></div><div id="etsold" class="note"></div><div id="spsold" class="note"></div>
   </div>
+  <div class="card" id="kzcard">
+    <div class="row" style="justify-content:space-between"><b>今日の改善点 <span id="kzmsg" class="sub"></span></b></div>
+    <div id="kzlist" class="note"></div>
+  </div>
   <div class="card" id="newscard">
     <div class="row" style="justify-content:space-between;cursor:pointer" onclick="newsToggle()"><b>最新情報 <span id="newsnew" class="sub"></span> <span id="newsarrow" class="sub">▼ 開く</span></b><button class="btn s hide" id="newsupd" onclick="event.stopPropagation();loadNews(true)">更新</button></div>
     <div id="newsbody" class="hide"><div id="newsmsg" class="sub"></div><div id="newslist" class="note"></div></div>
@@ -1202,7 +1206,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -3301,7 +3305,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030170650';
+const BUILD='20261030172056';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3825,6 +3829,39 @@ async function replyMsg(k){ const m=MSGS[k], el=$('mrep'+k), out=$('mrs'+k), tex
   out.textContent='送っています…'; const r=await ebayCall('reply_message',{parent_id:m.id,recipient:m.from,item_id:m.item_id,body:text});
   if(r.error){ out.innerHTML='<span class="neg">送れませんでした：'+String(r.error).replace(/[<>&]/g,'')+'</span>'; return }
   m.status='Answered'; m.replies.push(text); el.value=''; drawMsgs(); }
+
+// 今日の改善点（2026-10-30 本人「改善点もAIが毎日分析してTOPに」）。数字はこの画面でまとめ、AIは関数 kaizen（1日1回、表 kaizen に保存）。キーが無いうちはルールで出す
+async function kzStats(){ const day=jpToday(), d=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+  const [lst,os]=await Promise.all([
+    allRows(()=>sb.from('items').select('kno,title,price_usd,cost_jpy,purchased_on,first_listed_on,listed_on,status,ebay_stats').eq('status','listed').order('kno')),
+    allRows(()=>sb.from('orders').select('kno,ordered_on,platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',d(28)).order('id'))]);
+  const pr=o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); return {x,p:x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)} };
+  const per=a=>{ let x=0,p=0; a.forEach(o=>{ const v=pr(o); x+=v.x; p+=v.p }); return {n:a.length,sales_jpy:x,profit_jpy:p,rate:x?Math.round(p/x*100):null} };
+  const t=s=>(s||'').replace(/^\[.*?\]\s*/,'').slice(0,50), it=r=>({kno:r.kno,title:t(r.title),usd:r.price_usd,cost:r.cost_jpy,days:ageDays(r),watch:r.ebay_stats?.watch??null,views:r.ebay_stats?.views??null,imp:r.ebay_stats?.imp??null});
+  // 「見せない」設定（アンドレムッシュ・Pinkoi・Grailed）はここにも効かせる。合計の数字には入れたまま
+  const hide=document.body.classList.contains('hideam'), L=lst.filter(r=>!hide||!AM_RE.test(r.title||'')).map(it), pf={};
+  os.filter(o=>o.ordered_on>=d(14)&&!(hide&&AM_RE.test(o.platform||''))).forEach(o=>pf[o.platform]=(pf[o.platform]||0)+1);
+  return {day, listed:L.length, over90:L.filter(x=>x.days>=90).length, over180:L.filter(x=>x.days>=180).length,
+    last14:per(os.filter(o=>o.ordered_on>=d(14))), prev14:per(os.filter(o=>o.ordered_on<d(14))), platforms14:pf,
+    views_no_watch:L.filter(x=>x.views>=30&&x.watch===0).sort((a,b)=>b.views-a.views).slice(0,8),
+    watched_unsold:L.filter(x=>x.watch>=3&&x.days>=30).sort((a,b)=>b.watch-a.watch).slice(0,8),
+    low_impressions:L.filter(x=>x.imp!=null&&x.imp<100&&x.days>=30).sort((a,b)=>a.imp-b.imp).slice(0,8),
+    oldest:[...L].sort((a,b)=>b.days-a.days).slice(0,8)}; }
+function kzRules(S){ const R=[], k=a=>a.map(x=>x.kno);
+  if(S.prev14.n&&S.last14.sales_jpy<S.prev14.sales_jpy*0.9) R.push({what:'売上のペースが落ちている',why:`直近14日 ${yen(S.last14.sales_jpy)}円（${S.last14.n}本）、その前の14日 ${yen(S.prev14.sales_jpy)}円（${S.prev14.n}本）`,action:'下の値下げ・見直しの候補から先に手を付ける'});
+  if(S.watched_unsold.length) R.push({what:'ウォッチが多いのに売れていない',why:S.watched_unsold.slice(0,3).map(x=>`${x.kno}：ウォッチ${x.watch}・${x.days}日`).join('、'),action:'ウォッチしている人にオファーを送るか、少しだけ値下げ',knos:k(S.watched_unsold)});
+  if(S.views_no_watch.length) R.push({what:'見られているのにウォッチ0',why:S.views_no_watch.slice(0,3).map(x=>`${x.kno}：閲覧${x.views}`).join('、'),action:'1枚目の写真と値段を見直す（相場より高い可能性）',knos:k(S.views_no_watch)});
+  if(S.low_impressions.length) R.push({what:'検索にほとんど出ていない',why:S.low_impressions.slice(0,3).map(x=>`${x.kno}：表示${x.imp}`).join('、'),action:'タイトルにブランド・型番・色を入れ直す',knos:k(S.low_impressions)});
+  if(S.listed&&S.over90/S.listed>=0.3) R.push({what:'90日超の在庫が多い',why:`出品中${S.listed}本のうち90日超${S.over90}本・180日超${S.over180}本`,action:'180日超から国内（ヤフオク・メルカリ）に回すか値下げ',knos:k(S.oldest)});
+  if(S.last14.rate!=null&&S.last14.rate<20) R.push({what:'利益率が20%を切っている',why:`直近14日の利益率 ${S.last14.rate}%`,action:'値下げしすぎていないか確かめる（1本5,000円は残す）'});
+  return R.length?R:[{what:'目立った問題はありません',why:`出品中${S.listed}本・直近14日${S.last14.n}本`,action:'このまま'}]; }
+async function loadKaizen(){ kzmsg.textContent='まとめています…';
+  let S; try{ S=await kzStats() }catch(e){ kzmsg.textContent='数字を読めません'; return }
+  let r={}; try{ const {data,error}=await sb.functions.invoke('kaizen',{body:{day:S.day,stats:S}}); r=error?{error:error.message}:data }catch(e){ r={error:String(e)} }
+  const ai=r.items?.length, items=ai?r.items:kzRules(S);
+  kzmsg.textContent=ai?'AIの分析（1日1回）':r.nokey?'ルールで出しています（APIキーを入れるとAIが毎日分析します）':'ルールで出しています'+(r.error?'（AI：'+r.error+'）':'');
+  const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  kzlist.innerHTML=items.map((x,i)=>`<div style="margin:8px 0"><b>${i+1}. ${esc(x.what)}</b><div class="sub">${esc(x.why)}</div><div>→ ${esc(x.action)}${(x.knos||[]).length?'　'+x.knos.slice(0,8).map(k=>`<a href="#" onclick="openItem(${+k});return false">${+k}</a>`).join(' '):''}</div></div>`).join(''); }
 
 // TOP画面の最新情報（2026-10-30）。関数 news がRSSを集めて返す。3時間はこの端末に控えて、開くたびには取りに行かない
 const NEWS_CAT={ebay:'eBay',watch:'ヴィンテージ時計',buzz:'SNS・話題の時計（Reddit・TikTok・Instagramなどの記事）',tariff:'関税・米国発送'};
