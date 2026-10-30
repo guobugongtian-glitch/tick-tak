@@ -592,6 +592,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 .rcth{width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;background:#eee}
 #rcbody tr{cursor:pointer}
 @media (max-width:700px){ .rcbig .btn{flex:1 1 100%;text-align:center;min-height:44px} .rcf{grid-template-columns:1fr} }
+body.hideam .amh{display:none!important}
 </style>
 </head>
 <body>
@@ -989,6 +990,10 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
     <div id="etmsg" class="sub"></div>
     <div class="row" style="margin-top:12px"><button class="btn" onclick="shopeeConnect()">Shopeeと接続する</button><button class="btn s" onclick="shopeeStatus()">Shopeeの接続を確認</button><button class="btn s" onclick="shopeeOrders()">Shopeeで売れた分を取り込む</button></div>
     <div id="spmsg" class="sub"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">見せない</h3>
+    <label class="row" style="gap:8px"><input type="checkbox" id="hideam" onchange="setHideAM(this.checked)"> アンドレムッシュを画面に出さない（一覧・リサーチ・注文など。合計の数字には入ったまま）</label>
   </div>
   <div class="card">
     <h3 style="margin-top:0">計算の設定</h3>
@@ -3278,7 +3283,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261029171134';
+const BUILD='20261030163005';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3772,6 +3777,15 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
   const r=await ebayCall(action,{kno,...chg});
   if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
   msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
+
+// アンドレムッシュを画面から隠す（2026-10-30 本人「全部隠したい」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
+const AM_RE=/アンドレ|ムッシュ|モッシュ|ムーシュ|andre\s*mouche|mouche/i;
+function markAM(root){ (root||document).querySelectorAll('tr,.rrow,li,option,#mkout a,#rwatch>*').forEach(el=>{ if(AM_RE.test(el.textContent)) el.classList.add('amh') });
+  if(WATCH.every(x=>AM_RE.test(x.name))) document.getElementById('rwatch')?.closest('.card')?.classList.add('amh'); }   // 「いつも見る」はアンドレムッシュだけなので枠ごと
+function setHideAM(on){ try{ localStorage.setItem('ws_hide_am',on?'1':'0') }catch(e){} document.body.classList.toggle('hideam',on); }
+(function(){ let on=true; try{ on=localStorage.getItem('ws_hide_am')!=='0' }catch(e){}
+  document.body.classList.toggle('hideam',on); const cb=document.getElementById('hideam'); if(cb) cb.checked=on;
+  markAM(); let t; new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(()=>markAM(),50) }).observe(document.body,{childList:true,subtree:true}); })();
 
 boot();
 </script>
