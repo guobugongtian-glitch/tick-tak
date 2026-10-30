@@ -646,6 +646,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button data-v="nippo" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>日報</span></button>
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
+    <button data-v="msg" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg><span>メッセージ</span></button>
     <button class="mh pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Pinkoi</span></button>
     <button class="mh pk" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Grailed</span></button>
     <button data-v="io" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>取込/設定</span></button>
@@ -701,6 +702,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button onclick="go('buy')">仕入れ台帳</button>
     <button onclick="go('research')">リサーチ・利益計算</button>
     <button onclick="go('orders')">販売情報</button>
+    <button onclick="go('msg')">メッセージ（eBay）</button>
     <button onclick="go('etsyrv')">Etsyの出品の見直し</button>
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
@@ -871,6 +873,16 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
   <div class="tbl"><table id="cdsum"></table></div>
   <p class="sub">区分を直すと、同じ店名の明細もまとめて直り、次回の取り込みからその区分になる。</p>
   <div class="tbl"><table><thead><tr><th>利用日</th><th>カード</th><th>利用店名</th><th class=n>金額</th><th>区分</th></tr></thead><tbody id="cdbody"></tbody></table></div>
+</section>
+
+<!-- メッセージ（eBayの買い手からの質問。2026-10-30） -->
+<section id="v-msg" class="hide">
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><b>eBayのメッセージ <span id="msgmsg" class="sub"></span></b>
+      <span class="row"><label><input type="checkbox" id="msgun" checked onchange="drawMsgs()"> 未返信だけ</label><button class="btn s" onclick="loadMsgs()">読み直す</button></span></div>
+    <p class="sub" style="margin:4px 0 0">直近30日の買い手からの質問です。返信はその質問への返事としてeBayから送られます（Etsyのメッセージは公式の仕組みが無いのでEtsyのアプリで）。</p>
+  </div>
+  <div id="msglist"></div>
 </section>
 
 <!-- 販売情報 -->
@@ -1364,7 +1376,7 @@ document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=docum
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
-  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo})[b.dataset.v]?.();
+  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo,msg:()=>{ if(!MSGS) loadMsgs() }})[b.dataset.v]?.();
 });
 
 // 商品管理：3段の絞り込み
@@ -3287,7 +3299,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030165255';
+const BUILD='20261030165915';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3781,6 +3793,26 @@ async function rvDo(b,action){ const box=b.closest('.rv'), kno=+box.dataset.kno,
   const r=await ebayCall(action,{kno,...chg});
   if(r.error||!r.ok){ box.querySelectorAll('button').forEach(x=>x.disabled=false); msg.innerHTML=`<span class="neg">できませんでした：${String(r.error||(r.errors||[]).join(' / ')).replace(/[<>&]/g,'')}</span>`+(r.ended?'<br>出品は終了しましたが、出し直せませんでした。商品は「保管」に戻してあります。保管のタブから開いて出し直してください。':''); if(r.ended){ initFilters(); loadItems() } return }
   msg.textContent=action==='relist'?'再出品しました。':'変えました。'; initFilters(); loadItems(); await drawReview(); }
+
+// eBayのメッセージ（2026-10-30）。読む＝ebay関数 messages、返信＝reply_message（質問への返事。送る前に確認を出す）
+let MSGS=null;
+async function loadMsgs(){ msgmsg.textContent='読んでいます…'; const r=await ebayCall('messages',{days:30});
+  if(r.error){ msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages; drawMsgs(); }
+function drawMsgs(){ if(!MSGS) return; const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const un=MSGS.filter(m=>m.status!=='Answered'), a=msgun.checked?un:MSGS;
+  msgmsg.textContent=`30日で${MSGS.length}件・未返信${un.length}件`;
+  msglist.innerHTML=a.length?a.map((m,i)=>{ const k=MSGS.indexOf(m), d=m.at?new Date(m.at):null;
+    return `<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(m.from)}</b><span class="sub">${d?`${d.getMonth()+1}/${d.getDate()} ${d.toTimeString().slice(0,5)}`:''}　${m.status==='Answered'?'返信済み':'<span class="neg">未返信</span>'}</span></div>
+      <div class="sub">${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}</div>
+      <div style="white-space:pre-wrap;margin:8px 0">${esc(m.body)}</div>
+      ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}
+      <textarea id="mrep${k}" rows="4" style="width:100%;box-sizing:border-box" placeholder="英語で返信を書く"></textarea>
+      <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button><span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>'; }
+async function replyMsg(k){ const m=MSGS[k], el=$('mrep'+k), out=$('mrs'+k), text=el.value.trim(); if(!text){ out.textContent='返信の文を入れてください'; return }
+  if(!window.confirm(`${m.from} さんに返信します。\n\n${text.slice(0,300)}\n\nよろしいですか？`)) return;
+  out.textContent='送っています…'; const r=await ebayCall('reply_message',{parent_id:m.id,recipient:m.from,item_id:m.item_id,body:text});
+  if(r.error){ out.innerHTML='<span class="neg">送れませんでした：'+String(r.error).replace(/[<>&]/g,'')+'</span>'; return }
+  m.status='Answered'; m.replies.push(text); el.value=''; drawMsgs(); }
 
 // TOP画面の最新情報（2026-10-30）。関数 news がRSSを集めて返す。3時間はこの端末に控えて、開くたびには取りに行かない
 const NEWS_CAT={ebay:'eBay',watch:'ヴィンテージ時計',tariff:'関税・米国発送'};
