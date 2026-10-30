@@ -774,7 +774,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
       <select id="rsort" onchange="drawResearch()"><option value="rec">おすすめ順</option><option value="n">売れた数</option><option value="prof">利益が大きい</option><option value="fast">速く売れる</option></select></div>
     <div class="row sub">残したい利益 <input id="rtarget" type="number" value="3000" style="width:90px" oninput="drawResearch()"> 円
       買わないブランド <input id="rng" type="text" style="flex:1;min-width:140px" oninput="saveRng();drawResearch()"></div>
-    <p class="sub" style="margin:4px 0 0">おすすめ順＝利益/本 × 売れた数 × 速さ × 仕入値に対する利益 × 他の店の回転（ブランドごと、推定）。仕入値に対する利益が30%未満、または出品中の半分以上が90日超の型は「避けたい」に入ります。<br>買値の上限＝売れた値段（商品代のみ）×0.66 − 送料5,000 − ワンロック2,200 − 残したい利益（10月の仕入計画の式）。「今月狙う」＝おすすめの型のうち、同じ型の出品中が2本未満で、買わないブランドでないもの。</p>
+    <p class="sub" style="margin:4px 0 0">おすすめ順＝利益/本 × 売れた数 × 速さ × 仕入値に対する利益 × 他の店の回転（ブランドごと、推定）。仕入値に対する利益が30%未満、または出品中の半分以上が90日超の型は「避けたい」に入ります。<br>買値の上限＝売れた値段（商品代のみ）×0.66 − 送料5,000 − 残したい利益（10月の仕入計画の式。ワンロックの作業料は10月でやめたので引かない）。「今月狙う」＝おすすめの型のうち、同じ型の出品中が2本未満で、買わないブランドでないもの。</p>
     <div id="rcards"></div>
     <p class="sub" id="rnote"></p>
   </div>
@@ -2100,7 +2100,7 @@ function drawResearch(){ if(document.activeElement!==rng&&!rng.value&&rng.datase
   const few=x=>x.sold<3?1:0;   // 1〜2本しか売れていない型は、利益順・速さ順では後ろに回す
   a.sort({rec:(p,q)=>rec(q)-rec(p),n:(p,q)=>q.sold-p.sold,prof:(p,q)=>few(p)-few(q)||(q.ap??-1e9)-(p.ap??-1e9),fast:(p,q)=>few(p)-few(q)||(p.md??1e9)-(q.md??1e9)}[rsort.value]);
   rcards.innerHTML=a.slice(0,80).map(x=>{ const good=isRec(x), slow=isNg(x);
-    const cap=x.mip!=null?Math.max(0,Math.floor((x.mip*0.66-5000-2200-target)/100)*100):null;
+    const cap=x.mip!=null?Math.max(0,Math.floor((x.mip*0.66-5000-HANDLING-target)/100)*100):null;
     const e=encodeURIComponent, jp=jpQuery(x.name), en=x.name;
     return `<div class="rrow"><div class="rmain">
         <div class="rname">${isOff(x)?'<span class="tag ng">買わない</span>':''}${good?'<span class="tag ok">おすすめ</span>':slow?'<span class="tag ng">避けたい</span>':''}${esc(x.name)}</div>
@@ -2166,13 +2166,19 @@ async function tanaEtsy(){ const ng=TN.filter(r=>tnState(r)==='ng'); tnmsg.textC
 async function tanaReset(){ if(!window.confirm('「ある／無い」の印を全部消して、最初からやり直します。よろしいですか？')) return;
   const {error}=await sb.from('items').update({tana:null}).not('tana','is',null); if(error){ alert('消せません：'+error.message); return } TNF='todo'; loadTana() }
 // リサーチ「いつも見る」：打たずに1タップで開く。上限は総額の目安（推定・2026-10-25 実績11本の売値中央値36,350円から）
-const WATCH=[{name:'アンドレムッシュ',q:'アンドレムッシュ',max:13800}];
+// Etsy出品の調べ（2026-10-30）：上限＝Etsy出品価格の下限×0.66−送料5,000−残したい利益3,000（ワンロックはやめた）。出品価格からの推定なので、売れた値段で確かめる
+const WATCH=[{name:'アンドレムッシュ',q:'アンドレムッシュ',max:13800},
+  {name:'Chandler（シャンドラー）',q:'シャンドラー 腕時計',max:13000,memo:'本命。Etsy 3.2〜6.9万円・出品多め／ヤフオク 3,000〜7,500円。peekaboo・スネーク・シークレット・リングなど仕掛けのある型に絞る'},
+  {name:'Itraco（イトラコ）',q:'イトラコ 腕時計',max:3000,memo:'少しだけ試す。Etsy 3.7〜5万円・出品2件だけで競合ほぼ無し。式の上限は約1.4万円だが、売れるかは未知数なので3,000円までで1〜2本、3か月売れなければやめる'},
+  {name:'Nina Ricci（ニナリッチ）',q:'ニナリッチ 腕時計',max:3800,memo:'安く買えたときだけ。Etsy 1.8〜10万円だが、日本からセイコー製90年代ものが多く競合多め。状態やデザインが良いものだけ'},
+  {name:'Hanowa（ハノワ）レディース peekaboo',q:'ハノワ peekaboo',max:0,memo:'今回は見送り。Etsyはメンズのスイスミリタリーがほとんどで、peekabooは1件だけ。式の上限は約1,900円で、ヤフオク約6,000円では利益が残らない'}];
 function renderWatch(){ const e=encodeURIComponent, a=(t,u,c)=>`<a class="lk ${c||''}" href="${u}" target="_blank" rel="noopener">${t}</a>`;
-  rwatch.innerHTML=WATCH.map(w=>`<div class="rname">${w.name} <span class="sub">上限 ${w.max.toLocaleString()}円（推定）</span></div><div class="row rlinks">`
+  rwatch.innerHTML=WATCH.map(w=>`<div class="rname">${w.name} <span class="sub">${w.max?`上限 ${w.max.toLocaleString()}円（推定）`:'見送り'}</span></div>`
+    +(w.memo?`<p class="sub" style="margin:-4px 0 8px">${w.memo}</p>`:'')+(w.max?`<div class="row rlinks">`
     +a('ヤフオク 上限以下',`https://auctions.yahoo.co.jp/search/search?p=${e(w.q)}&va=${e(w.q)}&aucmaxprice=${w.max}&s1=end&o1=a&n=100`,'y')
     +a('ヤフオク 落札相場',`https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${e(w.q)}&va=${e(w.q)}&b=1&n=50`,'y')
     +a('メルカリ 上限以下',`https://jp.mercari.com/search?keyword=${e(w.q)}&status=on_sale&price_max=${w.max}&sort=created_time&order=desc`,'y')
-    +a('メルカリ 売り切れ',`https://jp.mercari.com/search?keyword=${e(w.q)}&status=sold_out`,'y')+'</div>').join('') }
+    +a('メルカリ 売り切れ',`https://jp.mercari.com/search?keyword=${e(w.q)}&status=sold_out`,'y')+'</div>':'')).join('') }
 renderWatch();
 rq.addEventListener('input',()=>{ rqlinks.innerHTML=searchLinks(rq.value) });
 document.querySelectorAll('#rtabs .chip').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#rtabs .chip').forEach(x=>x.classList.toggle('on',x===b)); drawResearch() });
@@ -3305,7 +3311,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030172056';
+const BUILD='20261030174002';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
