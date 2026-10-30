@@ -678,8 +678,8 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <div id="soldlist" class="note"></div><div id="etsold" class="note"></div><div id="spsold" class="note"></div>
   </div>
   <div class="card" id="newscard">
-    <div class="row" style="justify-content:space-between"><b>最新情報 <span id="newsmsg" class="sub"></span></b><button class="btn s" onclick="loadNews(true)">更新</button></div>
-    <div id="newslist" class="note"></div>
+    <div class="row" style="justify-content:space-between;cursor:pointer" onclick="newsToggle()"><b>最新情報 <span id="newsnew" class="sub"></span> <span id="newsarrow" class="sub">▼ 開く</span></b><button class="btn s hide" id="newsupd" onclick="event.stopPropagation();loadNews(true)">更新</button></div>
+    <div id="newsbody" class="hide"><div id="newsmsg" class="sub"></div><div id="newslist" class="note"></div></div>
   </div>
   <div class="card" id="rvcard">
     <div class="row" style="justify-content:space-between"><b>今日の再出品 <span id="rvcount" class="sub"></span></b><button class="btn" id="rvbtn" onclick="toggleReview()">はじめる</button></div>
@@ -3301,7 +3301,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261030170359';
+const BUILD='20261030170650';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3833,9 +3833,12 @@ async function loadNews(force){ const K='ws_news'; let c=null; try{ c=JSON.parse
   newsmsg.textContent='読んでいます…'; const {data,error}=await sb.functions.invoke('news',{body:{}});
   if(error||data?.error){ let m=error?.message||data.error; try{ m=(await error.context.json()).error||m }catch(e){} newsmsg.textContent='読めません：'+m; if(c) drawNews(c.d,true); return }
   try{ localStorage.setItem(K,JSON.stringify({t:Date.now(),d:data})) }catch(e){} drawNews(data); }
+// ふだんはたたんでおく（2026-10-30 本人「多すぎ」）。見出しの行を押すと開く
+function newsToggle(){ const open=newsbody.classList.toggle('hide')===false; newsupd.classList.toggle('hide',!open); newsarrow.textContent=open?'▲ 閉じる':'▼ 開く'; }
 function drawNews(d,old){ const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const dt=s=>s?`${+s.slice(5,7)}/${+s.slice(8,10)}`:'';
   newsmsg.textContent=(old?'前に読んだ分　':'')+`${dt(d.at)} ${new Date(d.at).toTimeString().slice(0,5)}`+(d.ai?'':'　日本語の要約はAPIキーを入れると出ます')+(d.note?'　'+d.note:'');
+  const n24=d.items.filter(i=>i.at&&Date.now()-new Date(i.at)<24*3600e3).length; newsnew.textContent=n24?`24時間の新着 ${n24}件`:'';
   newslist.innerHTML=Object.entries(NEWS_CAT).map(([k,n])=>{ const a=d.items.filter(i=>i.cat===k); if(!a.length) return '';
     return `<div style="margin-top:8px"><b>${n}</b></div>`+a.map(i=>`<div style="margin:6px 0"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.ja||i.title)}</a><div class="sub">${dt(i.at)}　${esc(i.src)}${i.ja?'　'+esc(i.title):''}</div></div>`).join('') }).join(''); }
 // アンドレムッシュ・Pinkoiを画面から隠す（2026-10-30 本人「全部隠したい」「pinkoiも隠して」「grailedも」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
