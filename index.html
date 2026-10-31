@@ -3323,7 +3323,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031101904';
+const BUILD='20261031102237';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3846,11 +3846,22 @@ function drawMsgs(){ if(!MSGS) return; const esc=x=>String(x??'').replace(/[&<>"
       ${a.map(m=>`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><div class="sub">${when(m)}　${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}${m.status==='Answered'?'　返信済み':''}</div>
       <div style="white-space:pre-wrap;margin:6px 0">${esc(m.body)}</div>
       ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}</div>`).join('')}
+      <div id="mpf${k}" class="sub" style="margin:6px 0"></div>
       ${u.length?`<div class="sub" id="mdk${k}"></div>`:''}
       <textarea id="mrep${k}" rows="6" style="width:100%;box-sizing:border-box" placeholder="英語で返信を書く"></textarea>
       <div class="row"><button class="btn" onclick="replyMsg(${k})">返信する</button>${u.length?`<button class="btn s" onclick="msgDraft(${k},true)">返信案を作り直す</button>`:''}${allHid?`<button class="btn s" onclick="msgHide(${k},false)">戻す</button>`:`<button class="btn s" onclick="msgHide(${k},true)">消す</button>`}<span id="mrs${k}" class="sub"></span></div></div>` }).join(''):'<p class="sub">ありません</p>';
-  G.forEach(a=>{ const u=a.filter(m=>m.status!=='Answered'); if(u.length) msgDraft(MSGS.indexOf(u.at(-1))) });
+  G.forEach(a=>{ const u=a.filter(m=>m.status!=='Answered'), t=u.at(-1)||a.at(-1), kn=t.kno||a.find(m=>m.kno)?.kno; msgProfit(MSGS.indexOf(t),kn); if(u.length) msgDraft(MSGS.indexOf(u.at(-1))) });
   try{ localStorage.setItem('ws_msg_seen',JSON.stringify([...new Set([...seen,...MSGS.map(m=>m.id)])].slice(-500))) }catch(e){} msgDots(); }
+// 値下げの目安（2026-10-31 本人「その商品の利益額で何円値下げしたらこのくらいの利益」）。利益の式は商品一覧と同じ（設定の為替・手数料・送料）
+const MSGPF={};
+async function msgProfit(k,kno){ const el=$('mpf'+k); if(!el||!kno) return;
+  const f=MSGPF[kno]??=(await sb.from('items').select('price_usd,shipping_usd,cost_jpy').eq('kno',+kno).maybeSingle()).data;
+  if(!f?.price_usd){ el.textContent=''; return } if(!f.cost_jpy){ el.textContent=`品番${+kno}　$${f.price_usd}　仕入値が無いので利益は出せません`; return }
+  const s=getS(), pr=+f.price_usd, row=d=>{ const x=profit(pr-d,f.shipping_usd,f.cost_jpy); return `<span class="${x.p<0?'neg':''}">${d?`−$${d}（約${yen(d*s.fx)}円）→ `:'いま '}$${pr-d}：利益 <b>${yen(x.p)}円</b>（${x.r.toFixed(0)}%）</span>` };
+  const st=pr<100?5:pr<300?10:pr<600?20:50, ds=[0,1,2,3,4].map(i=>i*st).filter(d=>d<pr);
+  // 赤字になる手前の値段（送料を足した額に手数料がかかる）
+  const be=Math.ceil((+f.cost_jpy+s.ship+HANDLING)/(1-(s.fee+s.pay)/100)/s.fx-(+f.shipping_usd||0));
+  el.innerHTML=`<b>値下げの目安</b>（品番${+kno}・為替${s.fx}円）<br>`+ds.map(row).join('<br>')+`<br>$${be} より下は赤字`; }
 // 返信案（2026-10-31 本人「メッセージ 自動で返信分考えて」）。質問の言葉から種類を見分けて、説明文と同じ決まり（SpeedPAK・関税・返品30日）で英文を組む。
 // AIではなくルール。値段など本人が決めるところは【 】で残し、【 】があるうちは送れない。送る前の確認はそのまま
 const MSGDR={};
