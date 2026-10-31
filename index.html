@@ -2308,8 +2308,9 @@ ${notes.length?`<ul>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}`);
 (()=>{ const y=new Date().getFullYear(); txy.innerHTML=[y,y-1,y-2].map(v=>`<option value="${v}">${v}年</option>`).join('') })();
 async function loadProfit(){
   const months=monthsBack(cm.value,+cn.value), from=`${months[0].slice(0,4)}-${months[0].slice(4)}-01`;
-  const {data:os}=await sb.from('orders').select('ordered_on,platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from);
-  const {data:it}=await sb.from('items').select('purchased_on,cost_jpy').gte('purchased_on',from);
+  // 1000件で切れないよう全部読む（2026-10-31 本人「仕入れ代金が収支表あってる？」。前は1000件までで、仕入れ台帳より少なく出ることがあった）
+  const os=await allRows(()=>sb.from('orders').select('ordered_on,platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,promo_fee_jpy,items(cost_jpy)').gte('ordered_on',from).order('id'));
+  const it=await allRows(()=>sb.from('items').select('purchased_on,cost_jpy').gte('purchased_on',from).order('kno'));
   const {data:mc}=await sb.from('monthly_costs').select('*').in('ym',[...months,'定額']);
   const z=()=>Object.fromEntries(months.map(m=>[m,0])), R={}, g=k=>R[k]??=z();
   // 毎月の定額：その月に入力がなければ定額を使う（灰色で表示）
@@ -3327,7 +3328,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031103902';
+const BUILD='20261031104017';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
