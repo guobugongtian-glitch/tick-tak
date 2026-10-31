@@ -3323,7 +3323,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031102237';
+const BUILD='20261031102334';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3845,6 +3845,7 @@ function drawMsgs(){ if(!MSGS) return; const esc=x=>String(x??'').replace(/[&<>"
     return `<div class="card"><div class="row" style="justify-content:space-between"><b>${u.some(m=>!seen.has(m.id))?'<span class="mdot"></span>':''}${esc(t.from)}${a.length>1?`<span class="sub">（${a.length}件）</span>`:''}</b><span class="sub">${when(a.at(-1))}　${u.length?`<span class="neg">未返信${u.length>1?u.length+'件':''}</span>`:'返信済み'}</span></div>
       ${a.map(m=>`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><div class="sub">${when(m)}　${m.kno?`品番 <a href="#" onclick="openItem(${+m.kno});return false">${+m.kno}</a>　`:''}${esc(m.item_title||m.subject)}${m.status==='Answered'?'　返信済み':''}</div>
       <div style="white-space:pre-wrap;margin:6px 0">${esc(m.body)}</div>
+      ${m.body?`<a class="sub" href="https://translate.google.com/?sl=auto&tl=ja&op=translate&text=${encodeURIComponent(String(m.body).slice(0,4000))}" target="_blank" rel="noopener">日本語に翻訳 ›</a>`:''}
       ${m.replies.map(x=>`<div class="sub" style="white-space:pre-wrap;border-left:3px solid #ddd;padding-left:8px;margin:4px 0">${esc(x)}</div>`).join('')}</div>`).join('')}
       <div id="mpf${k}" class="sub" style="margin:6px 0"></div>
       ${u.length?`<div class="sub" id="mdk${k}"></div>`:''}
@@ -3862,6 +3863,7 @@ async function msgProfit(k,kno){ const el=$('mpf'+k); if(!el||!kno) return;
   // 赤字になる手前の値段（送料を足した額に手数料がかかる）
   const be=Math.ceil((+f.cost_jpy+s.ship+HANDLING)/(1-(s.fee+s.pay)/100)/s.fx-(+f.shipping_usd||0));
   el.innerHTML=`<b>値下げの目安</b>（品番${+kno}・為替${s.fx}円）<br>`+ds.map(row).join('<br>')+`<br>$${be} より下は赤字`; }
+// フランス語などのメッセージは「日本語に翻訳」でGoogle翻訳を開く（2026-10-31 本人「フランス語のメッセージ翻訳できないの」。APIキーが要らない形）
 // 返信案（2026-10-31 本人「メッセージ 自動で返信分考えて」）。質問の言葉から種類を見分けて、説明文と同じ決まり（SpeedPAK・関税・返品30日）で英文を組む。
 // AIではなくルール。値段など本人が決めるところは【 】で残し、【 】があるうちは送れない。送る前の確認はそのまま
 const MSGDR={};
