@@ -3328,7 +3328,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031104017';
+const BUILD='20261031104128';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3785,7 +3785,9 @@ function tdDraw(){ if(!TDN) return; const o=tdGet(), ck=o.ck||{}, esc=x=>String(
     un!=null&&{k:'msg',t:un?`eBayのメッセージに返信する（${un}人）`:'eBayのメッセージに返信する',n:un,go:"go('msg')"},
     {k:'rv',t:`再出品 ${RV_PER_DAY}本（今日 ${TDN.rv}本）`,n:Math.max(0,RV_PER_DAY-TDN.rv),go:"rvcard.scrollIntoView({behavior:'smooth'});if(rvlist.classList.contains('hide'))toggleReview()"},
     TDN.kp!=null&&{k:'kp',t:TDN.kp?`保管の商品を検品する（未検品 ${TDN.kp}本）`:'保管の商品を検品する',n:TDN.kp,go:"go('buy')"},
-    TDN.rc!=null&&{k:'rc',t:TDN.rc?`レシートを入力する（未入力 ${TDN.rc}枚）`:'レシートを入力する',n:TDN.rc,go:"go('rcpt')"}].filter(Boolean);
+    TDN.rc!=null&&{k:'rc',t:TDN.rc?`レシートを入力する（未入力 ${TDN.rc}枚）`:'レシートを入力する',n:TDN.rc,go:"go('rcpt')"},
+    // 月曜と木曜はリサーチ（2026-10-31 本人）。数では済まないので、チェックを付けたら済み
+    [1,4].includes(new Date(Date.now()+9*36e5).getUTCDay())&&{k:'research',t:'リサーチ',n:1,go:"go('research')"}].filter(Boolean);
   const row=(done,t,cb,act,del)=>`<div class="row" style="gap:8px;margin:4px 0;align-items:center"><input type=checkbox ${done?'checked':''} onchange="${cb}"><span style="flex:1;${done?'text-decoration:line-through;color:var(--sub)':''}">${t}</span>${act||''}${del||''}</div>`;
   const mine=o.mine||[], left=A.filter(x=>x.n&&!ck[x.k]).length+mine.filter(x=>!x.done).length;
   tdlist.innerHTML=A.map(x=>row(!x.n||ck[x.k],esc(x.t),`tdCk('${x.k}',this.checked)`,x.n?`<a href="#" onclick="${x.go};return false">開く ›</a>`:'<span class="sub">済み</span>')).join('')
