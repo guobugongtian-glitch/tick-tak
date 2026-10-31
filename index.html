@@ -665,6 +665,11 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
 <section id="v-items">
   <div id="greet" class="greet hide"></div>
   <div id="jptodo" class="card hide" style="border:2px solid var(--bad)"></div>
+  <div class="card" id="tdcard">
+    <div class="row" style="justify-content:space-between"><b>今日やること <span id="tdmsg" class="sub"></span></b></div>
+    <div id="tdlist" class="note">—</div>
+    <div class="row" style="margin-top:8px"><input id="tdin" placeholder="自分で足す（例：郵便局に出す）" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')tdAdd()"><button class="btn s" onclick="tdAdd()">足す</button></div>
+  </div>
   <div class="hero">
     <div class="hl"><span id="hm">今月</span>の売上</div>
     <div class="hbig"><span id="hsales">—</span><small>円</small></div>
@@ -1210,7 +1215,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadTodo(); loadKaizen(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -1386,7 +1391,7 @@ document.querySelectorAll('main>section[id^="v-"]').forEach(sec=>{ const t=docum
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('main>section').forEach(s=>s.classList.toggle('hide',s.id!=='v-'+b.dataset.v));
-  ({buy:loadBuy,items:loadItems,research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo,msg:()=>{ MSGS?drawMsgs():loadMsgs() }})[b.dataset.v]?.();
+  ({buy:loadBuy,items:()=>{ loadItems(); loadTodo() },research:loadResearch,pf:loadPf,cash:loadCash,card:loadCard,bank:loadBank,orders:loadOrders,etsyrv:()=>{ if(!window.__erL) loadEtsyRv() },tana:loadTana,rcpt:loadRcpt,nippo:loadNippo,msg:()=>{ MSGS?drawMsgs():loadMsgs() }})[b.dataset.v]?.();
 });
 
 // 商品管理：3段の絞り込み
@@ -3322,7 +3327,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031103650';
+const BUILD='20261031103902';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3757,6 +3762,38 @@ function adviceFor(r,sold){ const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&
   return out.length?`<div class="radv"><b style="color:#b08d57">アドバイス</b>${out.join('')}</div>`:'<div class="radv"><b style="color:#b08d57">アドバイス</b><div>大きな問題は見当たりません。値段だけ見て「そのままでよい」で大丈夫です。</div></div>'; }
 function rvUse(b){ const ta=b.closest('.rv').querySelector('.rtitle'); ta.value=b.dataset.t; ta.focus(); }
 // ===== 毎日の見直し（1日5本）=====
+// 今日やること（2026-10-31 本人「今日やることリスト作成して」）。アプリの数字から自動で並べる分＋自分で足す分。
+// 自動の分は0件になったら「済み」。チェックと自分で足した分はこの端末に日ごと（ws_todo_日付）に控える。日が変わると新しいリスト
+const tdKey=()=>'ws_todo_'+jstToday();
+const tdGet=()=>{ try{ return JSON.parse(localStorage.getItem(tdKey())||'{}') }catch(e){ return {} } };
+const tdPut=o=>{ localStorage.setItem(tdKey(),JSON.stringify(o)); tdDraw() };
+let TDN=null;
+async function loadTodo(){
+  const [rv,kp,rc,jp]=await Promise.all([
+    sb.from('items').select('kno',{count:'exact',head:true}).eq('status','listed').eq('reviewed_on',jstToday()),
+    allRows(()=>sb.from('items').select('kno,memo').eq('status','stock').order('kno')).catch(()=>null),
+    sb.from('receipts').select('id',{count:'exact',head:true}).eq('void',false).or('used_on.is.null,amount.is.null'),
+    sb.from('items').select('kno,jp').not('jp','is',null).eq('status','sold')]);
+  let nj=0; (jp.data||[]).forEach(r=>Object.keys(JP_NAME).forEach(k=>{ const x=r.jp?.[k]; if(x?.on&&!x.off&&!x.sold) nj++ }));
+  TDN={rv:rv.count||0, kp:kp?kp.filter(r=>!memoLine(r.memo,'検品')).length:null, rc:rc.error?null:rc.count||0, jp:nj};
+  tdDraw(); }
+function tdDraw(){ if(!TDN) return; const o=tdGet(), ck=o.ck||{}, esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const un=MSGS?new Set(MSGS.filter(m=>m.status!=='Answered'&&!msgHid().has(m.id)).map(m=>m.from)).size:null;
+  const A=[
+    TDN.jp&&{k:'jp',t:`売れたのに残っている国内の出品を下ろす（${TDN.jp}件）`,n:TDN.jp,go:"jptodo.scrollIntoView({behavior:'smooth'})"},
+    un!=null&&{k:'msg',t:un?`eBayのメッセージに返信する（${un}人）`:'eBayのメッセージに返信する',n:un,go:"go('msg')"},
+    {k:'rv',t:`再出品 ${RV_PER_DAY}本（今日 ${TDN.rv}本）`,n:Math.max(0,RV_PER_DAY-TDN.rv),go:"rvcard.scrollIntoView({behavior:'smooth'});if(rvlist.classList.contains('hide'))toggleReview()"},
+    TDN.kp!=null&&{k:'kp',t:TDN.kp?`保管の商品を検品する（未検品 ${TDN.kp}本）`:'保管の商品を検品する',n:TDN.kp,go:"go('buy')"},
+    TDN.rc!=null&&{k:'rc',t:TDN.rc?`レシートを入力する（未入力 ${TDN.rc}枚）`:'レシートを入力する',n:TDN.rc,go:"go('rcpt')"}].filter(Boolean);
+  const row=(done,t,cb,act,del)=>`<div class="row" style="gap:8px;margin:4px 0;align-items:center"><input type=checkbox ${done?'checked':''} onchange="${cb}"><span style="flex:1;${done?'text-decoration:line-through;color:var(--sub)':''}">${t}</span>${act||''}${del||''}</div>`;
+  const mine=o.mine||[], left=A.filter(x=>x.n&&!ck[x.k]).length+mine.filter(x=>!x.done).length;
+  tdlist.innerHTML=A.map(x=>row(!x.n||ck[x.k],esc(x.t),`tdCk('${x.k}',this.checked)`,x.n?`<a href="#" onclick="${x.go};return false">開く ›</a>`:'<span class="sub">済み</span>')).join('')
+    +mine.map((x,i)=>row(x.done,esc(x.t),`tdMine(${i},this.checked)`,'',`<a href="#" class="sub" onclick="tdDel(${i});return false">消す</a>`)).join('');
+  tdmsg.textContent=left?`のこり ${left}件`:'ぜんぶ済み'; }
+function tdCk(k,v){ const o=tdGet(); (o.ck??={})[k]=v; tdPut(o) }
+function tdMine(i,v){ const o=tdGet(); if(o.mine?.[i]) o.mine[i].done=v; tdPut(o) }
+function tdDel(i){ const o=tdGet(); o.mine?.splice(i,1); tdPut(o) }
+function tdAdd(){ const t=tdin.value.trim(); if(!t) return; const o=tdGet(); (o.mine??=[]).push({t,done:false}); tdin.value=''; tdPut(o) }
 // 毎日の見直し＝再出品（2026-10-13 本人）。出品中の商品のうち、最後に出品（再出品）してからいちばん日が経っている順に5本出す。今日もう触ったものは出さない
 const RV_PER_DAY=5; const jstToday=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 async function loadReviewCount(){ const {count}=await sb.from('items').select('kno',{count:'exact',head:true}).eq('status','listed').eq('reviewed_on',jstToday());
@@ -3827,7 +3864,7 @@ function msgDots(){ const hid=msgHid(), seen=msgSeen(), n=(MSGS||[]).filter(m=>m
   [document.querySelector('nav button[data-v="msg"]'),document.querySelector('nav button.mo'),$('msgmenu')].forEach(b=>b?.classList.toggle('rdot',n>0)); }
 async function loadMsgs(quiet){ if(!quiet) msgmsg.textContent='読んでいます…'; const r=await ebayCall('messages',{days:3});
   if(r.error){ if(!quiet) msgmsg.textContent='読めません：'+r.error; return } MSGS=r.messages; const dn=msgDone(); MSGS.forEach(m=>{ if(dn.has(m.id)) m.status='Answered' });
-  if(!$('v-msg').classList.contains('hide')) drawMsgs(); else msgDots(); }
+  if(!$('v-msg').classList.contains('hide')) drawMsgs(); else msgDots(); tdDraw(); }
 setInterval(()=>loadMsgs(true),10*60e3);
 // 同じ買い手のメッセージは1枚にまとめる（2026-10-31 本人「一緒のバイヤーのメッセージはまとめて」）。返信は1回、いちばん新しい未返信への返事として送り、
 // 同じ人のほかの未返信は「まとめて返信済み」としてこの端末に控える（eBayの印は付かない）
