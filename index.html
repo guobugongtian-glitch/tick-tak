@@ -543,7 +543,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 #v-items tr.old180 td{background:#fff1f0}
 #v-items tr.old90 td{background:#fff8e6}
 /* 長期在庫（90日〜）は一覧の下にまとめてたたむ。押すと開く（2026-10-31 本人「長期在庫半分隠して」） */
-#v-items.foldold:not(.showold) tr.old90,#v-items.foldold:not(.showold) tr.old180{display:none}
+#v-items.foldold:not(.showold) tr.old180{display:none}
 #v-items tr.oldfold{grid-column:1/-1;aspect-ratio:auto;background:none;box-shadow:none;border-radius:0;outline:0}
 #v-items tr.oldfold td{display:block;text-align:center;padding:12px;cursor:pointer;color:var(--accent);font-weight:700;background:none;border-top:1px dashed var(--line)}
 @media (max-width:700px){
@@ -1427,8 +1427,8 @@ async function loadItems(){
   let {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
   const nOld=data.filter(r=>ageDays(r)>=180).length; if(nOld) cnt.textContent+=` うち半年以上の長期在庫 ${nOld}件（赤）`;
-  // 長期在庫は下にまとめてたたむ（品番で探したときはたたまない）
-  const isOld=r=>!k&&ageDays(r)>=90, nFold=data.filter(isOld).length;
+  // 長期在庫は下にまとめてたたむ（品番で探したときはたたまない）。たたむのは180日以上だけ、90日〜は黄色のまま出す（2026-10-31 本人）
+  const isOld=r=>!k&&ageDays(r)>=180, nFold=data.filter(isOld).length;
   data=[...data.filter(r=>!isOld(r)),...data.filter(isOld)]; $('v-items').classList.toggle('foldold',nFold>0);
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy), ad=ageDays(r), ac=ad>=180?' old180':ad>=90?' old90':'';
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
@@ -1440,7 +1440,7 @@ async function loadItems(){
   if(nFold){ const fold=document.createElement('tr'); fold.className='oldfold'; fold.innerHTML=`<td colspan=9></td>`;
     const sync=()=>fold.firstChild.textContent=$('v-items').classList.contains('showold')?`長期在庫 ${nFold}件をたたむ ▲`:`長期在庫 ${nFold}件を見る ▼`;
     fold.onclick=()=>{ $('v-items').classList.toggle('showold'); sync() }; sync();
-    const first=itbody.querySelector('tr.old90,tr.old180'); itbody.insertBefore(fold,first) }
+    const first=itbody.querySelector('tr.old180'); itbody.insertBefore(fold,first) }
   if(F.status==='listed'&&!k) autoStats(data);
 }
 // eBayの数字（表示回数・閲覧数は直近30日、ウォッチ数はいま）。数字は「eBayの数字を更新」か、出品中を開いたとき6時間おきに自動で取り直す
@@ -3323,7 +3323,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031102710';
+const BUILD='20261031103345';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
