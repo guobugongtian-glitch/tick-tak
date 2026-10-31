@@ -3323,7 +3323,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031102334';
+const BUILD='20261031102710';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3529,7 +3529,8 @@ async function loadNippo(){ if(!npd.value) npd.value=jstToday(); const d=npd.val
     todayList:lc.count||0,todayBuy:buyM.filter(i=>i.purchased_on===d).length,buyN:buyM.length,bc,zan:1300000-bc,stock:stk.reduce((a,i)=>a+(i.cost_jpy||0),0)};
   const r=n.data||{}, prev=(past.data||[]).find(x=>x.day<d&&x.limit_qty);
   np_lq.value=r.limit_qty??prev?.limit_qty??''; np_lu.value=r.limit_usd??prev?.limit_usd??'';
-  ['shiire','cp','kizuki','good','improve'].forEach(k=>$('np_'+k).value=r[k]||'');
+  // 前に保存した日報に入っている長期在庫の行は外して読む（2026-10-31 本人「長期在庫の分はまだ出てる」。保存し直すと消える）
+  ['shiire','cp','kizuki','good','improve'].forEach(k=>$('np_'+k).value=npNoOld(r[k]));
   npRender();
   npAnalyze(d,os,s,p).then(()=>{ if(!n.data) npFill() }).catch(e=>npai.textContent='分析できません：'+e.message);
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
@@ -3607,7 +3608,7 @@ async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.s
   NPAUTO={
     shiire: bt.length?`${bt.length}本・${sum(bt)}円\n`+bt.map(line).join('\n'):'なし',
     cp: ab.length?[[y,'昨日'],[d,'本日']].map(([k,t])=>{ const a=ab.filter(r=>r.purchased_on===k); return a.length?`${t} 落札 ${a.length}本・${sum(a)}円\n`+a.map(line).join('\n'):`${t} 落札なし` }).join('\n'):'昨日・本日とも落札なし',
-    kizuki: L.filter(x=>/^売上は|^利益率は|^出品中/.test(x)).join('\n'),
+    kizuki: L.filter(x=>/^売上は|^利益率は/.test(x)).join('\n'),
     good: [todaySold.length?`今日 ${todaySold.length}本売れた（${yen(todaySold.reduce((a,x)=>a+x.v.x,0))}円）`:'',
       ...gs.map(x=>`${x.o.kno} ${(x.o.items.title||'').replace(/^\[.*?\]\s*/,'').slice(0,30)} 利益率${pct(x.v.p,x.v.x)}%`),
       good.length?`利益率25%以上で早く売れている：${good.map(g=>g.k).join('、')}`:''].filter(Boolean).join('\n'),
@@ -3926,14 +3927,17 @@ function kzRules(S){ const R=[], k=a=>a.map(x=>x.kno);
   if(S.last14.rate!=null&&S.last14.rate<20) R.push({what:'利益率が20%を切っている',why:`直近14日の利益率 ${S.last14.rate}%`,action:'値下げしすぎていないか確かめる（1本5,000円は残す）'});
   return R.length?R:[{what:'目立った問題はありません',why:`出品中${S.listed}本・直近14日${S.last14.n}本`,action:'このまま'}]; }
 // 日報の改善点もTOPに（2026-10-31 本人）。今日の分が無ければ一番新しい日の分。押すと日報を開く
+const npNoOld=t=>String(t||'').replace(/^.*出品中 ?\d+本のうち ?90日超.*(\n|$)/gm,'').trim();
+// AIの分析（1日1回で保存されている分）も長期在庫の項目は出さない（2026-10-31 本人）
+const kzNoOld=x=>!/長期|90日|180日|滞留|国内に回/.test(`${x.what} ${x.why} ${x.action}`);
 async function loadKzNippo(){ const {data,error}=await sb.from('nippo').select('day,improve').not('improve','is',null).lte('day',jpToday()).order('day',{ascending:false}).limit(1);
-  const r=!error&&data?.[0]; kznp.classList.toggle('hide',!r); if(!r) return;
+  const r=!error&&data?.[0], t=r&&npNoOld(r.improve); kznp.classList.toggle('hide',!t); if(!t) return;
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'<br>');
-  kznp.innerHTML=`<div style="margin:8px 0;cursor:pointer" onclick="npd.value='${r.day}';go('nippo')"><b>日報の改善点（${r.day===jpToday()?'今日':+r.day.slice(5,7)+'/'+ +r.day.slice(8,10)}）</b><div style="color:#d70015">${esc(r.improve)}</div></div>`; }
+  kznp.innerHTML=`<div style="margin:8px 0;cursor:pointer" onclick="npd.value='${r.day}';go('nippo')"><b>日報の改善点（${r.day===jpToday()?'今日':+r.day.slice(5,7)+'/'+ +r.day.slice(8,10)}）</b><div style="color:#d70015">${esc(t)}</div></div>`; }
 async function loadKaizen(){ kzmsg.textContent='まとめています…';
   let S; try{ S=await kzStats() }catch(e){ kzmsg.textContent='数字を読めません'; return }
   let r={}; try{ const {data,error}=await sb.functions.invoke('kaizen',{body:{day:S.day,stats:S}}); r=error?{error:error.message}:data }catch(e){ r={error:String(e)} }
-  const ai=r.items?.length, items=ai?r.items:kzRules(S);
+  const ok=(r.items||[]).filter(kzNoOld), ai=ok.length, items=ai?ok:kzRules(S);
   kzmsg.textContent=ai?'AIの分析（1日1回）':r.nokey?'ルールで出しています（APIキーを入れるとAIが毎日分析します）':'ルールで出しています'+(r.error?'（AI：'+r.error+'）':'');
   const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   kzlist.innerHTML=items.map((x,i)=>`<div style="margin:8px 0"><b>${i+1}. ${esc(x.what)}</b><div class="sub">${esc(x.why)}</div><div>→ ${esc(x.action)}${(x.knos||[]).length?'　'+x.knos.slice(0,8).map(k=>`<a href="#" onclick="openItem(${+k});return false">${+k}</a>`).join(' '):''}</div></div>`).join(''); }
