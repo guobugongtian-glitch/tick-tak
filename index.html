@@ -649,7 +649,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button data-v="card" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>カード明細</span></button>
     <button data-v="bank" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg><span>銀行明細</span></button>
     <button data-v="rcpt" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>レシート</span></button>
-    <button data-v="nippo" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>日報</span></button>
+    <!-- 日報はメニューから外した（2026-10-31 本人「日報の画面ごと消して」。表 nippo と画面のコードは残してある）-->
     <button data-v="orders" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>販売情報</span></button>
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
     <button data-v="msg" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg><span>メッセージ</span></button>
@@ -718,7 +718,6 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button onclick="go('card')">カード明細</button>
     <button onclick="go('bank')">銀行明細</button>
     <button onclick="go('rcpt')">経費のレシート</button>
-    <button onclick="go('nippo')">日報（いい点・改善点）</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')">Pinkoi 管理画面 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/listings','_blank','noopener')">Pinkoi 商品管理 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/orders','_blank','noopener')">Pinkoi 注文 ↗</button>
@@ -1211,7 +1210,7 @@ async function boot(){
   if(!window.__unlocked&&pinHas()) return pinLock();
   $('login').classList.add('hide'); $('app').classList.remove('hide'); window.__booted=true; window.__unlocked=true;
   const s=getS(); s_fx.value=s.fx; s_fee.value=s.fee; s_pay.value=s.pay; s_ship.value=s.ship;
-  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadKzNippo(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+  initFilters(); initDialog(); initPf(); loadItems(); loadCardRules(); autoModels().then(n=>{ if(n){ initFilters(); loadItems() } }); desctpl.value=getDescTpl(); loadHero(); jpTodo(); loadKaizen(); loadNews(); loadMsgs(true); loadReviewCount(); ebayOrders(true); etsyOrders(true); shopeeOrders(true); lgyear.value=new Date().getFullYear(); lgstart.value=new Date(Date.now()+9*36e5).toISOString().slice(0,10);
 }
 
 // PIN・顔認証（この端末だけ）。ログインそのものは Supabase のまま。開くときの鍵として使う
@@ -3323,7 +3322,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031103345';
+const BUILD='20261031103650';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
