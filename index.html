@@ -3323,7 +3323,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261031101549';
+const BUILD='20261031101904';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
@@ -3566,14 +3566,14 @@ ${v('cp')}
 ${v('kizuki')}
 ${v('good')?`\nいい点\n${v('good')}\n`:''}${v('improve')?`\n改善点\n${v('improve')}\n`:''}`.trim(); }
 // 自動の分析（2026-10-29）：Tick Takの数字から決まったルールで読むだけ（AIの文章ではない。APIキーが来たら差し替える）
-//   先月の同じ日までとの比較／利益率の低い注文／売れたブランドの利益率と売れるまでの日数／出品中の長期在庫
+//   先月の同じ日までとの比較／利益率の低い注文／売れたブランドの利益率と売れるまでの日数
+//   長期在庫は日報にも今日の改善点にも出さない（2026-10-31 本人「改善点に乗せないで」「自動の分析からも消して」）
 let NPAI=[], NPAUTO=null;
 async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.slice(0,4),+d.slice(5,7)-2,1), pk=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,'0')}`;
   const pd=Math.min(+d.slice(8,10),new Date(pm.getFullYear(),pm.getMonth()+1,0).getDate());
-  const [po,sold,lst]=await Promise.all([
+  const [po,sold]=await Promise.all([
     allRows(()=>sb.from('orders').select('item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(cost_jpy)').gte('ordered_on',pk+'-01').lte('ordered_on',`${pk}-${String(pd).padStart(2,'0')}`).order('id')),
-    allRows(()=>sb.from('orders').select('kno,ordered_on,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(title,specs,cost_jpy,first_listed_on,listed_on,research(name))').gte('ordered_on',m0).lte('ordered_on',d).order('id')),
-    allRows(()=>sb.from('items').select('kno,status,purchased_on,first_listed_on,listed_on').eq('status','listed').order('kno'))]);
+    allRows(()=>sb.from('orders').select('kno,ordered_on,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,platform,country,items(title,specs,cost_jpy,first_listed_on,listed_on,research(name))').gte('ordered_on',m0).lte('ordered_on',d).order('id'))]);
   const pr=o=>{ const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0); return {x,p:x-(o.items?.cost_jpy||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)} };
   let ps=0,pp=0; po.forEach(o=>{ const v=pr(o); ps+=v.x; pp+=v.p });
   const L=[], pct=(a,b)=>b?Math.round(a/b*100):0;
@@ -3592,8 +3592,6 @@ async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.s
   const good=bl.filter(g=>g.r>=25&&(g.dd==null||g.dd<=60)).sort((a,b)=>b.r-a.r);
   if(bl.length) L.push('今月売れたブランド：'+bl.sort((a,b)=>b.n-a.n).slice(0,5).map(g=>`${g.k} ${g.n}本・利益率${g.r}%${g.dd!=null?'・中央'+g.dd+'日':''}`).join('／'));
   if(good.length) L.push(`利益率25%以上で早く売れている：${good.map(g=>g.k).join('、')}。仕入れるならここ。`);
-  const old=lst.map(ageDays), o90=old.filter(x=>x>=90).length, o180=old.filter(x=>x>=180).length;
-  if(lst.length) L.push(`出品中 ${lst.length}本のうち 90日超 ${o90}本（${pct(o90,lst.length)}%）・180日超 ${o180}本。${o90/lst.length>=0.5?'半分以上が90日超。値下げか国内に回すのを先に。':''}`);
   if(!L.length) L.push('この日までの数字がまだありません。');
   // ── 自動で入れる文（2026-10-29 本人「自動で入れられるとこまで」）──
   const y=new Date(new Date(d)-864e5).toISOString().slice(0,10);
@@ -3613,14 +3611,12 @@ async function npAnalyze(d,os,s,p){ const m0=d.slice(0,8)+'01', pm=new Date(+d.s
     good: [todaySold.length?`今日 ${todaySold.length}本売れた（${yen(todaySold.reduce((a,x)=>a+x.v.x,0))}円）`:'',
       ...gs.map(x=>`${x.o.kno} ${(x.o.items.title||'').replace(/^\[.*?\]\s*/,'').slice(0,30)} 利益率${pct(x.v.p,x.v.x)}%`),
       good.length?`利益率25%以上で早く売れている：${good.map(g=>g.k).join('、')}`:''].filter(Boolean).join('\n'),
-    improve: L.filter(x=>!npOld(x)&&/見直す|下げる|値下げ|落ちて/.test(x)).join('\n')};
+    improve: L.filter(x=>/見直す|下げる|値下げ|落ちて/.test(x)).join('\n')};
   NPAI=L; npai.innerHTML=L.map(x=>`<div style="padding:4px 0">・${x.replace(/[<>&]/g,'')}</div>`).join(''); }
 function npFill(){ if(!NPAUTO) return; let n=0;
   for(const k of ['shiire','cp','kizuki','good','improve']){ const el=$('np_'+k); if(!el.value.trim()&&NPAUTO[k]){ el.value=NPAUTO[k]; n++ } }
   npRender(); npmsg.textContent=n?` 空いている欄に${n}か所入れました（まだ保存していません）`:' 入れられる欄はありません（書いてある欄はそのまま）'; }
-// 長期在庫の行は分析に出すだけで、改善点には入れない（2026-10-31 本人「改善点に乗せないで」）
-const npOld=x=>/^出品中 \d+本のうち 90日超/.test(x);
-function npUseAi(){ if(!NPAI.length) return; const t=NPAI.filter(x=>!npOld(x)&&/見直す|下げる|値下げ|落ちて|仕入れるなら/.test(x)).join('\n')||NPAI.filter(x=>!npOld(x)).join('\n');
+function npUseAi(){ if(!NPAI.length) return; const t=NPAI.filter(x=>/見直す|下げる|値下げ|落ちて|仕入れるなら/.test(x)).join('\n')||NPAI.join('\n');
   np_improve.value=(np_improve.value.trim()?np_improve.value.trim()+'\n':'')+t; npRender(); }
 function npRender(){ nptext.textContent=npText(); }
 async function npCopy(){ try{ await navigator.clipboard.writeText(npText()); npmsg.textContent=' コピーしました' }catch(e){ npmsg.textContent=' コピーできません（下の文を長押しで選んでください）' } }
@@ -3903,18 +3899,17 @@ async function kzStats(){ const day=jpToday(), d=n=>new Date(Date.now()-n*864e5)
   // 「見せない」設定（アンドレムッシュ・Pinkoi・Grailed）はここにも効かせる。合計の数字には入れたまま
   const hide=document.body.classList.contains('hideam'), L=lst.filter(r=>!hide||!AM_RE.test(r.title||'')).map(it), pf={};
   os.filter(o=>o.ordered_on>=d(14)&&!(hide&&AM_RE.test(o.platform||''))).forEach(o=>pf[o.platform]=(pf[o.platform]||0)+1);
-  return {day, listed:L.length, over90:L.filter(x=>x.days>=90).length, over180:L.filter(x=>x.days>=180).length,
+  // 長期在庫（90日超の本数・古い順）はAIにも渡さない（2026-10-31 本人「改善点に乗せないで」）
+  return {day, listed:L.length,
     last14:per(os.filter(o=>o.ordered_on>=d(14))), prev14:per(os.filter(o=>o.ordered_on<d(14))), platforms14:pf,
     views_no_watch:L.filter(x=>x.views>=30&&x.watch===0).sort((a,b)=>b.views-a.views).slice(0,8),
     watched_unsold:L.filter(x=>x.watch>=3&&x.days>=30).sort((a,b)=>b.watch-a.watch).slice(0,8),
-    low_impressions:L.filter(x=>x.imp!=null&&x.imp<100&&x.days>=30).sort((a,b)=>a.imp-b.imp).slice(0,8),
-    oldest:[...L].sort((a,b)=>b.days-a.days).slice(0,8)}; }
+    low_impressions:L.filter(x=>x.imp!=null&&x.imp<100&&x.days>=30).sort((a,b)=>a.imp-b.imp).slice(0,8)}; }
 function kzRules(S){ const R=[], k=a=>a.map(x=>x.kno);
   if(S.prev14.n&&S.last14.sales_jpy<S.prev14.sales_jpy*0.9) R.push({what:'売上のペースが落ちている',why:`直近14日 ${yen(S.last14.sales_jpy)}円（${S.last14.n}本）、その前の14日 ${yen(S.prev14.sales_jpy)}円（${S.prev14.n}本）`,action:'下の値下げ・見直しの候補から先に手を付ける'});
   if(S.watched_unsold.length) R.push({what:'ウォッチが多いのに売れていない',why:S.watched_unsold.slice(0,3).map(x=>`${x.kno}：ウォッチ${x.watch}・${x.days}日`).join('、'),action:'ウォッチしている人にオファーを送るか、少しだけ値下げ',knos:k(S.watched_unsold)});
   if(S.views_no_watch.length) R.push({what:'見られているのにウォッチ0',why:S.views_no_watch.slice(0,3).map(x=>`${x.kno}：閲覧${x.views}`).join('、'),action:'1枚目の写真と値段を見直す（相場より高い可能性）',knos:k(S.views_no_watch)});
   if(S.low_impressions.length) R.push({what:'検索にほとんど出ていない',why:S.low_impressions.slice(0,3).map(x=>`${x.kno}：表示${x.imp}`).join('、'),action:'タイトルにブランド・型番・色を入れ直す',knos:k(S.low_impressions)});
-  if(S.listed&&S.over90/S.listed>=0.3) R.push({what:'90日超の在庫が多い',why:`出品中${S.listed}本のうち90日超${S.over90}本・180日超${S.over180}本`,action:'180日超から国内（ヤフオク・メルカリ）に回すか値下げ',knos:k(S.oldest)});
   if(S.last14.rate!=null&&S.last14.rate<20) R.push({what:'利益率が20%を切っている',why:`直近14日の利益率 ${S.last14.rate}%`,action:'値下げしすぎていないか確かめる（1本5,000円は残す）'});
   return R.length?R:[{what:'目立った問題はありません',why:`出品中${S.listed}本・直近14日${S.last14.n}本`,action:'このまま'}]; }
 // 日報の改善点もTOPに（2026-10-31 本人）。今日の分が無ければ一番新しい日の分。押すと日報を開く
