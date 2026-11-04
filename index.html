@@ -596,7 +596,7 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 .rcth{width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;background:#eee}
 #rcbody tr{cursor:pointer}
 @media (max-width:700px){ .rcbig .btn{flex:1 1 100%;text-align:center;min-height:44px} .rcf{grid-template-columns:1fr} }
-body.hideam .amh,body.hideam button.pk{display:none!important}
+body.hideam .amh,body.hideam button.gr{display:none!important}
 .rdot{position:relative} .rdot::after{content:'';position:absolute;top:4px;right:6px;width:10px;height:10px;border-radius:50%;background:#ff3b30}
 .mdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff3b30;margin-right:6px;vertical-align:middle}
 </style>
@@ -654,7 +654,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button data-v="etsyrv" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Etsy見直し</span></button>
     <button data-v="msg" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg><span>メッセージ</span></button>
     <button class="mh pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Pinkoi</span></button>
-    <button class="mh pk" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Grailed</span></button>
+    <button class="mh pk gr" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Grailed</span></button>
     <button data-v="io" class="mh"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>取込/設定</span></button>
     <button data-v="more" class="mo"><svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
   </nav>
@@ -726,7 +726,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/home','_blank','noopener')">Pinkoi 管理画面 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/listings','_blank','noopener')">Pinkoi 商品管理 ↗</button>
     <button class="pk" onclick="window.open('https://www.pinkoi.com/panel/orders','_blank','noopener')">Pinkoi 注文 ↗</button>
-    <button class="pk" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')">Grailed 出品中 ↗</button>
+    <button class="pk gr" onclick="window.open('https://www.grailed.com/sell/for-sale','_blank','noopener')">Grailed 出品中 ↗</button>
     <button onclick="go('io')">取込・eBay接続・設定</button>
   </div>
 </section>
@@ -1024,7 +1024,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
   </div>
   <div class="card">
     <h3 style="margin-top:0">見せない</h3>
-    <label class="row" style="gap:8px"><input type="checkbox" id="hideam" onchange="setHideAM(this.checked)"> アンドレムッシュ・Pinkoi・Grailedを画面に出さない（一覧・リサーチ・注文など。合計の数字には入ったまま）</label>
+    <label class="row" style="gap:8px"><input type="checkbox" id="hideam" onchange="setHideAM(this.checked)"> Grailedを画面に出さない（一覧・リサーチ・注文など。合計の数字には入ったまま）</label>
   </div>
   <div class="card">
     <h3 style="margin-top:0">計算の設定</h3>
@@ -1100,7 +1100,7 @@ body.hideam .amh,body.hideam button.pk{display:none!important}
     </fieldset>
     <fieldset class="fs-basic"><legend>商品</legend>
     <div id="stockpick" class="hide"><select id="stocksel" style="width:100%;font-size:16px;padding:10px" onchange="if(this.value)openItem(+this.value,true)"></select></div>
-    <div id="lgname" class="note"></div><div class="g2">
+    <div id="soldnote" class="note"></div><div id="lgname" class="note"></div><div class="g2">
       <label class="qh">品番(SKU)*<input name="kno" type="number" required></label>
       <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
       <label class="qh">ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
@@ -1315,7 +1315,7 @@ async function jpSold(){ const m=JP.m, nm=JP_NAME[m], x=JP.jp[m]; const v=window
 const OS_DEF={Pinkoi:[12.5,176],Shopee:[0,0],'メルカリ':[10,750],'ヤフオク':[10,750],'その他':[0,0]};
 function osFee(){ const d=OS_DEF[ospf.value]||[0,0]; osfee.value=d[0]; osship.value=d[1]; }
 function osOpen(){ const kno=+ifm.kno.value; if(!kno){ dmsg.textContent='先に品番を入れてください'; return }
-  ostitle.textContent=`品番 ${kno}　${ifm.title.value||''}`; ospf.value=document.body.classList.contains('hideam')?'Shopee':'Pinkoi'; osday.value=jpToday(); osprice.value=''; osno.value=''; osmsg.textContent=''; osout.innerHTML=''; osFee(); osdlg.showModal(); }
+  ostitle.textContent=`品番 ${kno}　${ifm.title.value||''}`; ospf.value='Pinkoi'; osday.value=jpToday(); osprice.value=''; osno.value=''; osmsg.textContent=''; osout.innerHTML=''; osFee(); osdlg.showModal(); }
 async function osSave(){ const kno=+ifm.kno.value, pf=ospf.value, price=+String(osprice.value).replace(/[^\d]/g,''), d=osday.value;
   if(!price||!d){ osmsg.textContent='売値と日付を入れてください'; return }
   const {data:cur}=await sb.from('items').select('ebay_item_id,status').eq('kno',kno).maybeSingle(); const {data:dup}=await sb.from('orders').select('id').eq('kno',kno).limit(1);
@@ -1408,6 +1408,12 @@ async function initFilters(){
 }
 let RES = {};
 // 長期在庫：仕入日（なければ最初に出品した日）から何日たったか。listed_onは出し直しで新しくなるので使わない。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
+// 売れた商品の「いつ・どこで・いくら」。商品の画面の上と、品番で探したときに出す
+function soldText(r){ if(r?.status!=='sold') return ''; const d=r.sold_on, o=r.orders?.[0];
+  if(!d) return '売れています（売れた日は未入力）';
+  const ld=r.first_listed_on||r.listed_on, days=ld?Math.round((new Date(d)-new Date(ld))/864e5):null;
+  return `✓ ${+d.slice(5,7)}/${+d.slice(8,10)}（${'日月火水木金土'[new Date(d+'T00:00').getDay()]}）${o?.platform?`に${o.platform}で`:'に'}売れました`
+    +(o?.item_price_jpy?`・${yen(o.item_price_jpy)}円`:'')+(o?.order_no?`・注文 ${o.order_no}`:'')+(days!=null&&days>=0?`・出品から${days}日`:''); }
 const ageDays=r=>{ const d=r.purchased_on||r.first_listed_on||r.listed_on; return r.status==='sold'||!d?0:Math.floor((Date.now()-new Date(d))/864e5) };
 // 利益の欄。売れた商品は注文の実額（手数料が無ければ設定の%で推定、送料は決まりの額）から、仕入値を引く。仕入値が無ければ「手取り」を出す
 function profitCell(r,p){ const o=r.status==='sold'?r.orders?.[0]:null;
@@ -1430,6 +1436,9 @@ async function loadItems(){
   const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   let {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
   cnt.textContent = `${data.length}件を表示しています。`;
+  // 品番で探して今のタブに無いとき、売れていないか確かめて出す（2026-11-01 本人「いつ売れたかわかるように」）
+  if(!data.length&&/^\d+$/.test(k)){ const {data:o}=await sb.from('items').select('status,sold_on,first_listed_on,listed_on,orders(platform,order_no,item_price_jpy)').eq('kno',+k).maybeSingle();
+    if(o) cnt.textContent=`品番 ${k}：`+(o.status==='sold'?soldText(o):`「${ST[o.status]||o.status}」のタブにあります`); }
   const nOld=data.filter(r=>ageDays(r)>=180).length; if(nOld) cnt.textContent+=` うち半年以上の長期在庫 ${nOld}件（赤）`;
   // 長期在庫は下にまとめてたたむ（品番で探したときはたたまない）。たたむのは180日以上だけ、90日〜は黄色のまま出す（2026-10-31 本人）
   const isOld=r=>!k&&ageDays(r)>=180, nFold=data.filter(isOld).length;
@@ -1689,14 +1698,15 @@ function fillFromPast(){ const want=buyColors(), byColor=[...PAST].sort((a,b)=>c
   // 同じ型で実際に速く売れたタイトルがあれば、それを優先して入れる
   const ideas=titleIdeas(); const best=ideas.find(x=>x.why.startsWith('同じ型で売れた')); if(best){ ifm.title.value=best.s; tlen.textContent=best.s.length } seoCheck(); }
 async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
-  ifm.reset(); dmsg.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); VID=null; drawVideo(); vmsg.textContent=''; vfile.value=''; pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); chkbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
+  ifm.reset(); dmsg.textContent=''; soldnote.textContent=''; $('iprofit').textContent='—'; PH=[]; drawPhotos(); VID=null; drawVideo(); vmsg.textContent=''; vfile.value=''; pmsg.textContent=''; vout.innerHTML=''; tideas.innerHTML=''; VERIFIED=null; pubbtn.disabled=true; revbtn.classList.add('hide'); chkbtn.classList.add('hide'); endbtn.classList.add('hide'); phbtn.classList.add('hide'); verbtn.classList.remove('hide'); pubbtn.classList.remove('hide'); pfile.value=''; rhint.textContent=''; rpast.innerHTML=''; PAST=[]; renderSpecs({});
   if(!POLICIES.length){ // eBayにある本物の送料ポリシー名を、よく使っている順に（同じ価格帯ならSpeedPakなど普段のものが先に選ばれる）
     const ps=await allRows(()=>sb.from('items').select('pol:ebay->ship_profile->>name').eq('ebay->>currency','USD').order('kno')); const cnt={};
     ps.forEach(x=>{ if(x.pol&&!x.pol.includes(' / ')) cnt[x.pol]=(cnt[x.pol]||0)+1 });
     POLICIES=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(x=>x[0]); plist.innerHTML=POLICIES.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join(''); }
   const {data:rs} = await sb.from('research').select('id,name').order('name');
   RES = Object.fromEntries((rs||[]).map(r=>[r.name,r.id])); rlist.innerHTML=(rs||[]).map(r=>`<option value="${r.name}">`).join('');
-  if(kno){ const {data:r} = await sb.from('items').select('*,research(name)').eq('kno',kno).single();
+  if(kno){ const {data:r} = await sb.from('items').select('*,research(name),orders(platform,order_no,item_price_jpy)').eq('kno',kno).single();
+    soldnote.textContent=soldText(r);
     dtitle.textContent=(quick?'出品（品番 ':'商品更新 ')+kno+(quick?'）':''); ifm.kno.readOnly=true;
     for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
     ifm.research_name.value=r.research?.name||'';
@@ -3997,11 +4007,12 @@ function drawNews(d,old){ const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':
   newslist.innerHTML=Object.entries(NEWS_CAT).map(([k,n])=>{ const a=d.items.filter(i=>i.cat===k); if(!a.length) return '';
     return `<div style="margin-top:8px"><b>${n}</b></div>`+a.map(i=>`<div style="margin:6px 0"><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.ja||i.title)}</a><div class="sub">${dt(i.at)}　${esc(i.src)}${i.ja?'　'+esc(i.title):''}</div></div>`).join('') }).join(''); }
 // アンドレムッシュ・Pinkoiを画面から隠す（2026-10-30 本人「全部隠したい」「pinkoiも隠して」「grailedも」）。行ごとに印を付けて、設定で出す／隠すを切り替える。データは消さない
-const AM_RE=/アンドレ|ムッシュ|モッシュ|ムーシュ|andre\s*mouche|mouche|pinkoi|ピンコイ|grailed|グレイルド/i;
+// 2026-11-04 本人「Pinkoiすぐ見れるようにして」「アンドレムッシュも」→ 隠すのはGrailedだけ
+const AM_RE=/grailed|グレイルド/i;
 function markAM(root){ (root||document).querySelectorAll('tr,.rrow,li,option,#mkout a,#rwatch>*').forEach(el=>{ if(AM_RE.test(el.textContent)) el.classList.add('amh') });
   if(WATCH.every(x=>AM_RE.test(x.name))) document.getElementById('rwatch')?.closest('.card')?.classList.add('amh'); }   // 「いつも見る」はアンドレムッシュだけなので枠ごと
 function setHideAM(on){ try{ localStorage.setItem('ws_hide_am',on?'1':'0') }catch(e){} document.body.classList.toggle('hideam',on);
-  const b=document.getElementById('osbtn'); if(b) b.textContent=on?'ほかで売れた':'Pinkoiなどで売れた'; }
+  const b=document.getElementById('osbtn'); if(b) b.textContent='Pinkoiなどで売れた'; }
 (function(){ let on=true; try{ on=localStorage.getItem('ws_hide_am')!=='0' }catch(e){}
   setHideAM(on); const cb=document.getElementById('hideam'); if(cb) cb.checked=on;
   markAM(); let t; new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(()=>markAM(),50) }).observe(document.body,{childList:true,subtree:true}); })();
