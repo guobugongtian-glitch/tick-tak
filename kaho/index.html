@@ -651,8 +651,8 @@ function makeDb(){
   const ref=(c,id)=>({
     async set(body){apply(c,id,body);const {error}=await sb.from("kaho_docs").upsert({col:c,id,data:body,updated_at:new Date().toISOString()},{onConflict:"user_id,col,id"});if(error){load(c).catch(()=>{});throw error}},
     async delete(){apply(c,id,undefined);const {error}=await sb.from("kaho_docs").delete().eq("col",c).eq("id",id);if(error){load(c).catch(()=>{});throw error}},
-    onSnapshot(cb,err){(docSubs[c+"/"+id]=docSubs[c+"/"+id]||[]).push(cb);ensure(c,err).then(()=>emitDoc(c,id));return()=>{}}});
-  return {collection:c=>({doc:id=>ref(c,id),onSnapshot(cb,err){(subs[c]=subs[c]||[]).push(cb);ensure(c,err).then(()=>emit(c));return()=>{}}}),doc:p=>{const [c,i]=p.split("/");return ref(c,i)}};
+    onSnapshot(cb,err){(docSubs[c+"/"+id]=docSubs[c+"/"+id]||[]).push(cb);ensure(c,err).then(()=>{if(cache[c])emitDoc(c,id)});return()=>{}}});
+  return {collection:c=>({doc:id=>ref(c,id),onSnapshot(cb,err){(subs[c]=subs[c]||[]).push(cb);ensure(c,err).then(()=>{if(cache[c])emit(c)});return()=>{}}}),doc:p=>{const [c,i]=p.split("/");return ref(c,i)}};
 }
 function needLogin(){return new Promise(res=>{$("lFace").innerHTML=kahoSVG("happy");$("login").classList.add("on");
   $("lForm").onsubmit=async e=>{e.preventDefault();$("lMsg").textContent="確認中…";
