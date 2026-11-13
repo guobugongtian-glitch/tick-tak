@@ -704,6 +704,7 @@ body.hideam .amh,body.hideam button.gr{display:none!important}
       <button class="btn" onclick="loadItems()">検索</button>
       <button class="btn g dk" onclick="openItem()">＋ 登録</button></div>
     <div class="seg" id="f1"></div>
+    <div class="seg" id="f2" style="margin-top:6px"></div>
   </div>
   <div class="row sub"><span id="cnt"></span><a href="#" class="stl" onclick="refreshStats();return false">eBayの数字を更新</a><button class="lbtog" onclick="labelMode(!LBSEL)">🏷 ラベルを印刷</button></div>
   <div id="lbbar" class="hide"><span id="lbcnt">印刷する時計をタップ</span><select id="lbstart2" title="何枚目から"></select><button class="btn s" onclick="lbAll()">全部</button><button class="btn" onclick="lbPrint()">選んだ分を印刷</button><button class="btn s" onclick="labelMode(false)">やめる</button></div>
@@ -1007,6 +1008,12 @@ body.hideam .amh,body.hideam button.gr{display:none!important}
     <div class="row"><button class="btn" onclick="saveDescTpl()">保存（この端末）</button><button class="btn s" onclick="desctpl.value=DESC_DEFAULT">最初の形に戻す</button><span id="dtmsg" class="sub"></span></div>
   </div>
   <div class="card">
+    <h3 style="margin-top:0">保管場所の一覧を取り込む</h3>
+    <p class="sub">「番号」と「場所」の列がある表（.xlsx／.csv）を選ぶ。品番ごとに保管場所（自宅・水戸・東京・不明など）を書きかえます。ほかの項目は変えません。</p>
+    <input type="file" id="locf" accept=".xlsx,.csv"><button class="btn" onclick="importLoc()">取り込む</button>
+    <p id="locmsg" class="sub"></p>
+  </div>
+  <div class="card">
     <h3 style="margin-top:0">出品の下書きを読み込む</h3>
     <p class="sub">Claudeが写真から作った下書き（出品待ち/下書き.json）を選ぶ。新しい品番で「保管・出品待ち」として入り、商品管理で直せます。</p>
     <input type="file" id="djson" accept=".json"><button class="btn" onclick="importDrafts()">読み込む</button>
@@ -1104,7 +1111,7 @@ body.hideam .amh,body.hideam button.gr{display:none!important}
       <label class="qh">品番(SKU)*<input name="kno" type="number" required></label>
       <label>型番<input name="research_name" placeholder="例：1500L" list="rlist" onchange="showPast()"></label>
       <label class="qh">ステータス<select name="status"><option value="stock">保管</option><option value="listed">出品</option><option value="sold">販売</option></select></label>
-      <label class="hide">保管場所<select name="location"><option>ワンロック</option><option>自宅</option><option>ネット仕入待ち</option></select></label>
+      <label>保管場所<select name="location"><option>自宅</option><option>水戸</option><option>東京</option><option>不明</option><option>ワンロック</option><option>ネット仕入待ち</option></select></label>
       <label class="hide">保管場所ステータス<select name="location_status"><option></option><option>ラベル発行待ち</option><option>ラベル発行済</option><option>出品待ち</option><option>出品中</option></select></label>
       <label>状態<select name="condition"></select></label>
     </div>
@@ -1405,6 +1412,13 @@ async function initFilters(){
   const n=async s=>(await sb.from('items').select('kno',{count:'exact',head:true}).eq('status',s)).count||0;
   const [a,b,c]=await Promise.all([n('listed'),n('stock'),n('sold')]);
   chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`,h:`${t}<b class="cnt">${k.toLocaleString()}</b>`})), 'status', ()=>{F.location=null;F.location_status=null});
+  // 保管場所ごとの数（2026-11-13 在庫の場所一覧を入れたので、場所でしぼれるように）
+  if(F.status==='sold'){ f2.innerHTML=''; return }
+  const {data:lc}=await sb.from('items').select('location').eq('status',F.status); const t={};
+  (lc||[]).forEach(r=>{ const k=r.location||'未設定'; t[k]=(t[k]||0)+1 });
+  const ORD=['自宅','水戸','東京','不明','ワンロック','ネット仕入待ち','未設定'];
+  const ks=Object.keys(t).sort((a,b)=>((ORD.indexOf(a)+1)||99)-((ORD.indexOf(b)+1)||99));
+  chips(f2, ks.map(k=>({v:k,t:`${k} ${t[k]}`,h:`${k}<b class="cnt">${t[k]}</b>`})), 'location');
 }
 let RES = {};
 // 長期在庫：仕入日（なければ最初に出品した日）から何日たったか。listed_onは出し直しで新しくなるので使わない。売れた分は数えない。90日〜黄、180日〜赤（2026-10-20 本人「長期在庫は目立たせて」）
@@ -1426,6 +1440,7 @@ function profitCell(r,p){ const o=r.status==='sold'?r.orders?.[0]:null;
   return `<td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td>` }
 async function loadItems(){
   let q = sb.from('items').select(F.status==='sold'?'*,research(name),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy)':'*,research(name)').eq('status',F.status);
+  if(F.location&&F.status!=='sold') q = F.location==='未設定' ? q.is('location',null) : q.eq('location',F.location);
   // 売れた分は売れた日の新しい順（品番順だと古い品番の売れた分が埋もれる）
   if(F.status==='sold') q=q.order('sold_on',{ascending:false,nullsFirst:false});
   q=q.order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
@@ -2808,6 +2823,21 @@ async function importCsv(){
 }
 
 // .xlsx は表計算の読み取り部品（SheetJS）を使うときだけ読み込む
+// 保管場所の一覧（番号・場所）を取り込む（2026-11-13 OneRockの返送記録と照合した「在庫の場所一覧.xlsx」）
+async function importLoc(){ const f=locf.files[0]; if(!f){ locmsg.textContent='ファイルを選んでください'; return }
+  locmsg.textContent='読んでいます…';
+  let rows; try{ rows=/\.csv$/i.test(f.name)?(await f.text()).split(/\r?\n/).map(l=>l.split(',')):await readXlsx(f) }catch(e){ locmsg.textContent='読めません：'+e.message; return }
+  const h=rows.findIndex(r=>r.some(c=>c.trim()==='番号')&&r.some(c=>c.trim()==='場所')); if(h<0){ locmsg.textContent='「番号」と「場所」の列が見つかりません'; return }
+  const iN=rows[h].findIndex(c=>c.trim()==='番号'), iL=rows[h].findIndex(c=>c.trim()==='場所');
+  const by={}; let n=0; rows.slice(h+1).forEach(r=>{ const k=+String(r[iN]||'').replace(/[^0-9]/g,''), l=String(r[iL]||'').trim(); if(k&&l){ (by[l]=by[l]||[]).push(k); n++ } });
+  if(!n){ locmsg.textContent='入れる行がありません'; return }
+  if(!confirm(`${n}件の保管場所を書きかえます（${Object.entries(by).map(([l,a])=>l+' '+a.length).join('・')}）。よいですか？`)){ locmsg.textContent='やめました'; return }
+  const done=[], miss=[];
+  for(const [l,a] of Object.entries(by)){ const {data,error}=await sb.from('items').update({location:l}).in('kno',a).select('kno');
+    if(error){ locmsg.textContent=`「${l}」で止まりました：`+error.message; return }
+    const got=new Set((data||[]).map(x=>x.kno)); done.push(`${l} ${got.size}件`); a.forEach(k=>{ if(!got.has(k)) miss.push(k) }) }
+  locmsg.textContent=`書きかえました：${done.join('・')}`+(miss.length?`　Tick Takに無い品番 ${miss.length}件：${miss.join(', ')}`:'');
+  initFilters(); }
 async function readXlsx(f){
   if(!window.XLSX) await new Promise((ok,ng)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload=ok; sc.onerror=()=>ng(new Error('表計算の部品を読めません')); document.head.appendChild(sc) });
   const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
@@ -3338,7 +3368,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261104101425';
+const BUILD='20261113094209';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
