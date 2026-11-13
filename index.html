@@ -540,6 +540,11 @@ td.st .sv.i{background:rgba(108,76,245,.1);color:var(--accent)}
 #v-items td.ph{position:relative}
 #v-items .age{position:absolute;right:4px;bottom:4px;z-index:1;background:#f5a623;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;pointer-events:none}
 #v-items tr.old180 .age{background:#e5342a}
+/* 保管場所を目立たせる（2026-11-13 本人「目立つように在庫先のせて」） */
+.loc{display:inline-block;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:5px;background:#6b7280;line-height:1.4;white-space:nowrap}
+.loc-自宅{background:#16a34a}.loc-水戸{background:#2563eb}.loc-東京{background:#9333ea}.loc-不明{background:#dc2626}.loc-ワンロック{background:#6b7280}.loc-ネット仕入待ち{background:#d97706}
+#v-items td.ph .loc{position:absolute;left:4px;top:4px;z-index:1;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+#dtitle .loc{margin-left:8px;font-size:14px;vertical-align:middle}
 #v-items tr.old180 td{background:#fff1f0}
 #v-items tr.old90 td{background:#fff8e6}
 /* 長期在庫（90日〜）は一覧の下にまとめてたたむ。押すと開く（2026-10-31 本人「長期在庫半分隠して」） */
@@ -1438,6 +1443,7 @@ function profitCell(r,p){ const o=r.status==='sold'?r.orders?.[0]:null;
     const pr=net-r.cost_jpy; return `<td class="n ${pr<0?'neg':''}" title="売上${yen(sales)}−手数料${yen(fee)}−送料${yen(shipOf(o))}−仕入${yen(r.cost_jpy)}"><b>${yen(pr)}円</b></td>` }
   if(!r.cost_jpy) return '<td class=n><span class=sub>仕入値なし</span></td>';
   return `<td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td>` }
+const locBadge=l=>{ const t=String(l).replace(/[<>&"]/g,''); return `<span class="loc loc-${t}">${t==='ネット仕入待ち'?'仕入待ち':t}</span>` };
 async function loadItems(){
   let q = sb.from('items').select(F.status==='sold'?'*,research(name),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy)':'*,research(name)').eq('status',F.status);
   if(F.location&&F.status!=='sold') q = F.location==='未設定' ? q.is('location',null) : q.eq('location',F.location);
@@ -1460,8 +1466,9 @@ async function loadItems(){
   data=[...data.filter(r=>!isOld(r)),...data.filter(isOld)]; $('v-items').classList.toggle('foldold',nFold>0);
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy), ad=ageDays(r), ac=ad>=180?' old180':ad>=90?' old90':'';
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
+    const lc=r.status!=='sold'&&r.location?locBadge(r.location):'';
     const sd=r.status==='sold'&&r.sold_on?`${+r.sold_on.slice(5,7)}/${+r.sold_on.slice(8,10)}${r.orders?.[0]?.platform?' '+r.orders[0].platform:''}`:'';
-    return `<tr class="st-${r.status}${ac}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}${ac?`<span class="age">${ad}日</span>`:''}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
+    return `<tr class="st-${r.status}${ac}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}${lc}${ac?`<span class="age">${ad}日</span>`:''}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
     <td><span class=sub>(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${r.cost_jpy?yen(r.cost_jpy)+'円':'<span class=sub>未入力</span>'}</td>${profitCell(r,p)}<td class="n st">${statCell(r)}</td></tr>` }).join('');
@@ -1725,6 +1732,7 @@ async function openItem(kno,quick){ dlg.classList.toggle('quick',!!quick);
     dtitle.textContent=(quick?'出品（品番 ':'商品更新 ')+kno+(quick?'）':''); ifm.kno.readOnly=true;
     for(const el of ifm.elements){ if(el.name && r[el.name]!=null) el.value=r[el.name]; }
     ifm.research_name.value=r.research?.name||'';
+    if(r.status!=='sold'&&r.location) dtitle.insertAdjacentHTML('beforeend',locBadge(r.location));
     renderSpecs(r.specs||{});
     PH=[...(r.photos||[])]; drawPhotos(); VID=r.video||null; drawVideo(); const live=r.status==='listed'&&!!r.ebay_item_id;   // もうeBayに出ている商品：確認・出品のボタンは出さず、直す・取り下げるだけ出す
     revbtn.classList.toggle('hide',!live); chkbtn.classList.toggle('hide',!live); endbtn.classList.toggle('hide',!live); phbtn.classList.toggle('hide',!live); verbtn.classList.toggle('hide',live); pubbtn.classList.toggle('hide',live); drawVideo();
@@ -3368,7 +3376,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261113094209';
+const BUILD='20261113095347';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
