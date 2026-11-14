@@ -1410,15 +1410,18 @@ document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{
 const F = {status:'listed', location:null, location_status:null};
 function chips(el, opts, key, after){
   el.innerHTML=''; opts.forEach(o=>{ const b=document.createElement('button'); b.className='chip'+(F[key]===o.v?' on':'');
-    if(o.h) b.innerHTML=o.h; else b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
+    if(o.h) b.innerHTML=o.h; else b.textContent=o.t; b.onclick=()=>{ F[key]=F[key]===o.v&&key!=='status'?null:o.v; if(key==='status'&&window.kw) kw.value=''; after&&after(); initFilters(); loadItems(); }; el.appendChild(b); });
 }
 async function initFilters(){
   // 件数だけ数える（中身は読まない）
   const n=async s=>(await sb.from('items').select('kno',{count:'exact',head:true}).eq('status',s)).count||0;
-  const [a,b,c]=await Promise.all([n('listed'),n('stock'),n('sold')]);
-  chips(f1, [['listed','出品中',a],['stock','保管',b],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`,h:`${t}<b class="cnt">${k.toLocaleString()}</b>`})), 'status', ()=>{F.location=null;F.location_status=null});
+  // 長期在庫（出品中＋保管で90日以上）は日付だけ読んで数える（2026-11-15 本人「長期在庫見れるように」）
+  const ages=async()=>(await sb.from('items').select('status,purchased_on,first_listed_on,listed_on').in('status',['listed','stock']).limit(2000)).data||[];
+  const [a,b,c,ag]=await Promise.all([n('listed'),n('stock'),n('sold'),ages()]);
+  const d=ag.filter(r=>ageDays(r)>=90).length;
+  chips(f1, [['listed','出品中',a],['stock','保管',b],['old','長期在庫',d],['sold','売れた',c]].map(([v,t,k])=>({v,t:`${t} ${k}`,h:`${t}<b class="cnt">${k.toLocaleString()}</b>`})), 'status', ()=>{F.location=null;F.location_status=null});
   // 保管場所ごとの数（2026-11-13 在庫の場所一覧を入れたので、場所でしぼれるように）
-  if(F.status==='sold'){ f2.innerHTML=''; return }
+  if(F.status==='sold'||F.status==='old'){ f2.innerHTML=''; return }
   const {data:lc}=await sb.from('items').select('location').eq('status',F.status); const t={};
   (lc||[]).forEach(r=>{ const k=r.location||'未設定'; t[k]=(t[k]||0)+1 });
   const ORD=['自宅','水戸','東京','不明','ワンロック','ネット仕入待ち','未設定'];
@@ -1445,31 +1448,39 @@ function profitCell(r,p){ const o=r.status==='sold'?r.orders?.[0]:null;
   return `<td class="n ${p&&p.p<0?'neg':''}">${p?yen(p.p)+'円':'—'}</td>` }
 const locBadge=l=>{ const t=String(l).replace(/[<>&"]/g,''); return `<span class="loc loc-${t}">${t==='ネット仕入待ち'?'仕入待ち':t}</span>` };
 async function loadItems(){
-  let q = sb.from('items').select(F.status==='sold'?'*,research(name),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy)':'*,research(name)').eq('status',F.status);
-  if(F.location&&F.status!=='sold') q = F.location==='未設定' ? q.is('location',null) : q.eq('location',F.location);
+  const OLD=F.status==='old';
+  // 検索したときは、いま開いているタブに関係なく全部（出品中・保管・売れた）から探す。タイトルとメモの両方を見る（2026-11-15 本人「検索するとおかしい」）
+  const k=kw.value.trim(), SR=!!k;
+  let q = sb.from('items').select(SR||F.status==='sold'?'*,research(name),orders(platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy)':'*,research(name)');
+  if(SR){ if(/^\d+$/.test(k)) q=q.eq('kno',+k); else { const w=k.replace(/[,()%*]/g,' ').trim(); q=q.or(`title.ilike.%${w}%,memo.ilike.%${w}%`) } }
+  else q=OLD?q.in('status',['listed','stock']):q.eq('status',F.status);
+  if(!SR&&!OLD&&F.location&&F.status!=='sold') q = F.location==='未設定' ? q.is('location',null) : q.eq('location',F.location);
   // 売れた分は売れた日の新しい順（品番順だと古い品番の売れた分が埋もれる）
-  if(F.status==='sold') q=q.order('sold_on',{ascending:false,nullsFirst:false});
-  q=q.order('kno',{ascending:false}).limit(F.status==='sold'?120:300);
-  $('v-items').classList.toggle('ls',F.status==='listed');
+  if(F.status==='sold'&&!SR) q=q.order('sold_on',{ascending:false,nullsFirst:false});
+  q=q.order('kno',{ascending:false}).limit(SR?300:F.status==='sold'?120:OLD?2000:300);
+  $('v-items').classList.toggle('ls',F.status==='listed'&&!SR);
   // ラベルは「保管」と「出品中」のタブに出す（2026-10-20 保管だけ→2026-10-29 出品後も作れるように）。ほかのタブに移ったら選ぶモードは終える
-  const lbok=F.status==='stock'||F.status==='listed';
+  const lbok=F.status==='stock'||F.status==='listed'||OLD;
   $('v-items').classList.toggle('stk',lbok); if(!lbok&&LBSEL) labelMode(false);
-  const k=kw.value.trim(); if(k) q = /^\d+$/.test(k) ? q.eq('kno',+k) : q.ilike('title',`%${k}%`);
   let {data,error} = await q; if(error){ itbody.innerHTML=`<tr><td colspan=8 class=neg>${error.message}</td></tr>`; return }
-  cnt.textContent = `${data.length}件を表示しています。`;
+  // 長期在庫タブ：90日以上だけ、古い順。仕入値の合計も出す
+  if(OLD&&!SR) data=data.filter(r=>ageDays(r)>=90).sort((x,y)=>ageDays(y)-ageDays(x));
+  const STN={listed:'出品中',stock:'保管',sold:'売れた'}, cs=s=>data.filter(r=>r.status===s).length;
+  cnt.textContent = SR?`「${k}」の検索結果 ${data.length}件（全部のタブから。出品中 ${cs('listed')}・保管 ${cs('stock')}・売れた ${cs('sold')}）`
+    :OLD?`90日以上売れていない在庫 ${data.length}件（出品中 ${cs('listed')}・保管 ${cs('stock')}）／仕入値の合計 ${yen(data.reduce((t,r)=>t+(r.cost_jpy||0),0))}円。古い順。`:`${data.length}件を表示しています。`;
   // 品番で探して今のタブに無いとき、売れていないか確かめて出す（2026-11-01 本人「いつ売れたかわかるように」）
   if(!data.length&&/^\d+$/.test(k)){ const {data:o}=await sb.from('items').select('status,sold_on,first_listed_on,listed_on,orders(platform,order_no,item_price_jpy)').eq('kno',+k).maybeSingle();
     if(o) cnt.textContent=`品番 ${k}：`+(o.status==='sold'?soldText(o):`「${ST[o.status]||o.status}」のタブにあります`); }
   const nOld=data.filter(r=>ageDays(r)>=180).length; if(nOld) cnt.textContent+=` うち半年以上の長期在庫 ${nOld}件（赤）`;
   // 長期在庫は下にまとめてたたむ（品番で探したときはたたまない）。たたむのは180日以上だけ、90日〜は黄色のまま出す（2026-10-31 本人）
-  const isOld=r=>!k&&ageDays(r)>=180, nFold=data.filter(isOld).length;
+  const isOld=r=>!k&&!OLD&&ageDays(r)>=180, nFold=data.filter(isOld).length;
   data=[...data.filter(r=>!isOld(r)),...data.filter(isOld)]; $('v-items').classList.toggle('foldold',nFold>0);
   itbody.innerHTML = data.map(r=>{ const p=profit(r.price_usd,r.shipping_usd,r.cost_jpy), ad=ageDays(r), ac=ad>=180?' old180':ad>=90?' old90':'';
     const ph=r.photos?.[0]; const img=ph?`<img src="${thumb(ph)}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${ph}'">`:`<span class="noph">${(r.title||(r.memo||'').split('\n')[0].replace(/^台帳：/,'')||'写真なし').replace(/[<>&]/g,'').slice(0,40)}</span>`;
     const lc=r.status!=='sold'&&r.location?locBadge(r.location):'';
     const sd=r.status==='sold'&&r.sold_on?`${+r.sold_on.slice(5,7)}/${+r.sold_on.slice(8,10)}${r.orders?.[0]?.platform?' '+r.orders[0].platform:''}`:'';
     return `<tr class="st-${r.status}${ac}${LBSEL?.has(r.kno)?' lbon':''}" data-kno="${r.kno}"${sd?` data-sold="${sd}"`:''}><td class="ph" onclick="tapItem(${r.kno},this)">${img}${lc}${ac?`<span class="age">${ad}日</span>`:''}</td><td><a class=k onclick="openItem(${r.kno})">${r.kno}</a></td><td>${r.purchased_on||''}</td><td>${r.condition||''}</td>
-    <td><span class=sub>(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
+    <td><span class=sub>${SR?`【${STN[r.status]||r.status}】`:''}(${r.research?.name||''})${sd?'　売れた日 '+r.sold_on+(r.orders?.[0]?.platform?'（'+r.orders[0].platform+'）':''):''}</span><br>${r.title||(r.memo||'').split('\n')[0]||''}</td>
     <td class=n>${r.price_usd?'$'+r.price_usd:''}</td>
     <td class=n>${r.cost_jpy?yen(r.cost_jpy)+'円':'<span class=sub>未入力</span>'}</td>${profitCell(r,p)}<td class="n st">${statCell(r)}</td></tr>` }).join('');
   if(nFold){ const fold=document.createElement('tr'); fold.className='oldfold'; fold.innerHTML=`<td colspan=9></td>`;
@@ -3376,7 +3387,7 @@ async function linkResearch(){ lkmsg.textContent=' 調べています…';
   lkmsg.textContent=` 型番なし${its.length}件のうち ${n}件をつなぎました（残り${its.length-n}件は合う型番が見つかりません）`; }
 
 // 新しい版が出ていたら自動で読み直す（スマホは前の画面を覚えたままになりやすいので）。開いたとき・アプリに戻ったときに確かめる
-const BUILD='20261113095347';
+const BUILD='20261115081330';
 async function checkBuild(){ if(BUILD==='dev'||location.protocol==='file:') return;
   try{ const v=(await (await fetch('version.txt?'+Date.now(),{cache:'no-store'})).text()).trim();
     if(v&&v!==BUILD&&!document.querySelector('dialog[open]')) location.replace(location.pathname+'?v='+encodeURIComponent(v)) }catch(e){} }
